@@ -14,8 +14,8 @@ struct PhotoPickerView: View {
     @State private var showRecognition = false
 
     private let recents: [SamplePhoto] = [
-        .nineArchBridge, .blueTrainBridge, .teaSunset, .trainWindow, .hillTrain, .sigiriya,
-        .colomboSkyline, .jaffnaKovil, .teaEstate, .mistyHills, .ellaRidge, .galleFort,
+        .nineArchBridge, .blueTrainBridge, .teaEstate, .trainWindow, .hillTrain, .sigiriya,
+        .colomboSkyline, .jaffnaKovil, .mistyHills, .templeOfTooth, .coconutTreeHill, .galleFort,
     ]
 
     private var targetTitle: String {

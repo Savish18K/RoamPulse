@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "mistyHills.jpg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

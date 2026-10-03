@@ -45,5 +45,5 @@ UI prototype only: every screen from the Figma prototype is built and navigable,
 (`Data/SampleData.swift`) and a fixed "now" of Sun 13 Dec 2026, 16:40 (`DemoClock`). Nothing is persisted yet.
 Core Data, OpenWeatherMap, notifications, Face ID, Speech, Natural Language, Vision and Core ML are still to be added.
 
-Placeholder photos are gradients. Add an image set to `Assets.xcassets` named like a `SamplePhoto` case
-(e.g. `nineArchBridge`) or `avatar_<name>` (e.g. `avatar_savishka`) to show real images.
+Photos and avatars live in `Assets.xcassets` (`Photos/` and `Avatars/`). Each `SamplePhoto` case loads the image set
+with the same name, and avatars load `avatar_<name>`. Image sources and licences are listed in [CREDITS.md](CREDITS.md).

@@ -304,14 +304,13 @@ enum SampleData {
 
 // MARK: - SamplePhoto
 
-/// Placeholder photos used across the prototype.
+/// Sample photos used across the prototype.
 ///
-/// To show a real picture, add an Image Set to Assets.xcassets named exactly like the
-/// case (e.g. `nineArchBridge`). `PhotoView` uses it automatically and otherwise
-/// falls back to the gradient below.
+/// Each case loads the image set with the same name from Assets.xcassets/Photos
+/// (credits in CREDITS.md). If an image is missing, `PhotoView` falls back to the gradient below.
 enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
-    case nineArchBridge, blueTrainBridge, trainWindow, hillTrain, teaSunset, teaEstate
-    case mistyHills, ellaRidge, sigiriya, colomboSkyline, galleFort, jaffnaKovil
+    case nineArchBridge, blueTrainBridge, trainWindow, hillTrain, teaEstate, mistyHills
+    case sigiriya, colomboSkyline, galleFort, jaffnaKovil
     case templeOfTooth, dambulla, ruwanwelisaya, sriPada, coconutTreeHill
 
     var id: String { rawValue }
@@ -322,10 +321,8 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         case .blueTrainBridge: [Color(hex: 0x2E5E3A), Color(hex: 0x4E8A55), Color(hex: 0x2F6F9F)]
         case .trainWindow: [Color(hex: 0x24476B), Color(hex: 0x4B7F6A), Color(hex: 0x9DB59A)]
         case .hillTrain: [Color(hex: 0x324A3A), Color(hex: 0x6B8F5E), Color(hex: 0xB7C4A8)]
-        case .teaSunset: [Color(hex: 0x3A4A2A), Color(hex: 0x8A6A3A), Color(hex: 0xE0A458)]
-        case .teaEstate: [Color(hex: 0x2C5A2E), Color(hex: 0x5E9A4C), Color(hex: 0xA9C97A)]
+        case .teaEstate: [Color(hex: 0x3A4A2A), Color(hex: 0x8A6A3A), Color(hex: 0xE0A458)]
         case .mistyHills: [Color(hex: 0x4A5A62), Color(hex: 0x7F9399), Color(hex: 0xC7D3D6)]
-        case .ellaRidge: [Color(hex: 0x2A3F3A), Color(hex: 0x557A6A), Color(hex: 0x9BB0A4)]
         case .sigiriya: [Color(hex: 0x3E6B2E), Color(hex: 0x8A7A4A), Color(hex: 0xA0C4E0)]
         case .colomboSkyline: [Color(hex: 0x2B2D5A), Color(hex: 0xC0607A), Color(hex: 0xF2A65A)]
         case .galleFort: [Color(hex: 0x1F4E79), Color(hex: 0x4A90B8), Color(hex: 0xF0C27A)]
@@ -342,10 +339,9 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .nineArchBridge, .blueTrainBridge: "tram.fill"
         case .trainWindow, .hillTrain: "train.side.front.car"
-        case .teaSunset: "sun.horizon.fill"
         case .teaEstate: "leaf.fill"
         case .mistyHills: "cloud.fog.fill"
-        case .ellaRidge, .sigiriya, .sriPada: "mountain.2.fill"
+        case .sigiriya, .sriPada: "mountain.2.fill"
         case .colomboSkyline: "building.2.fill"
         case .galleFort, .coconutTreeHill: "beach.umbrella.fill"
         case .jaffnaKovil, .templeOfTooth, .dambulla, .ruwanwelisaya: "building.columns.fill"
@@ -380,6 +376,14 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
             RecognitionResult(
                 candidates: [.init(name: "Galle Fort Lighthouse", confidence: 0.86), .init(name: RecognitionResult.otherLabel, confidence: 0.09)],
                 sceneTags: ["Beach", "Lighthouse", "Ocean"])
+        case .templeOfTooth:
+            RecognitionResult(
+                candidates: [.init(name: "Temple of the Tooth", confidence: 0.89), .init(name: RecognitionResult.otherLabel, confidence: 0.06)],
+                sceneTags: ["Temple", "Lake", "Architecture"])
+        case .coconutTreeHill:
+            RecognitionResult(
+                candidates: [.init(name: "Coconut Tree Hill", confidence: 0.52), .init(name: "Galle Fort Lighthouse", confidence: 0.21), .init(name: RecognitionResult.otherLabel, confidence: 0.18)],
+                sceneTags: ["Beach", "Palm Trees", "Ocean"])
         default:
             RecognitionResult(
                 candidates: [.init(name: RecognitionResult.otherLabel, confidence: 0.58), .init(name: "Nine Arch Bridge", confidence: 0.21), .init(name: "Sri Pada (Adam's Peak)", confidence: 0.12)],

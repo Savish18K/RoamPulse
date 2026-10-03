@@ -270,6 +270,8 @@ struct GlassPill: View {
             Text(text)
         }
         .font(.subheadline.weight(.semibold))
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)

@@ -88,7 +88,10 @@ struct LandmarkCard: View {
         case .planned:
             PhotoView(photo: landmark.photo).saturation(0.2).opacity(0.5)
         case .notVisited:
-            Theme.raised.overlay { Image(systemName: "binoculars").font(.title).foregroundStyle(.tertiary) }
+            PhotoView(photo: landmark.photo)
+                .saturation(0)
+                .opacity(0.35)
+                .overlay { Image(systemName: "binoculars").font(.title).foregroundStyle(.white.opacity(0.8)) }
         }
     }
 
@@ -158,12 +161,13 @@ struct LandmarkDetailView: View {
         let people = uniquePeople(in: memories)
         let activity = store.trips.flatMap(\.activities).first { $0.title.localizedCaseInsensitiveContains(landmark.name) }
         let visitedDay = memories.first?.day
+        let isVisited = visitedDay != nil || landmark.isFound || landmark.status == .voiceOnly
 
         return GeometryReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HeroHeader(photo: landmark.photo,
-                               pill: visitedDay.map { "Visited • Day \($0)" } ?? "Not visited yet",
+                               pill: statusPill(landmark, visitedDay: visitedDay),
                                height: 300,
                                topInset: proxy.safeAreaInsets.top) {
                         VStack(alignment: .leading, spacing: 6) {
@@ -197,7 +201,7 @@ struct LandmarkDetailView: View {
                     HStack {
                         Text("Memories here").font(.title2.bold())
                         Spacer()
-                        if visitedDay != nil {
+                        if isVisited {
                             Text("Visited")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.green)
@@ -238,6 +242,15 @@ struct LandmarkDetailView: View {
         .navigationTitle(landmark.name)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func statusPill(_ landmark: Landmark, visitedDay: Int?) -> String {
+        if let visitedDay { return "Visited • Day \(visitedDay)" }
+        switch landmark.status {
+        case .recognised, .confirmedByUser, .voiceOnly: return "Visited"
+        case .planned: return "Planned"
+        case .notVisited: return "Not visited yet"
+        }
     }
 
     private func subtitle(_ landmark: Landmark) -> String {
