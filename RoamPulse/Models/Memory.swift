@@ -37,7 +37,7 @@ enum Mood: String, CaseIterable, Identifiable {
 
 /// A journal entry: a voice recording, photos, or both.
 struct Memory: Identifiable, Hashable {
-    let id = UUID()
+    var id = UUID()
     var tripID: UUID
     var title: String
     var date: Date
@@ -171,7 +171,7 @@ struct WeatherAdvisory: Hashable {
     var message: String
 }
 
-/// Saved forecast for a destination (mock until OpenWeatherMap is wired up).
+/// Forecast for a trip's destination (mock until OpenWeatherMap is added in Increment 4).
 struct WeatherSnapshot: Hashable {
     var location: String
     var condition: String

@@ -60,7 +60,7 @@ extension Date {
     func text(_ format: String) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_GB")
-        formatter.calendar = DemoClock.calendar
+        formatter.calendar = Calendar.trip
         formatter.dateFormat = format
         return formatter.string(from: self)
     }

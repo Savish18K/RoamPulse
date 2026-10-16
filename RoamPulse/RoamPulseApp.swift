@@ -4,13 +4,15 @@ import SwiftUI
 
 @main
 struct RoamPulseApp: App {
-    @State private var store = TripStore()
+    /// Built once: Core Data, the real clock and the weather service.
+    @State private var dependencies = AppDependencies.live()
     @State private var router = AppRouter()
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(store)
+                .environment(dependencies)
+                .environment(dependencies.store)
                 .environment(router)
         }
     }
@@ -22,6 +24,7 @@ struct RoamPulseApp: App {
 /// and presents every sheet in the app.
 struct RootView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(TripStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasOnboarded") private var hasOnboarded = false
     @AppStorage("appLockEnabled") private var appLockEnabled = false
@@ -47,28 +50,17 @@ struct RootView: View {
             }
         }
         .sheet(item: $router.activeSheet) { sheet in
-            sheetContent(sheet)
+            SheetContent(sheet: sheet)
+                // A sheet shows its own save errors; the alert below handles everything else.
+                .errorAlert(store)
         }
+        .errorAlert(store, isEnabled: router.activeSheet == nil)
         .preferredColorScheme(appTheme.colorScheme)
         .onAppear { router.isLocked = appLockEnabled }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background && appLockEnabled {
                 router.isLocked = true
             }
-        }
-    }
-
-    @ViewBuilder
-    private func sheetContent(_ sheet: AppSheet) -> some View {
-        switch sheet {
-        case .createTrip: CreateTripView()
-        case .addActivity(let tripID, let day): AddActivityView(tripID: tripID, day: day)
-        case .addExpense(let tripID): AddExpenseView(tripID: tripID)
-        case .recordMemory: RecordMemoryView()
-        case .addPhoto(let memoryID): PhotoPickerView(memoryID: memoryID)
-        case .memory(let id): MemoryDetailView(memoryID: id)
-        case .typeNote(let id): TypeNoteView(memoryID: id)
-        case .about: AboutView()
         }
     }
 }
@@ -78,18 +70,27 @@ struct RootView: View {
 /// The five tabs from the prototype. Each tab has its own NavigationStack.
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(AppDependencies.self) private var dependencies
 
     var body: some View {
         @Bindable var router = router
 
         TabView(selection: $router.selectedTab) {
-            NavigationStack { HomeView().appDestinations() }
-                .tabItem { Label("Home", systemImage: "house") }
-                .tag(AppTab.home)
+            NavigationStack {
+                HomeView(viewModel: HomeViewModel(store: dependencies.store, clock: dependencies.clock,
+                                                  weather: dependencies.weather))
+                    .appDestinations()
+            }
+            .tabItem { Label("Home", systemImage: "house") }
+            .tag(AppTab.home)
 
-            NavigationStack { TripsListView().appDestinations() }
-                .tabItem { Label("Trips", systemImage: "safari") }
-                .tag(AppTab.trips)
+            NavigationStack {
+                TripsListView(viewModel: TripsListViewModel(store: dependencies.store, clock: dependencies.clock,
+                                                            weather: dependencies.weather))
+                    .appDestinations()
+            }
+            .tabItem { Label("Trips", systemImage: "safari") }
+            .tag(AppTab.trips)
 
             NavigationStack { JournalView().appDestinations() }
                 .tabItem { Label("Journal", systemImage: "book") }
@@ -107,8 +108,10 @@ struct MainTabView: View {
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview()
     MainTabView()
-        .environment(TripStore())
+        .environment(dependencies)
+        .environment(dependencies.store)
         .environment(AppRouter())
         .preferredColorScheme(.dark)
 }

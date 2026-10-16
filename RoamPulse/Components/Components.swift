@@ -474,10 +474,12 @@ struct HeroHeader<Content: View>: View {
 
 /// Segmented control styled like the prototype (dark track, raised selected pill).
 /// `dots` marks options with an orange dot, e.g. a day with a weather advisory.
+/// `onDrop` (optional) lets things be dragged onto an option, e.g. an activity onto "Day 3".
 struct SegmentedTabs: View {
     let options: [String]
     @Binding var selection: Int
     var dots: Set<Int> = []
+    var onDrop: ((Int, [String]) -> Bool)?
     @Namespace private var namespace
 
     var body: some View {
@@ -522,9 +524,32 @@ struct SegmentedTabs: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == index ? .isSelected : [])
+                .modifier(DropTarget(index: index, onDrop: onDrop))
             }
         }
         .padding(4)
+    }
+}
+
+/// Makes a segment accept dropped text and outlines it while something is dragged over it.
+private struct DropTarget: ViewModifier {
+    let index: Int
+    let onDrop: ((Int, [String]) -> Bool)?
+    @State private var isTargeted = false
+
+    func body(content: Content) -> some View {
+        if let onDrop {
+            content
+                .dropDestination(for: String.self) { items, _ in
+                    onDrop(index, items)
+                } isTargeted: { isTargeted = $0 }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.blue, lineWidth: isTargeted ? 2 : 0)
+                }
+        } else {
+            content
+        }
     }
 }
 
@@ -543,5 +568,32 @@ struct ProgressRing: View {
                 .rotationEffect(.degrees(-90))
         }
         .animation(.spring, value: progress)
+    }
+}
+
+// MARK: - Errors & previews
+
+extension View {
+    /// Shows the store's error message (a failed save, for example) as an alert.
+    func errorAlert(_ store: TripStore, isEnabled: Bool = true) -> some View {
+        alert(
+            "Something went wrong",
+            isPresented: Binding(
+                get: { isEnabled && store.errorMessage != nil },
+                set: { if !$0 { store.errorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(store.errorMessage ?? "")
+        }
+    }
+
+    /// Everything a screen reads from the environment, for SwiftUI previews.
+    func previewEnvironment(_ dependencies: AppDependencies) -> some View {
+        environment(dependencies)
+            .environment(dependencies.store)
+            .environment(AppRouter())
+            .preferredColorScheme(.dark)
     }
 }

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24000" systemVersion="25G0" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="ActivityEntity" representedClassName="ActivityEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="day" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="effort" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isDone" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isOutdoor" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="minutes" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="place" optional="YES" attributeType="String"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="activities" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="ExpenseEntity" representedClassName="ExpenseEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="amount" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="category" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="splitMethod" optional="YES" attributeType="String"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="paidBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemberEntity" inverseName="paidExpenses" inverseEntity="MemberEntity"/>
+        <relationship name="shares" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ExpenseShareEntity" inverseName="expense" inverseEntity="ExpenseShareEntity"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="expenses" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="ExpenseShareEntity" representedClassName="ExpenseShareEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="amount" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="expense" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ExpenseEntity" inverseName="shares" inverseEntity="ExpenseEntity"/>
+        <relationship name="member" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemberEntity" inverseName="shares" inverseEntity="MemberEntity"/>
+    </entity>
+    <entity name="ForecastCacheEntity" representedClassName="ForecastCacheEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="fetchedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="payload" optional="YES" attributeType="Binary"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="forecast" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="MemberEntity" representedClassName="MemberEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="colorHex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="initials" optional="YES" attributeType="String"/>
+        <attribute name="isMe" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="memories" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="MemoryEntity" inverseName="people" inverseEntity="MemoryEntity"/>
+        <relationship name="paidExpenses" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ExpenseEntity" inverseName="paidBy" inverseEntity="ExpenseEntity"/>
+        <relationship name="paymentsMade" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PaymentEntity" inverseName="payer" inverseEntity="PaymentEntity"/>
+        <relationship name="paymentsReceived" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PaymentEntity" inverseName="receiver" inverseEntity="PaymentEntity"/>
+        <relationship name="shares" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ExpenseShareEntity" inverseName="member" inverseEntity="ExpenseShareEntity"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="members" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="MemoryEntity" representedClassName="MemoryEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="audioFileName" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="day" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="duration" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isVisited" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="landmark" optional="YES" attributeType="String"/>
+        <attribute name="landmarkConfidence" optional="YES" attributeType="Double" usesScalarValueType="NO"/>
+        <attribute name="linkedActivity" optional="YES" attributeType="String"/>
+        <attribute name="mood" optional="YES" attributeType="String"/>
+        <attribute name="place" optional="YES" attributeType="String"/>
+        <attribute name="placeTags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData" customClassName="[String]"/>
+        <attribute name="sceneTags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData" customClassName="[String]"/>
+        <attribute name="sentiment" optional="YES" attributeType="Double" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="transcript" optional="YES" attributeType="String"/>
+        <attribute name="transcriptUnavailable" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="people" optional="YES" toMany="YES" deletionRule="Nullify" ordered="YES" destinationEntity="MemberEntity" inverseName="memories" inverseEntity="MemberEntity"/>
+        <relationship name="photos" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="PhotoEntity" inverseName="memory" inverseEntity="PhotoEntity"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="memories" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="PackingItemEntity" representedClassName="PackingItemEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="category" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isPacked" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="packingItems" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="PaymentEntity" representedClassName="PaymentEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="amount" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="payer" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemberEntity" inverseName="paymentsMade" inverseEntity="MemberEntity"/>
+        <relationship name="receiver" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemberEntity" inverseName="paymentsReceived" inverseEntity="MemberEntity"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="payments" inverseEntity="TripEntity"/>
+    </entity>
+    <entity name="PhotoEntity" representedClassName="PhotoEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="assetName" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fileName" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="memory" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemoryEntity" inverseName="photos" inverseEntity="MemoryEntity"/>
+    </entity>
+    <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="budget" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="coverName" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="destination" optional="YES" attributeType="String"/>
+        <attribute name="endDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="remindersOn" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="activities" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ActivityEntity" inverseName="trip" inverseEntity="ActivityEntity"/>
+        <relationship name="expenses" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ExpenseEntity" inverseName="trip" inverseEntity="ExpenseEntity"/>
+        <relationship name="forecast" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="ForecastCacheEntity" inverseName="trip" inverseEntity="ForecastCacheEntity"/>
+        <relationship name="members" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="MemberEntity" inverseName="trip" inverseEntity="MemberEntity"/>
+        <relationship name="memories" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MemoryEntity" inverseName="trip" inverseEntity="MemoryEntity"/>
+        <relationship name="packingItems" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="PackingItemEntity" inverseName="trip" inverseEntity="PackingItemEntity"/>
+        <relationship name="payments" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="PaymentEntity" inverseName="trip" inverseEntity="PaymentEntity"/>
+    </entity>
+</model>
