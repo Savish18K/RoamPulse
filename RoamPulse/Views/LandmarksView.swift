@@ -304,7 +304,5 @@ struct LandmarkDetailView: View {
 
 #Preview {
     NavigationStack { LandmarkDetailView(landmarkID: SampleData.landmarks[0].id) }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }

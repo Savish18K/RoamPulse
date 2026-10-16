@@ -4,28 +4,31 @@ import Charts
 // MARK: - ExpensesView
 
 struct ExpensesView: View {
-    let tripID: UUID
-    @Environment(TripStore.self) private var store
+    @State private var viewModel: ExpensesViewModel
     @Environment(AppRouter.self) private var router
 
+    init(viewModel: ExpensesViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
+
     var body: some View {
-        if let trip = store.trip(tripID) {
+        if let trip = viewModel.trip {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     budgetCard(trip)
 
-                    if !trip.balances.isEmpty {
+                    if !viewModel.balances.isEmpty {
                         Text("Balances").font(.title3.bold())
                         VStack(spacing: 0) {
-                            ForEach(trip.balances) { balance in
+                            ForEach(viewModel.balances) { balance in
                                 HStack(spacing: 12) {
                                     AvatarView(member: balance.member, size: 30)
                                     Text(balance.text)
-                                        .foregroundStyle(balance.amount >= 0 ? .green : .primary)
+                                        .foregroundStyle(balance.amount > 0 ? .green : .primary)
                                     Spacer()
                                 }
                                 .padding(14)
-                                if balance.id != trip.balances.last?.id {
+                                if balance.id != viewModel.balances.last?.id {
                                     Divider().padding(.leading, 56)
                                 }
                             }
@@ -33,17 +36,21 @@ struct ExpensesView: View {
                         .card(padding: 0)
                     }
 
-                    ForEach(expenseDays(trip), id: \.self) { day in
-                        SectionLabel(day.text("EEEE d MMM"))
+                    ForEach(viewModel.expenseDays) { group in
+                        SectionLabel(group.day.text("EEEE d MMM"))
                             .padding(.top, 6)
-                        let expenses = trip.expenses
-                            .filter { DemoClock.calendar.isDate($0.date, inSameDayAs: day) }
-                            .sorted { $0.date > $1.date }
                         VStack(spacing: 0) {
-                            ForEach(expenses) { expense in
-                                ExpenseRow(expense: expense)
-                                    .padding(.horizontal, 14)
-                                if expense.id != expenses.last?.id {
+                            ForEach(group.expenses) { expense in
+                                Button {
+                                    router.activeSheet = .editExpense(tripID: trip.id, expenseID: expense.id)
+                                } label: {
+                                    ExpenseRow(expense: expense)
+                                        .padding(.horizontal, 14)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu { expenseMenu(expense, trip: trip) }
+                                if expense.id != group.expenses.last?.id {
                                     Divider().padding(.leading, 60)
                                 }
                             }
@@ -51,7 +58,7 @@ struct ExpensesView: View {
                         .card(padding: 0)
                     }
 
-                    if trip.expenses.isEmpty {
+                    if viewModel.isEmpty {
                         ContentUnavailableView("No expenses yet", systemImage: "creditcard",
                                                description: Text("Add the first shared cost for this trip."))
                     }
@@ -63,10 +70,10 @@ struct ExpensesView: View {
             .navigationTitle("Expenses")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: settlementSummary(trip)) {
+                    ShareLink(item: viewModel.shareSummary, subject: Text("\(trip.name) expenses")) {
                         Image(systemName: "square.and.arrow.up")
                     }
-                    .accessibilityLabel("Share settlement summary")
+                    .accessibilityLabel("Share expense summary")
                 }
             }
             .toolbar(.hidden, for: .tabBar)
@@ -76,11 +83,27 @@ struct ExpensesView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
             }
+            .confirmationDialog(
+                "Delete this expense?",
+                isPresented: Binding(
+                    get: { viewModel.expensePendingDelete != nil },
+                    set: { if !$0 { viewModel.expensePendingDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: viewModel.expensePendingDelete
+            ) { expense in
+                Button("Delete \(expense.title)", role: .destructive) {
+                    withAnimation { viewModel.confirmDelete() }
+                }
+            } message: { _ in
+                Text("Balances and the settle-up plan will be worked out again.")
+            }
         }
     }
 
     private func budgetCard(_ trip: Trip) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let status = viewModel.budgetStatus
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("SPENT BUDGET").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
@@ -88,29 +111,38 @@ struct ExpensesView: View {
                     .font(.subheadline)
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(trip.budgetLeft.lkr).font(.title.bold())
-                Text("left of \(trip.budget.grouped)").font(.subheadline).foregroundStyle(.secondary)
+                Text(viewModel.headline)
+                    .font(.title.bold())
+                    .foregroundStyle(status == .overBudget ? .red : .primary)
+                Text(viewModel.headlineCaption).font(.subheadline).foregroundStyle(.secondary)
             }
-            ProgressView(value: trip.spentFraction)
-                .tint(trip.spentFraction >= 0.9 ? .orange : .primary)
-            if trip.spentFraction >= 0.9 {
-                Label("You have used 90% of the budget.", systemImage: "exclamationmark.triangle")
+            if status != .noBudget {
+                ProgressView(value: viewModel.spentFraction)
+                    .tint(status.color)
+                    .accessibilityLabel("Budget used")
+                    .accessibilityValue(viewModel.spentFraction.percentText)
+            }
+            if let message = status.message {
+                Label(message, systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(status.color)
             }
         }
         .card()
     }
 
-    private func expenseDays(_ trip: Trip) -> [Date] {
-        let days = Set(trip.expenses.map { DemoClock.calendar.startOfDay(for: $0.date) })
-        return days.sorted(by: >)
-    }
-
-    private func settlementSummary(_ trip: Trip) -> String {
-        var lines = ["\(trip.name) — settle up", "Total spent: \(trip.totalSpent.lkr)"]
-        lines += trip.settlements.map { "\($0.from.name) pays \($0.to.name) \($0.amount.lkr)" }
-        return lines.joined(separator: "\n")
+    @ViewBuilder
+    private func expenseMenu(_ expense: Expense, trip: Trip) -> some View {
+        Button {
+            router.activeSheet = .editExpense(tripID: trip.id, expenseID: expense.id)
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        Button(role: .destructive) {
+            viewModel.requestDelete(expense)
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
     }
 }
 
@@ -140,54 +172,67 @@ struct ExpenseRow: View {
         .padding(.vertical, 10)
     }
 
+    /// "Paid by Samee • You owe LKR 850" when someone else paid for you, otherwise how it was split.
     private var subtitle: String {
-        let split = expense.paidBy.isMe || !expense.splitWith.contains(where: \.isMe)
-            ? "Split equally"
-            : "You owe \(expense.share.lkr)"
+        if !expense.paidBy.isMe, let me = expense.participants.first(where: \.isMe) {
+            return "Paid by \(expense.paidBy.name) • You owe \(expense.share(of: me).lkr)"
+        }
+        let split = expense.splitMethod == .custom ? "Custom split" : "Split equally"
         return "Paid by \(expense.paidBy.name) • \(split)"
     }
 }
 
 #Preview {
-    NavigationStack { ExpensesView(tripID: SampleData.hillCountry.id) }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+    let dependencies = AppDependencies.preview()
+    NavigationStack {
+        ExpensesView(viewModel: ExpensesViewModel(tripID: dependencies.previewTripID, store: dependencies.store))
+    }
+    .previewEnvironment(dependencies)
 }
 
 // MARK: - ExpenseAnalyticsView
 
 struct ExpenseAnalyticsView: View {
-    let tripID: UUID
-    @Environment(TripStore.self) private var store
+    @State private var viewModel: ExpenseAnalyticsViewModel
     @State private var mode = 0
 
-    private struct DailyTotal: Identifiable {
-        let date: Date
-        let amount: Double
-        var id: Date { date }
+    init(viewModel: ExpenseAnalyticsViewModel) {
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
-        if let trip = store.trip(tripID) {
+        if viewModel.trip != nil {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     SegmentedTabs(options: ["Categories", "Daily"], selection: $mode)
 
                     if mode == 0 {
-                        categoryCard(trip)
+                        categoryCard
                     }
                     SectionLabel("Daily Spent")
-                    dailyCard(trip)
+                    dailyCard
 
                     Text("Settle-up Suggestions")
                         .font(.title3.bold())
                         .padding(.top, 8)
-                    if trip.settlements.isEmpty {
-                        Text("Everyone is settled up.").foregroundStyle(.secondary).card()
+                    if viewModel.settlements.isEmpty {
+                        Label("Everyone is settled up.", systemImage: "checkmark.seal")
+                            .foregroundStyle(.secondary)
+                            .card()
                     }
-                    ForEach(trip.settlements) { settlement in
-                        settlementRow(settlement, tripID: trip.id)
+                    ForEach(viewModel.settlements) { settlement in
+                        settlementRow(settlement)
+                    }
+
+                    if !viewModel.payments.isEmpty {
+                        SectionLabel("Payments made").padding(.top, 8)
+                        VStack(spacing: 0) {
+                            ForEach(viewModel.payments) { payment in
+                                paymentRow(payment)
+                                if payment.id != viewModel.payments.last?.id { Divider() }
+                            }
+                        }
+                        .card(padding: 0)
                     }
                 }
                 .padding(.horizontal)
@@ -198,11 +243,11 @@ struct ExpenseAnalyticsView: View {
         }
     }
 
-    private func categoryCard(_ trip: Trip) -> some View {
+    private var categoryCard: some View {
         HStack(spacing: 20) {
             Chart(ExpenseCategory.allCases) { category in
                 SectorMark(
-                    angle: .value("Amount", trip.spent(on: category)),
+                    angle: .value("Amount", viewModel.spent(on: category)),
                     innerRadius: .ratio(0.62),
                     angularInset: 1.5
                 )
@@ -212,10 +257,10 @@ struct ExpenseAnalyticsView: View {
             .overlay {
                 VStack(spacing: 0) {
                     Text("TOTAL").font(.caption2).foregroundStyle(.secondary)
-                    Text(trip.totalSpent.compact).font(.title3.bold())
+                    Text(viewModel.totalSpent.compact).font(.title3.bold())
                 }
             }
-            .accessibilityLabel("Total spent \(trip.totalSpent.lkr)")
+            .accessibilityLabel("Total spent \(viewModel.totalSpent.lkr)")
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(ExpenseCategory.allCases) { category in
@@ -223,7 +268,7 @@ struct ExpenseAnalyticsView: View {
                         Circle().fill(category.color).frame(width: 8, height: 8)
                         Text(category.rawValue).font(.subheadline.bold())
                         Spacer()
-                        Text(trip.spent(on: category).lkr)
+                        Text(viewModel.spent(on: category).lkr)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -233,12 +278,8 @@ struct ExpenseAnalyticsView: View {
         .card(padding: 20)
     }
 
-    private func dailyCard(_ trip: Trip) -> some View {
-        let totals = Dictionary(grouping: trip.expenses) { DemoClock.calendar.startOfDay(for: $0.date) }
-            .map { DailyTotal(date: $0.key, amount: $0.value.reduce(0) { $0 + $1.amount }) }
-            .sorted { $0.date < $1.date }
-
-        return Chart(totals) { total in
+    private var dailyCard: some View {
+        Chart(viewModel.dailyTotals) { total in
             BarMark(
                 x: .value("Day", total.date.text("EEE d")),
                 y: .value("Spent", total.amount),
@@ -255,7 +296,7 @@ struct ExpenseAnalyticsView: View {
         .card(padding: 20)
     }
 
-    private func settlementRow(_ settlement: Settlement, tripID: UUID) -> some View {
+    private func settlementRow(_ settlement: Settlement) -> some View {
         HStack(spacing: 10) {
             AvatarView(member: settlement.from, size: 36)
             Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
@@ -268,48 +309,56 @@ struct ExpenseAnalyticsView: View {
             }
             .padding(.leading, 4)
             Spacer()
-            Button {
-                withAnimation { store.toggleSettled(settlement.id, in: tripID) }
-            } label: {
-                Label(settlement.isSettled ? "Settled" : "Settle",
-                      systemImage: settlement.isSettled ? "checkmark" : "arrow.left.arrow.right")
-                    .labelStyle(.titleOnly)
+            Button("Settle") {
+                withAnimation { viewModel.settle(settlement) }
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: false, height: 36))
+            .accessibilityLabel("Mark \(settlement.from.name) paid \(settlement.to.name) \(settlement.amount.lkr)")
         }
-        .opacity(settlement.isSettled ? 0.5 : 1)
         .card(padding: 14)
+    }
+
+    private func paymentRow(_ payment: Payment) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(payment.from.name) paid \(payment.to.name)").font(.subheadline.bold())
+                Text("\(payment.amount.lkr) • \(payment.date.text("d MMM HH:mm"))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Undo") {
+                withAnimation { viewModel.undo(payment) }
+            }
+            .font(.subheadline)
+        }
+        .padding(14)
     }
 }
 
 #Preview {
-    NavigationStack { ExpenseAnalyticsView(tripID: SampleData.hillCountry.id) }
-        .environment(TripStore())
-        .preferredColorScheme(.dark)
+    let dependencies = AppDependencies.preview()
+    NavigationStack {
+        ExpenseAnalyticsView(viewModel: ExpenseAnalyticsViewModel(tripID: dependencies.previewTripID,
+                                                                  store: dependencies.store, clock: dependencies.clock))
+    }
+    .previewEnvironment(dependencies)
 }
 
-// MARK: - AddExpenseView
+// MARK: - ExpenseFormView
 
-/// Add Expense sheet with its own number pad, like the prototype.
-struct AddExpenseView: View {
-    let tripID: UUID
-
-    @Environment(TripStore.self) private var store
+/// Add Expense and Edit Expense, with its own number pad like the prototype.
+/// The number pad types into whichever amount is selected: the total, or a person's share.
+struct ExpenseFormView: View {
+    @State private var viewModel: ExpenseFormViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var amountText = ""
-    @State private var note = ""
-    @State private var category: ExpenseCategory = .transport
-    @State private var paidByID: UUID?
-    @State private var excludedIDs: Set<UUID> = []
+    private let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", AmountInput.deleteKey]
 
-    private let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"]
-
-    private var trip: Trip? { store.trip(tripID) }
-    private var members: [Member] { trip?.members ?? [] }
-    private var amount: Double { Double(amountText) ?? 0 }
-    private var paidBy: Member? { members.first { $0.id == paidByID } ?? members.first(where: \.isMe) ?? members.first }
-    private var splitWith: [Member] { members.filter { !excludedIDs.contains($0.id) } }
+    init(viewModel: ExpenseFormViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
         NavigationStack {
@@ -318,14 +367,14 @@ struct AddExpenseView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         amountDisplay
 
-                        TextField("Tuk-tuk to Nine Arch Bridge", text: $note)
+                        TextField("Tuk-tuk to Nine Arch Bridge", text: $viewModel.note)
                             .fieldStyle()
 
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("Category")
                             FlowLayout {
                                 ForEach(ExpenseCategory.allCases) { item in
-                                    Button { category = item } label: { categoryChip(item) }
+                                    Button { viewModel.category = item } label: { categoryChip(item) }
                                         .buttonStyle(.plain)
                                 }
                             }
@@ -335,8 +384,8 @@ struct AddExpenseView: View {
                             SectionLabel("Paid By")
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(members) { member in
-                                        Button { paidByID = member.id } label: { payerChip(member) }
+                                    ForEach(viewModel.members) { member in
+                                        Button { viewModel.payerID = member.id } label: { payerChip(member) }
                                             .buttonStyle(.plain)
                                     }
                                 }
@@ -350,7 +399,7 @@ struct AddExpenseView: View {
                 }
                 keypad
             }
-            .navigationTitle("Add Expense")
+            .navigationTitle(viewModel.screenTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -365,34 +414,50 @@ struct AddExpenseView: View {
     // MARK: - Sections
 
     private var amountDisplay: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("LKR").font(.title.bold()).foregroundStyle(.secondary)
-            Text(displayAmount)
-                .font(.system(size: 56, weight: .bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .contentTransition(.numericText())
+        let isActive = viewModel.activeField == .total
+        return Button {
+            viewModel.activeField = .total
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("LKR").font(.title.bold()).foregroundStyle(.secondary)
+                Text(viewModel.text(for: .total))
+                    .font(.system(size: 56, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .overlay(alignment: .bottom) {
+                // Only needs highlighting when the number pad can also type into a share.
+                if viewModel.splitMethod == .custom {
+                    Capsule().fill(isActive ? Color.blue : .clear).frame(width: 60, height: 3)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Amount \(viewModel.amount.lkr)")
     }
 
     private func categoryChip(_ item: ExpenseCategory) -> some View {
-        HStack(spacing: 6) {
+        let isSelected = viewModel.category == item
+        return HStack(spacing: 6) {
             Circle()
-                .fill(category == item ? .white : item.color)
+                .fill(isSelected ? .white : item.color)
                 .frame(width: 8, height: 8)
             Text(item.rawValue)
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(category == item ? .white : .primary)
+        .foregroundStyle(isSelected ? .white : .primary)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(category == item ? Color.blue : Theme.card, in: Capsule())
+        .background(isSelected ? Color.blue : Theme.card, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.stroke))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func payerChip(_ member: Member) -> some View {
-        let isSelected = paidBy?.id == member.id
+        let isSelected = viewModel.payer?.id == member.id
         return HStack(spacing: 8) {
             AvatarView(member: member, size: 30)
             Text(member.name).font(.subheadline.weight(isSelected ? .semibold : .regular))
@@ -401,58 +466,112 @@ struct AddExpenseView: View {
         .padding(.trailing, 8)
         .background(isSelected ? Theme.card : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? Color.blue : .clear, lineWidth: 1.5))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var splitSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                SectionLabel("Split With")
-                Text("Split equally").font(.subheadline).foregroundStyle(.green)
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel("Split With")
+            SegmentedTabs(
+                options: SplitMethod.allCases.map(\.rawValue),
+                selection: Binding(
+                    get: { SplitMethod.allCases.firstIndex(of: viewModel.splitMethod) ?? 0 },
+                    set: { viewModel.setSplitMethod(SplitMethod.allCases[$0]) }
+                )
+            )
+
+            switch viewModel.splitMethod {
+            case .equal: equalSplit
+            case .custom: customSplit
             }
-            HStack(spacing: 12) {
-                HStack(spacing: -10) {
-                    ForEach(members) { member in
-                        Button {
-                            if excludedIDs.contains(member.id) {
-                                excludedIDs.remove(member.id)
-                            } else if splitWith.count > 1 {
-                                excludedIDs.insert(member.id)
-                            }
-                        } label: {
-                            AvatarView(member: member, size: 40)
-                                .overlay(Circle().strokeBorder(Theme.background, lineWidth: 2))
-                                .opacity(excludedIDs.contains(member.id) ? 0.3 : 1)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                Text(splitSummary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+
+            if let message = viewModel.validationMessage {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
             }
         }
     }
 
-    private var splitSummary: String {
-        let count = splitWith.count
-        let who = count == members.count ? "All \(count) members active" : "\(count) of \(members.count) members"
-        return "\(who) • \((amount / Double(max(count, 1))).lkr) each"
+    private var equalSplit: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: -10) {
+                ForEach(viewModel.members) { member in
+                    Button {
+                        viewModel.toggleParticipant(member)
+                    } label: {
+                        AvatarView(member: member, size: 40)
+                            .overlay(Circle().strokeBorder(Theme.background, lineWidth: 2))
+                            .opacity(viewModel.isIncluded(member) ? 1 : 0.3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(viewModel.isIncluded(member) ? "In the split" : "Left out")
+                }
+            }
+            Text(viewModel.equalSummary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var customSplit: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 0) {
+                ForEach(viewModel.members) { member in
+                    let field = ExpenseFormViewModel.Field.share(member.id)
+                    let isActive = viewModel.activeField == field
+                    Button {
+                        viewModel.activeField = field
+                    } label: {
+                        HStack(spacing: 12) {
+                            AvatarView(member: member, size: 30)
+                            Text(member.name)
+                            Spacer()
+                            Text("LKR \(viewModel.text(for: field))")
+                                .font(.headline)
+                                .monospacedDigit()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(isActive ? Color.blue.opacity(0.18) : Theme.fill,
+                                            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(isActive ? Color.blue : .clear, lineWidth: 1.5))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(member.name)'s share")
+                    .accessibilityValue(viewModel.shareAmount(for: member).lkr)
+                    .accessibilityHint("Double tap, then type the amount on the number pad")
+                    if member.id != viewModel.members.last?.id { Divider() }
+                }
+            }
+            .card(padding: 0, fill: Theme.raised)
+
+            Text(viewModel.customSummary)
+                .font(.subheadline)
+                .foregroundStyle(viewModel.unassigned == 0 ? .green : .secondary)
+        }
     }
 
     // MARK: - Keypad
 
     private var keypad: some View {
         VStack(spacing: 10) {
-            Button("Add \(amount.lkr)", action: add)
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(amount <= 0)
+            Button(viewModel.saveTitle) {
+                if viewModel.save() { dismiss() }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(!viewModel.canSave)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(keys, id: \.self) { key in
                     Button {
-                        press(key)
+                        viewModel.press(key)
                     } label: {
                         Group {
-                            if key == "⌫" {
+                            if key == AmountInput.deleteKey {
                                 Image(systemName: "delete.left")
                             } else {
                                 Text(key)
@@ -463,55 +582,23 @@ struct AddExpenseView: View {
                         .background(Theme.raised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(key == "⌫" ? "Delete" : key)
+                    .accessibilityLabel(key == AmountInput.deleteKey ? "Delete" : key)
                 }
             }
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .background(Theme.card)
-        .sensoryFeedback(.impact(weight: .light), trigger: amountText)
-    }
-
-    private var displayAmount: String {
-        guard !amountText.isEmpty else { return "0" }
-        let parts = amountText.split(separator: ".", omittingEmptySubsequences: false)
-        let whole = (Double(parts[0]) ?? 0).grouped
-        return parts.count > 1 ? "\(whole).\(parts[1])" : whole
-    }
-
-    private func press(_ key: String) {
-        switch key {
-        case "⌫":
-            if !amountText.isEmpty { amountText.removeLast() }
-        case ".":
-            if !amountText.contains(".") { amountText += amountText.isEmpty ? "0." : "." }
-        default:
-            if let dot = amountText.firstIndex(of: "."), amountText.distance(from: dot, to: amountText.endIndex) > 2 { return }
-            if amountText.count >= 9 { return }
-            if amountText == "0" { amountText = key } else { amountText += key }
-        }
-    }
-
-    private func add() {
-        guard let paidBy else { return }
-        let expense = Expense(
-            title: note.trimmingCharacters(in: .whitespaces).isEmpty ? category.rawValue : note,
-            amount: amount,
-            category: category,
-            paidBy: paidBy,
-            splitWith: splitWith,
-            date: DemoClock.now
-        )
-        store.addExpense(expense, to: tripID)
-        dismiss()
+        .sensoryFeedback(.impact(weight: .light), trigger: viewModel.amount)
     }
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview()
     Text("Expenses")
         .sheet(isPresented: .constant(true)) {
-            AddExpenseView(tripID: SampleData.hillCountry.id).environment(TripStore())
+            ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: dependencies.previewTripID,
+                                                            store: dependencies.store, clock: dependencies.clock))
         }
-        .preferredColorScheme(.dark)
+        .previewEnvironment(dependencies)
 }

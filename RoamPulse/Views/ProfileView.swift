@@ -23,9 +23,9 @@ struct ProfileView: View {
                 .padding(.top, 24)
 
                 HStack(spacing: 0) {
-                    stat("\(store.trips.filter { $0.status() != .upcoming }.count)", "Trips")
+                    stat("\(store.travelledTrips.count)", "Trips")
                     Divider().frame(height: 36)
-                    stat("\(SampleData.placesVisited)", "Places")
+                    stat("\(store.placesVisited)", "Places")
                     Divider().frame(height: 36)
                     stat("\(store.memories.count)", "Memories")
                 }
@@ -136,9 +136,7 @@ extension SettingsRow where Trailing == EmptyView {
 
 #Preview {
     NavigationStack { ProfileView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }
 
 // MARK: - StatisticsView
@@ -151,15 +149,17 @@ struct StatisticsView: View {
     /// Rough LKR → USD rate for the "equivalent" line.
     private let usdRate = 300.3
 
+    private var thisYear: Int { Calendar.trip.component(.year, from: store.now) }
+
     private var trips: [Trip] {
-        let travelled = store.trips.filter { $0.status() != .upcoming }
+        let travelled = store.travelledTrips
         guard range == 0 else { return travelled }
-        return travelled.filter { DemoClock.calendar.component(.year, from: $0.startDate) == 2026 }
+        return travelled.filter { Calendar.trip.component(.year, from: $0.startDate) == thisYear }
     }
 
     private var daysTravelled: Int {
         trips.reduce(0) { total, trip in
-            total + (trip.status() == .active ? (trip.dayNumber() ?? 0) : trip.dayCount)
+            total + (trip.status(at: store.now) == .active ? (trip.dayNumber(at: store.now) ?? 0) : trip.dayCount)
         }
     }
 
@@ -169,12 +169,12 @@ struct StatisticsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                SegmentedTabs(options: ["2026", "All time"], selection: $range)
+                SegmentedTabs(options: [String(thisYear), "All time"], selection: $range)
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
                     tile("Trips", "\(trips.count)")
                     tile("Days", "\(daysTravelled)")
-                    tile("Places", "\(SampleData.placesVisited)")
+                    tile("Places", "\(TripStore.placesVisited(in: trips))")
                     tile("Memories", "\(store.memories.count)")
                 }
 
@@ -292,9 +292,7 @@ struct StatisticsView: View {
 
 #Preview {
     NavigationStack { StatisticsView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }
 
 // MARK: - SettingsView
@@ -382,6 +380,14 @@ struct SettingsView: View {
                     } label: {
                         SettingsRow(icon: "trash", iconColor: .red, title: "Delete all data", titleColor: .red)
                     }
+                    if store.trips.isEmpty {
+                        Divider().padding(.leading, 56)
+                        Button {
+                            store.loadSampleData()
+                        } label: {
+                            SettingsRow(icon: "tray.and.arrow.down", title: "Load sample trips")
+                        }
+                    }
                     Divider().padding(.leading, 56)
                     ShareLink(item: exportSummary) {
                         SettingsRow(icon: "square.and.arrow.up", title: "Export local database")
@@ -404,7 +410,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .confirmationDialog("Delete all data?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete All Data", role: .destructive) {
-                store.resetAll()
+                store.deleteAllData()
                 appLockEnabled = false
                 router.selectedTab = .home
                 hasOnboarded = false
@@ -503,7 +509,5 @@ struct AboutView: View {
 
 #Preview {
     NavigationStack { SettingsView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }

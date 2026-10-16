@@ -19,7 +19,8 @@ struct OfflineMapView: View {
         VStack(spacing: 0) {
             header
             ZStack(alignment: .top) {
-                TopoMap(showsContours: showsContours, targetName: targetName, members: trip?.members ?? [])
+                TopoMap(showsContours: showsContours, targetName: targetName, members: trip?.members ?? [],
+                        timeText: store.now.text("HH:mm"))
                 statusChips
                 mapControls
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -236,6 +237,7 @@ private struct TopoMap: View {
     let showsContours: Bool
     let targetName: String
     let members: [Member]
+    let timeText: String
 
     // Positions as fractions of the map size.
     private let you = CGPoint(x: 0.26, y: 0.80)
@@ -275,7 +277,7 @@ private struct TopoMap: View {
                         .frame(width: 18, height: 18)
                         .overlay(Circle().strokeBorder(.white, lineWidth: 3))
                         .shadow(color: .blue, radius: 8)
-                    Text("You (\(DemoClock.minutesNow.clockText))")
+                    Text("You (\(timeText))")
                         .font(.caption.bold())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -381,7 +383,7 @@ private struct ElevationProfile: View {
 }
 
 #Preview {
-    NavigationStack { OfflineMapView(tripID: SampleData.hillCountry.id) }
-        .environment(TripStore())
-        .preferredColorScheme(.dark)
+    let dependencies = AppDependencies.preview()
+    NavigationStack { OfflineMapView(tripID: dependencies.previewTripID) }
+        .previewEnvironment(dependencies)
 }

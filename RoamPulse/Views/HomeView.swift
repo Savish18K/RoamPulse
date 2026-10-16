@@ -1,27 +1,35 @@
 import SwiftUI
 
 struct HomeView: View {
-    @Environment(TripStore.self) private var store
+    @State private var viewModel: HomeViewModel
     @Environment(AppRouter.self) private var router
 
+    init(viewModel: HomeViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                header
-                if let trip = store.activeTrip {
-                    tripContent(trip)
-                } else {
-                    noActiveTrip
+        // Redraws every minute so the greeting and "Next · in 50 min" stay current.
+        TimelineView(.everyMinute) { _ in
+            ScrollView {
+                VStack(spacing: 14) {
+                    header
+                    if let trip = viewModel.activeTrip {
+                        tripContent(trip)
+                    } else {
+                        noActiveTrip
+                    }
                 }
+                .padding(.horizontal)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 24)
         }
         .background(Theme.background)
         .navigationTitle("Home")
         .toolbar(.hidden, for: .navigationBar)
+        .task(id: viewModel.activeTrip?.id) { await viewModel.loadWeather() }
         .safeAreaInset(edge: .bottom) {
-            if let trip = store.currentTrip {
+            if let trip = viewModel.currentTrip {
                 FloatingActionBar(
                     primaryTitle: "Add Expense",
                     primaryAction: { router.activeSheet = .addExpense(tripID: trip.id) },
@@ -37,17 +45,17 @@ struct HomeView: View {
     private var header: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(DemoClock.now.text("EEEE, d MMMM"))
+                Text(viewModel.dateText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(greeting)
+                Text(viewModel.greeting)
                     .font(.largeTitle.bold())
             }
             Spacer()
             Button {
                 router.selectedTab = .profile
             } label: {
-                Text(store.me.initials)
+                Text(viewModel.myInitials)
                     .font(.subheadline.bold())
                     .frame(width: 44, height: 44)
                     .background(Theme.card, in: Circle())
@@ -59,15 +67,6 @@ struct HomeView: View {
         .padding(.top, 8)
     }
 
-    private var greeting: String {
-        let hour = DemoClock.calendar.component(.hour, from: DemoClock.now)
-        switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
-        }
-    }
-
     // MARK: - Active trip
 
     @ViewBuilder
@@ -77,7 +76,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
 
-        if let advisory = store.weather.advisory {
+        if let advisory = viewModel.weather?.advisory {
             NavigationLink(value: AppRoute.weather(trip.id)) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
@@ -98,12 +97,12 @@ struct HomeView: View {
         }
 
         HStack(spacing: 12) {
-            NavigationLink(value: AppRoute.weather(trip.id)) { weatherCard }
+            NavigationLink(value: AppRoute.weather(trip.id)) { weatherCard(trip) }
             NavigationLink(value: AppRoute.expenses(trip.id)) { budgetCard(trip) }
         }
         .buttonStyle(.plain)
 
-        if let memory = store.latestMemory {
+        if let memory = viewModel.latestMemory {
             Button {
                 router.activeSheet = .memory(memory.id)
             } label: {
@@ -115,13 +114,13 @@ struct HomeView: View {
         quickActions(trip)
 
         HStack(spacing: 12) {
-            if let next = store.upcomingTrips.first {
+            if let next = viewModel.nextUpcomingTrip {
                 NavigationLink(value: AppRoute.tripDetail(next.id)) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Coming Up").font(.subheadline).foregroundStyle(.secondary)
                         Text(next.name).font(.headline).multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
-                        Text("in \(next.daysUntilStart()) days").font(.subheadline).foregroundStyle(.secondary)
+                        Text("in \(viewModel.daysUntilStart(of: next)) days").font(.subheadline).foregroundStyle(.secondary)
                     }
                     .frame(maxHeight: .infinity, alignment: .topLeading)
                     .card()
@@ -145,11 +144,11 @@ struct HomeView: View {
         .buttonStyle(.plain)
         .fixedSize(horizontal: false, vertical: true)
 
-        if let balance = trip.balances.first(where: { $0.member.isMe }) {
+        if let balance = viewModel.myBalance(in: trip), !trip.expenses.isEmpty {
             NavigationLink(value: AppRoute.expenses(trip.id)) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Balances").font(.subheadline).foregroundStyle(.secondary)
-                    Text(balance.amount >= 0 ? "You get back \(balance.amount.lkr)" : "You owe \((-balance.amount).lkr)")
+                    Text(balanceText(balance.amount))
                         .font(.headline)
                         .foregroundStyle(balance.amount >= 0 ? .green : .orange)
                 }
@@ -168,10 +167,10 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(trip.name).font(.title2.bold())
                 Text(trip.routeText).foregroundStyle(.white.opacity(0.75))
-                if let next = trip.nextActivity() {
+                if let next = viewModel.nextActivity(in: trip) {
                     HStack(spacing: 8) {
-                        Text("Next · in \(next.minutes - DemoClock.minutesNow) min").bold()
-                        Text("\(next.timeText) \(next.title)").lineLimit(1)
+                        Text(next.countdown).bold()
+                        Text(next.detail).lineLimit(1)
                     }
                     .font(.subheadline)
                     .padding(.top, 4)
@@ -183,8 +182,10 @@ struct HomeView: View {
         .frame(height: 230)
         .overlay(alignment: .topLeading) {
             HStack {
-                GlassPill(trip.statusText)
-                GlassPill("\(store.weather.temperature)° \(store.weather.condition)", icon: store.weather.symbol)
+                GlassPill(viewModel.statusText(for: trip))
+                if let weather = viewModel.weather {
+                    GlassPill("\(weather.temperature)° \(weather.condition)", icon: weather.symbol)
+                }
             }
             .font(.caption)
             .padding(12)
@@ -192,14 +193,18 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    private var weatherCard: some View {
-        let weather = store.weather
-        return VStack(alignment: .leading, spacing: 4) {
-            Text("\(weather.location) Weather").font(.subheadline.weight(.semibold))
+    private func weatherCard(_ trip: Trip) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(trip.mainPlace) Weather").font(.subheadline.weight(.semibold))
             Spacer(minLength: 0)
-            Text("\(weather.temperature)°").font(.system(size: 52, weight: .bold))
-            Text(weather.condition).font(.subheadline)
-            Text("H \(weather.high)° L \(weather.low)°").font(.caption).foregroundStyle(.white.opacity(0.7))
+            if let weather = viewModel.weather {
+                Text("\(weather.temperature)°").font(.system(size: 52, weight: .bold))
+                Text(weather.condition).font(.subheadline)
+                Text("H \(weather.high)° L \(weather.low)°").font(.caption).foregroundStyle(.white.opacity(0.7))
+            } else {
+                ProgressView().tint(.white)
+                Spacer(minLength: 0)
+            }
         }
         .foregroundStyle(.white)
         .padding(16)
@@ -215,11 +220,12 @@ struct HomeView: View {
             Text("Trip Budget")
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            ProgressRing(progress: trip.spentFraction, lineWidth: 10, tint: .blue)
+            ProgressRing(progress: trip.spentFraction, lineWidth: 10,
+                         tint: trip.budgetStatus == .onTrack ? .blue : trip.budgetStatus.color)
                 .frame(width: 64, height: 64)
                 .overlay { Text(trip.spentFraction.percentText).font(.caption2.bold()) }
-            Text(trip.budgetLeft.lkr).font(.headline)
-            Text("left").font(.caption).foregroundStyle(.secondary)
+            Text(trip.budget > 0 ? trip.budgetLeft.lkr : trip.totalSpent.lkr).font(.headline)
+            Text(trip.budget > 0 ? "left" : "spent").font(.caption).foregroundStyle(.secondary)
         }
         .frame(minHeight: 170)
         .card()
@@ -273,7 +279,7 @@ struct HomeView: View {
                 Button { router.activeSheet = .recordMemory } label: {
                     QuickActionTile(icon: "mic", tint: .purple, title: "Record Memory")
                 }
-                NavigationLink(value: AppRoute.tripDetail(trip.id, day: trip.dayNumber())) {
+                NavigationLink(value: AppRoute.tripDetail(trip.id, day: trip.dayNumber(at: viewModel.now))) {
                     QuickActionTile(icon: "list.bullet.rectangle", tint: .primary, title: "Today's Plan")
                 }
                 Button { router.activeSheet = .addPhoto(memoryID: nil) } label: {
@@ -285,6 +291,11 @@ struct HomeView: View {
         .card()
     }
 
+    private func balanceText(_ amount: Double) -> String {
+        if abs(amount) < 0.01 { return "You are settled up" }
+        return amount > 0 ? "You get back \(amount.lkr)" : "You owe \((-amount).lkr)"
+    }
+
     private func recentExpenses(_ trip: Trip) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -294,8 +305,8 @@ struct HomeView: View {
                     .font(.subheadline)
             }
             .padding(.bottom, 4)
-            let recent = trip.expenses.sorted { $0.date > $1.date }.prefix(2)
-            ForEach(Array(recent)) { expense in
+            let recent = viewModel.recentExpenses(in: trip)
+            ForEach(recent) { expense in
                 ExpenseRow(expense: expense, showsCategoryIcon: true)
                 if expense.id != recent.last?.id { Divider() }
             }
@@ -313,8 +324,8 @@ struct HomeView: View {
             Image(systemName: "suitcase")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            if let next = store.upcomingTrips.first {
-                Text("\(next.name) starts in \(next.daysUntilStart()) days")
+            if let next = viewModel.nextUpcomingTrip {
+                Text("\(next.name) starts in \(viewModel.daysUntilStart(of: next)) days")
                     .font(.title3.bold())
                 NavigationLink("View trip", value: AppRoute.tripDetail(next.id))
             } else {
@@ -351,8 +362,10 @@ struct QuickActionTile: View {
 }
 
 #Preview {
-    NavigationStack { HomeView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+    let dependencies = AppDependencies.preview()
+    NavigationStack {
+        HomeView(viewModel: HomeViewModel(store: dependencies.store, clock: dependencies.clock,
+                                          weather: dependencies.weather))
+    }
+    .previewEnvironment(dependencies)
 }

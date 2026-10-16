@@ -171,9 +171,7 @@ struct MemoryCard: View {
 
 #Preview {
     NavigationStack { JournalView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }
 
 // MARK: - MemoryDetailView
@@ -369,11 +367,12 @@ struct MemoryDetailView: View {
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview()
     Text("Journal")
         .sheet(isPresented: .constant(true)) {
-            MemoryDetailView(memoryID: SampleData.memories.last!.id).environment(TripStore())
+            MemoryDetailView(memoryID: dependencies.store.latestMemory?.id ?? UUID())
         }
-        .preferredColorScheme(.dark)
+        .previewEnvironment(dependencies)
 }
 
 // MARK: - RecordMemoryView
@@ -390,7 +389,7 @@ struct RecordMemoryView: View {
     @State private var elapsed = 0
 
     private var trip: Trip? { store.currentTrip }
-    private var day: Int { trip?.dayNumber() ?? 1 }
+    private var day: Int { trip?.dayNumber(at: store.now) ?? 1 }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -462,9 +461,9 @@ struct RecordMemoryView: View {
         let memory = Memory(
             tripID: trip.id,
             title: title.trimmingCharacters(in: .whitespaces).isEmpty ? "Untitled memory" : title,
-            date: DemoClock.now,
+            date: store.now,
             day: day,
-            place: place.isEmpty ? trip.destination : place,
+            place: place.isEmpty ? trip.mainPlace : place,
             transcript: "",
             duration: elapsed,
             people: []
@@ -536,7 +535,7 @@ struct TypeNoteView: View {
 #Preview {
     Text("Journal")
         .sheet(isPresented: .constant(true)) {
-            RecordMemoryView().environment(TripStore())
+            RecordMemoryView()
         }
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }

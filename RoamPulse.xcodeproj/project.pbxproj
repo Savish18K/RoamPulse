@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		8A100000000000000000001A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8A1000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A1000000000000000000006;
+			remoteInfo = RoamPulse;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		8A1000000000000000000001 /* RoamPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RoamPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A1000000000000000000011 /* RoamPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoamPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +27,22 @@
 			path = RoamPulse;
 			sourceTree = "<group>";
 		};
+		8A1000000000000000000012 /* RoamPulseTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RoamPulseTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		8A1000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A1000000000000000000014 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				8A1000000000000000000002 /* RoamPulse */,
+				8A1000000000000000000012 /* RoamPulseTests */,
 				8A1000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				8A1000000000000000000001 /* RoamPulse.app */,
+				8A1000000000000000000011 /* RoamPulseTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = 8A1000000000000000000001 /* RoamPulse.app */;
 			productType = "com.apple.product-type.application";
 		};
+		8A1000000000000000000010 /* RoamPulseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A1000000000000000000016 /* Build configuration list for PBXNativeTarget "RoamPulseTests" */;
+			buildPhases = (
+				8A1000000000000000000013 /* Sources */,
+				8A1000000000000000000014 /* Frameworks */,
+				8A1000000000000000000015 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8A1000000000000000000019 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8A1000000000000000000012 /* RoamPulseTests */,
+			);
+			name = RoamPulseTests;
+			packageProductDependencies = (
+			);
+			productName = RoamPulseTests;
+			productReference = 8A1000000000000000000011 /* RoamPulseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					8A1000000000000000000006 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					8A1000000000000000000010 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 8A1000000000000000000006;
 					};
 				};
 			};
@@ -100,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				8A1000000000000000000006 /* RoamPulse */,
+				8A1000000000000000000010 /* RoamPulseTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		8A1000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A1000000000000000000015 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A1000000000000000000013 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8A1000000000000000000019 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A1000000000000000000006 /* RoamPulse */;
+			targetProxy = 8A100000000000000000001A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8A100000000000000000000C /* Debug */ = {
@@ -306,6 +381,42 @@
 			};
 			name = Release;
 		};
+		8A1000000000000000000017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.savishka.RoamPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RoamPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RoamPulse";
+			};
+			name = Debug;
+		};
+		8A1000000000000000000018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.savishka.RoamPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RoamPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RoamPulse";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -323,6 +434,15 @@
 			buildConfigurations = (
 				8A100000000000000000000E /* Debug */,
 				8A100000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A1000000000000000000016 /* Build configuration list for PBXNativeTarget "RoamPulseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A1000000000000000000017 /* Debug */,
+				8A1000000000000000000018 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

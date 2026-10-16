@@ -77,7 +77,7 @@ struct PhotoPickerView: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Recents").font(.title2.bold())
-                    Text("Sun 13 Dec • \(store.currentTrip?.name ?? "All photos")")
+                    Text("\(store.now.text("EEE d MMM")) • \(store.currentTrip?.name ?? "All photos")")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -163,10 +163,8 @@ struct PhotoPickerView: View {
     Text("Journal")
         .sheet(isPresented: .constant(true)) {
             PhotoPickerView(memoryID: nil)
-                .environment(TripStore())
-                .environment(AppRouter())
         }
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }
 
 // MARK: - PhotoRecognitionView
@@ -241,7 +239,7 @@ struct PhotoRecognitionView: View {
                 Divider()
                 stepRow("Scene tags", "Vision image classifier", state: stepState(from: 0.75, to: 0.9))
                 Divider()
-                stepRow("Link to your plan", "\(trip?.name ?? "Your trip") • Day \(trip?.dayNumber() ?? 1)", state: stepState(from: 0.9, to: 1))
+                stepRow("Link to your plan", "\(trip?.name ?? "Your trip") • Day \(trip?.dayNumber(at: store.now) ?? 1)", state: stepState(from: 0.9, to: 1))
             }
             .card(padding: 14, fill: Theme.raised)
 

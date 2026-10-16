@@ -1,89 +1,102 @@
 import SwiftUI
 
-/// Weather and activity advisories. Uses the saved mock forecast for now;
-/// OpenWeatherMap will be called from here later.
+/// Weather and activity advisories for one trip.
+/// The forecast comes from `WeatherViewModel` (sample data until OpenWeatherMap is added in Increment 4).
 struct WeatherView: View {
-    let tripID: UUID
-    @Environment(TripStore.self) private var store
-    @State private var isRefreshing = false
-    @State private var updatedAt: String?
+    @State private var viewModel: WeatherViewModel
+
+    init(viewModel: WeatherViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
-        let weather = store.weather
-
         ScrollView {
             VStack(spacing: 14) {
-                Button {
-                    Task { await refresh() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                        .animation(isRefreshing ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
-                                   value: isRefreshing)
-                }
-                .accessibilityLabel("Refresh forecast")
-
-                currentCard(weather)
-
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-                    metric("Humidity", "\(weather.humidity)%")
-                    metric("Wind", "\(weather.windKmh) km/h")
-                    metric("Rain Probability", "\(weather.rainChance)%")
-                    metric("Sunset", weather.sunset)
-                }
-
-                if let advisory = weather.advisory {
-                    advisoryCard(advisory)
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(weather.hourly) { hour in
-                            VStack(spacing: 8) {
-                                Text(hour.label).font(.caption).foregroundStyle(.secondary)
-                                Image(systemName: hour.symbol)
-                                    .symbolRenderingMode(.multicolor)
-                                    .foregroundStyle(.cyan)
-                                Text("\(hour.temperature)°").font(.headline)
-                                Text("\(hour.rainChance)%").font(.caption).foregroundStyle(.cyan)
-                            }
-                            .frame(width: 68)
-                            .padding(.vertical, 12)
-                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.stroke))
-                        }
+                if let weather = viewModel.snapshot {
+                    content(weather)
+                } else if let error = viewModel.errorMessage {
+                    ContentUnavailableView {
+                        Label("No forecast", systemImage: "cloud.slash")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Try Again") { Task { await viewModel.load() } }
                     }
+                } else {
+                    ProgressView("Loading forecast…")
+                        .padding(.top, 60)
                 }
-
-                SectionLabel("5-Day Forecast").padding(.top, 6)
-                VStack(spacing: 0) {
-                    ForEach(weather.daily) { day in
-                        dailyRow(day)
-                        if day.id != weather.daily.last?.id { Divider() }
-                    }
-                }
-                .card(padding: 0)
-
-                Text("Updated \(updatedAt ?? weather.updatedAt) • OpenWeatherMap data")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 4)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
         .background(Theme.background)
         .navigationTitle("Weather")
-        .refreshable { await refresh() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task { await viewModel.load() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                        .animation(viewModel.isLoading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
+                                   value: viewModel.isLoading)
+                }
+                .accessibilityLabel("Refresh forecast")
+            }
+        }
+        .refreshable { await viewModel.load() }
+        .task { await viewModel.load() }
     }
 
-    private func refresh() async {
-        isRefreshing = true
-        try? await Task.sleep(for: .seconds(1))
-        updatedAt = DemoClock.minutesNow.clockText
-        isRefreshing = false
+    @ViewBuilder
+    private func content(_ weather: WeatherSnapshot) -> some View {
+        currentCard(weather)
+
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
+            metric("Humidity", "\(weather.humidity)%")
+            metric("Wind", "\(weather.windKmh) km/h")
+            metric("Rain Probability", "\(weather.rainChance)%")
+            metric("Sunset", weather.sunset)
+        }
+
+        if let advisory = weather.advisory {
+            advisoryCard(advisory)
+        }
+
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(weather.hourly) { hour in
+                    VStack(spacing: 8) {
+                        Text(hour.label).font(.caption).foregroundStyle(.secondary)
+                        Image(systemName: hour.symbol)
+                            .symbolRenderingMode(.multicolor)
+                            .foregroundStyle(.cyan)
+                        Text("\(hour.temperature)°").font(.headline)
+                        Text("\(hour.rainChance)%").font(.caption).foregroundStyle(.cyan)
+                    }
+                    .frame(width: 68)
+                    .padding(.vertical, 12)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.stroke))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+
+        SectionLabel("5-Day Forecast").padding(.top, 6)
+        VStack(spacing: 0) {
+            ForEach(weather.daily) { day in
+                dailyRow(day)
+                if day.id != weather.daily.last?.id { Divider() }
+            }
+        }
+        .card(padding: 0)
+
+        Text(viewModel.updatedText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
     }
 
     private func currentCard(_ weather: WeatherSnapshot) -> some View {
@@ -129,7 +142,7 @@ struct WeatherView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(advisory.title).font(.headline).foregroundStyle(.orange)
                 Text(advisory.message).font(.subheadline).foregroundStyle(.secondary)
-                NavigationLink("View Day \(advisory.day) Schedule", value: AppRoute.tripDetail(tripID, day: advisory.day))
+                NavigationLink("View Day \(advisory.day) Schedule", value: AppRoute.tripDetail(viewModel.tripID, day: advisory.day))
                     .font(.subheadline.bold())
             }
         }
@@ -166,7 +179,10 @@ struct WeatherView: View {
 }
 
 #Preview {
-    NavigationStack { WeatherView(tripID: SampleData.hillCountry.id) }
-        .environment(TripStore())
-        .preferredColorScheme(.dark)
+    let dependencies = AppDependencies.preview()
+    NavigationStack {
+        WeatherView(viewModel: WeatherViewModel(tripID: dependencies.previewTripID, store: dependencies.store,
+                                                weather: dependencies.weather))
+    }
+    .previewEnvironment(dependencies)
 }

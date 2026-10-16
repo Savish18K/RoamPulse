@@ -29,9 +29,7 @@ struct InsightsView: View {
 
 #Preview {
     NavigationStack { InsightsView() }
-        .environment(TripStore())
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+        .previewEnvironment(.preview())
 }
 
 // MARK: - MemorySearchView
@@ -159,13 +157,13 @@ struct MemoryTimelineView: View {
     @Environment(AppRouter.self) private var router
 
     private var days: [Date] {
-        Set(store.memories.map { DemoClock.calendar.startOfDay(for: $0.date) }).sorted(by: >)
+        Set(store.memories.map { Calendar.trip.startOfDay(for: $0.date) }).sorted(by: >)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             ForEach(days, id: \.self) { day in
-                let memories = store.sortedMemories.filter { DemoClock.calendar.isDate($0.date, inSameDayAs: day) }
+                let memories = store.sortedMemories.filter { Calendar.trip.isDate($0.date, inSameDayAs: day) }
                 VStack(alignment: .leading, spacing: 0) {
                     SectionLabel("\(day.text("EEEE d MMM")) • Day \(memories.first?.day ?? 1)")
                         .padding(.bottom, 10)
@@ -249,7 +247,7 @@ struct MoodView: View {
 
     private var dayMoods: [DayMood] {
         let scored = store.memories.filter { $0.sentiment != nil }
-        let groups = Dictionary(grouping: scored) { DemoClock.calendar.startOfDay(for: $0.date) }
+        let groups = Dictionary(grouping: scored) { Calendar.trip.startOfDay(for: $0.date) }
         return groups.map { date, memories in
             let total = memories.compactMap(\.sentiment).reduce(0, +)
             return DayMood(date: date, score: total / Double(memories.count))
