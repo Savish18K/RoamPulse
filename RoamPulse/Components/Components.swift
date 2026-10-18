@@ -431,6 +431,8 @@ struct PhotoView: View {
 /// Big photo header with a back button and a status pill (Trip detail, Landmark detail).
 struct HeroHeader<Content: View>: View {
     let photo: SamplePhoto
+    /// When set, shows this trip's cover (its own photo if it has one) instead of `photo`.
+    var trip: Trip?
     var pill: String?
     var height: CGFloat = 340
     /// Height of the status bar, so the buttons sit below it.
@@ -440,7 +442,11 @@ struct HeroHeader<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            PhotoView(photo: photo, showsSymbol: false)
+            if let trip {
+                TripCoverView(trip: trip, showsSymbol: false)
+            } else {
+                PhotoView(photo: photo, showsSymbol: false)
+            }
             LinearGradient(colors: [.black.opacity(0.35), .clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
             content
                 .foregroundStyle(.white)
@@ -593,6 +599,7 @@ extension View {
     func previewEnvironment(_ dependencies: AppDependencies) -> some View {
         environment(dependencies)
             .environment(dependencies.store)
+            .environment(dependencies.session)
             .environment(AppRouter())
             .preferredColorScheme(.dark)
     }

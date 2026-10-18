@@ -97,6 +97,19 @@ final class TripFormViewModel {
     var newCompanionName = ""
     private(set) var companions: [Member]
 
+    /// What happens to the cover photo when the form is saved.
+    enum CoverChange: Equatable {
+        case unchanged
+        case replace(PreparedImage)
+        case remove
+    }
+
+    private(set) var coverChange: CoverChange = .unchanged
+    /// True while a picked photo is being resized.
+    private(set) var isPreparingCover = false
+    /// Set when a picked file couldn't be read as a photo.
+    private(set) var coverProblem: String?
+
     let destinationSuggestions = ["Galle Fort", "Unawatuna", "Hikkaduwa", "Mirissa"]
 
     init(tripID: UUID? = nil, store: TripStore, clock: Clock) {
@@ -120,6 +133,54 @@ final class TripFormViewModel {
             remindersOn = trip.remindersOn
             companions = trip.members
         }
+    }
+
+    // MARK: Cover photo
+
+    /// The trip's own photo will be shown (a new one was picked, or it already had one that isn't being removed).
+    var hasCustomCover: Bool {
+        switch coverChange {
+        case .replace: true
+        case .remove: false
+        case .unchanged: existingTrip?.coverImageID != nil
+        }
+    }
+
+    /// The small JPEG for the form's preview: the newly picked photo or the saved one.
+    var coverThumbnailData: Data? {
+        switch coverChange {
+        case .replace(let image): image.thumbnail
+        case .remove: nil
+        case .unchanged: existingTrip?.coverImageID.flatMap { store.imageData($0, thumbnail: true) }
+        }
+    }
+
+    /// The sample photo used when there is no photo of the user's own.
+    var defaultCover: SamplePhoto {
+        existingTrip?.cover ?? .cover(for: destination)
+    }
+
+    /// Resizes a photo from the photo picker. Nothing is saved until the form is saved.
+    func useCoverPhoto(_ data: Data) async {
+        isPreparingCover = true
+        coverProblem = nil
+        // Resizing a 12 MP photo takes a moment, so it runs off the main thread.
+        let prepared = await Task.detached(priority: .userInitiated) { ImageProcessor.prepare(data) }.value
+        isPreparingCover = false
+        if let prepared {
+            coverChange = .replace(prepared)
+        } else {
+            coverProblem = "That file couldn't be opened as a photo."
+        }
+    }
+
+    func reportCoverProblem(_ message: String) {
+        coverProblem = message
+    }
+
+    func removeCoverPhoto() {
+        coverChange = existingTrip?.coverImageID == nil ? .unchanged : .remove
+        coverProblem = nil
     }
 
     private var existingTrip: Trip? { tripID.flatMap(store.trip) }
@@ -195,11 +256,12 @@ final class TripFormViewModel {
                 remindersOn: remindersOn,
                 packing: PackingAdvisor.defaultTemplate()
             )
-            return store.addTrip(trip)
+            guard store.addTrip(trip) else { return false }
+            return saveCoverChange(for: trip.id)
         }
 
         let newDayCount = dayCount
-        return store.updateTrip(tripID) { trip in
+        let saved = store.updateTrip(tripID) { trip in
             trip.name = name.trimmed
             trip.destination = destination.trimmed
             trip.startDate = startDate
@@ -208,6 +270,16 @@ final class TripFormViewModel {
             trip.remindersOn = remindersOn
             trip.members = companions
             trip.activities = ItineraryPlanner.clamp(trip.activities, toDayCount: newDayCount)
+        }
+        return saved && saveCoverChange(for: tripID)
+    }
+
+    /// The photo is saved after the trip, because it is linked to the trip's saved row.
+    private func saveCoverChange(for tripID: UUID) -> Bool {
+        switch coverChange {
+        case .unchanged: true
+        case .replace(let image): store.setCoverPhoto(image, for: tripID)
+        case .remove: store.setCoverPhoto(nil, for: tripID)
         }
     }
 }

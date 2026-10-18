@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Security rules for RoamPulse's Cloud Firestore database.
+// Paste this into Firebase console → Firestore Database → Rules, then press Publish.
+//
+// Layout (see RoamPulse/Sync/SyncRecords.swift):
+//   trips/{tripId}                  the trip, with ownerUID and memberUIDs
+//   trips/{tripId}/{list}/{itemId}  members, activities, packing, expenses, payments
+//
+// Rule of thumb: only signed-in people listed in a trip's memberUIDs can read or change it.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The trip document as it will be after this write. Used for items, so a new trip and
+    // its items can be uploaded together in one batch.
+    function tripAfter(tripId) {
+      return getAfter(/databases/$(database)/documents/trips/$(tripId));
+    }
+
+    function isMemberAfterWrite(tripId) {
+      return signedIn() && request.auth.uid in tripAfter(tripId).data.memberUIDs;
+    }
+
+    function isMemberNow(tripId) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUIDs;
+    }
+
+    match /trips/{tripId} {
+      // Also allows the app's query: trips where memberUIDs contains my uid.
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUIDs;
+
+      // You can only create a trip you own and belong to.
+      allow create: if signedIn()
+        && request.resource.data.ownerUID == request.auth.uid
+        && request.auth.uid in request.resource.data.memberUIDs;
+
+      // Members can edit, but nobody can change who owns the trip.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberUIDs
+        && request.resource.data.ownerUID == resource.data.ownerUID;
+
+      // Trips are never hard-deleted by the app: it sets isDeleted so other devices hear about it.
+      allow delete: if false;
+
+      match /{list}/{itemId} {
+        allow read: if list in ['members', 'activities', 'packing', 'expenses', 'payments']
+          && isMemberNow(tripId);
+        allow write: if list in ['members', 'activities', 'packing', 'expenses', 'payments']
+          && isMemberAfterWrite(tripId);
+      }
+    }
+  }
+}

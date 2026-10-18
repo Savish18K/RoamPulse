@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Sample trips that mirror the Figma prototype.
 ///
-/// They are saved into Core Data on the first launch, and again from Settings → Load sample trips.
+/// They are added when a new account is created, and again from Settings → Load sample trips.
 /// Dates are worked out from "now", so Hill Country Explorer is always on its second day.
 enum SampleData {
 

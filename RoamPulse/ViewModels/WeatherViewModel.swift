@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Weather screen for one trip. The forecast comes from the injected `WeatherService`
-/// (sample data now, OpenWeatherMap from Increment 4).
+/// (sample data now, OpenWeatherMap from Increment 7).
 @MainActor
 @Observable
 final class WeatherViewModel {

@@ -24,7 +24,7 @@ struct TripDetailView: View {
         GeometryReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HeroHeader(photo: trip.cover, pill: viewModel.statusText(for: trip), topInset: proxy.safeAreaInsets.top) {
+                    HeroHeader(photo: trip.cover, trip: trip, pill: viewModel.statusText(for: trip), topInset: proxy.safeAreaInsets.top) {
                         HStack(alignment: .bottom) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(trip.name).font(.largeTitle.bold())

@@ -5,6 +5,9 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(AppSession.self) private var session
+    @Environment(AppDependencies.self) private var dependencies
+    @State private var confirmSignOut = false
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
@@ -18,7 +21,7 @@ struct ProfileView: View {
                         .padding(4)
                         .overlay(Circle().strokeBorder(Color.blue, lineWidth: 3))
                     Text(store.profile.fullName).font(.title.bold())
-                    Text("\(store.profile.email) • Local User").foregroundStyle(.secondary)
+                    Text(store.profile.email).foregroundStyle(.secondary)
                 }
                 .padding(.top, 24)
 
@@ -52,6 +55,32 @@ struct ProfileView: View {
                     }
                 }
 
+                group("Account") {
+                    let status = dependencies.sync.status
+                    SettingsRow(icon: status.icon, iconColor: status.color, title: "Cloud backup", showsChevron: false) {
+                        Text(status.title)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .accessibilityElement(children: .combine)
+                    if let detail = status.detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Divider().padding(.leading, 56)
+                    Button {
+                        confirmSignOut = true
+                    } label: {
+                        SettingsRow(icon: "rectangle.portrait.and.arrow.right", iconColor: .red,
+                                    title: "Sign out", titleColor: .red, showsChevron: false)
+                    }
+                }
+
                 group("About") {
                     Button {
                         router.activeSheet = .about
@@ -66,6 +95,13 @@ struct ProfileView: View {
         .background(Theme.background)
         .navigationTitle("Profile")
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog("Sign out of RoamPulse?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign Out", role: .destructive) {
+                session.signOut()
+            }
+        } message: {
+            Text("Your trips stay backed up to your account. Journal memories stay on this iPhone and come back when you sign in again.")
+        }
         .safeAreaInset(edge: .bottom) {
             if let trip = store.currentTrip {
                 FloatingActionBar(
@@ -416,7 +452,7 @@ struct SettingsView: View {
                 hasOnboarded = false
             }
         } message: {
-            Text("This removes every trip, expense, memory and photo from this iPhone. It can't be undone.")
+            Text("This removes every trip, expense, memory and photo from this iPhone, and deletes your trips from the cloud backup. It can't be undone.")
         }
     }
 
@@ -479,7 +515,8 @@ struct AboutView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         aboutRow("person", "Designed and developed by Savishka Kuruppu")
                         aboutRow("graduationcap", "NIBM • BSc (Hons) Computing • iOS Application Development")
-                        aboutRow("lock.shield", "No account. All trips, memories and photos stay on this iPhone.")
+                        aboutRow("icloud", "Trips are backed up to your account with Firebase and work offline.")
+                        aboutRow("lock.shield", "Voice memories, transcripts and photos never leave this iPhone.")
                         aboutRow("cpu", "Speech, Natural Language, Vision and Core ML run on the device.")
                     }
                     .card()

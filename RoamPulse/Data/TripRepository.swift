@@ -17,6 +17,13 @@ protocol TripRepository {
     func deleteMemory(id: UUID) throws
 
     func deleteEverything() throws
+
+    /// Saves a photo that isn't linked to anything yet and returns its id.
+    /// It is linked by setting `trip.coverImageID` to that id and saving the trip.
+    func saveImage(_ image: PreparedImage) throws -> UUID
+    /// The full-size JPEG, or the small thumbnail. nil if there is no image with that id.
+    func imageData(id: UUID, thumbnail: Bool) throws -> Data?
+    func deleteImage(id: UUID) throws
 }
 
 enum RepositoryError: LocalizedError {
@@ -37,6 +44,7 @@ enum RepositoryError: LocalizedError {
 final class InMemoryTripRepository: TripRepository {
     private var trips: [UUID: Trip] = [:]
     private var memories: [UUID: Memory] = [:]
+    private(set) var images: [UUID: PreparedImage] = [:]
 
     /// Set to true in a test to make saving fail, to check how errors are handled.
     var failSaves = false
@@ -52,11 +60,18 @@ final class InMemoryTripRepository: TripRepository {
 
     func save(_ trip: Trip) throws {
         try checkFailure()
+        // Like Core Data, a replaced or removed cover photo is deleted.
+        if let oldCover = trips[trip.id]?.coverImageID, oldCover != trip.coverImageID {
+            images[oldCover] = nil
+        }
         trips[trip.id] = trip
     }
 
     func deleteTrip(id: UUID) throws {
         try checkFailure()
+        if let cover = trips[id]?.coverImageID {
+            images[cover] = nil
+        }
         trips[id] = nil
         memories = memories.filter { $0.value.tripID != id }
     }
@@ -80,6 +95,22 @@ final class InMemoryTripRepository: TripRepository {
         try checkFailure()
         trips = [:]
         memories = [:]
+        images = [:]
+    }
+
+    func saveImage(_ image: PreparedImage) throws -> UUID {
+        try checkFailure()
+        let id = UUID()
+        images[id] = image
+        return id
+    }
+
+    func imageData(id: UUID, thumbnail: Bool) throws -> Data? {
+        images[id].map { thumbnail ? $0.thumbnail : $0.data }
+    }
+
+    func deleteImage(id: UUID) throws {
+        images[id] = nil
     }
 
     private func checkFailure() throws {

@@ -4,7 +4,7 @@ import Foundation
 
 /// Gives the forecast for a trip's destination.
 ///
-/// `MockWeatherService` returns sample data for now. Increment 4 adds an OpenWeatherMap
+/// `MockWeatherService` returns sample data for now. Increment 7 adds an OpenWeatherMap
 /// version behind this same protocol, so the view models that use it won't need to change.
 protocol WeatherService {
     func forecast(for trip: Trip) async throws -> WeatherSnapshot
@@ -82,7 +82,7 @@ struct MockWeatherService: WeatherService {
 // MARK: - WeatherAdvisor
 
 /// Simple weather rules used by the itinerary and the packing list.
-/// Increment 4 replaces the whole-day check with one that looks at each activity's time slot.
+/// Increment 7 replaces the whole-day check with one that looks at each activity's time slot.
 enum WeatherAdvisor {
     /// Rain chance (%) at which outdoor plans get a warning.
     static let rainThreshold = 70

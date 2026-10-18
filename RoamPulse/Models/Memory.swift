@@ -171,7 +171,7 @@ struct WeatherAdvisory: Hashable {
     var message: String
 }
 
-/// Forecast for a trip's destination (mock until OpenWeatherMap is added in Increment 4).
+/// Forecast for a trip's destination (mock until OpenWeatherMap is added in Increment 7).
 struct WeatherSnapshot: Hashable {
     var location: String
     var condition: String

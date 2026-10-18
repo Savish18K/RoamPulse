@@ -90,6 +90,15 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <relationship name="memory" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemoryEntity" inverseName="photos" inverseEntity="MemoryEntity"/>
     </entity>
+    <entity name="StoredImageEntity" representedClassName="StoredImageEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="pixelHeight" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="pixelWidth" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="coverImage" inverseEntity="TripEntity"/>
+    </entity>
     <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">
         <attribute name="budget" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="coverName" optional="YES" attributeType="String"/>
@@ -101,6 +110,7 @@
         <attribute name="remindersOn" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="activities" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ActivityEntity" inverseName="trip" inverseEntity="ActivityEntity"/>
+        <relationship name="coverImage" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="StoredImageEntity" inverseName="trip" inverseEntity="StoredImageEntity"/>
         <relationship name="expenses" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ExpenseEntity" inverseName="trip" inverseEntity="ExpenseEntity"/>
         <relationship name="forecast" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="ForecastCacheEntity" inverseName="trip" inverseEntity="ForecastCacheEntity"/>
         <relationship name="members" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="MemberEntity" inverseName="trip" inverseEntity="MemberEntity"/>

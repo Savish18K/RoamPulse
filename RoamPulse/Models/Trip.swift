@@ -29,8 +29,8 @@ struct Member: Identifiable, Hashable {
     static let palette = [0x4FB3A9, 0xE39B4B, 0x6F7BD9, 0xC9658A, 0x6E9F7A, 0x5B8FD6]
 }
 
-/// The local (account-free) user shown on the Profile screen.
-struct UserProfile {
+/// The signed-in person's name and email, shown on the Profile screen.
+struct UserProfile: Equatable {
     var fullName: String
     var email: String
 }
@@ -58,6 +58,9 @@ struct Trip: Identifiable, Hashable {
     var expenses: [Expense] = []
     /// Settle-up payments the group has already made.
     var payments: [Payment] = []
+    /// A photo the user picked for the cover, saved in Core Data (`StoredImageEntity`).
+    /// nil means the sample photo in `cover` is shown. Only kept on this iPhone, never synced.
+    var coverImageID: UUID?
 }
 
 // MARK: - Dates & status

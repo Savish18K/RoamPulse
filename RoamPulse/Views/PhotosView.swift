@@ -131,7 +131,7 @@ struct PhotoPickerView: View {
                     tab = 0
                 } label: {
                     HStack(spacing: 14) {
-                        PhotoView(photo: trip.cover)
+                        TripCoverView(trip: trip, thumbnail: true)
                             .frame(width: 56, height: 56)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {

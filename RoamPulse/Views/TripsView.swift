@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 // MARK: - TripsListView
@@ -80,7 +81,7 @@ struct TripsListView: View {
             ForEach(trips) { trip in
                 NavigationLink(value: AppRoute.tripDetail(trip.id)) {
                     HStack(spacing: 14) {
-                        PhotoView(photo: trip.cover)
+                        TripCoverView(trip: trip, thumbnail: true)
                             .frame(width: 56, height: 56)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
@@ -130,7 +131,7 @@ struct ActiveTripCard: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack(alignment: .bottomLeading) {
-                PhotoView(photo: trip.cover, showsSymbol: false)
+                TripCoverView(trip: trip, showsSymbol: false)
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(trip.name).font(.title.bold())
@@ -185,6 +186,7 @@ struct TripFormView: View {
     @State private var showDatePickers = false
     @State private var showAddCompanion = false
     @State private var memberToRemove: Member?
+    @State private var pickedCover: PhotosPickerItem?
 
     init(viewModel: TripFormViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -211,6 +213,8 @@ struct TripFormView: View {
                             }
                         }
                     }
+
+                    coverSection
 
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 8) {
@@ -272,7 +276,7 @@ struct TripFormView: View {
                     if viewModel.save() { dismiss() }
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(!viewModel.canSave)
+                .disabled(!viewModel.canSave || viewModel.isPreparingCover)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
             }
@@ -301,6 +305,71 @@ struct TripFormView: View {
         }
         .presentationDragIndicator(.visible)
         .presentationBackground(Theme.card)
+    }
+
+    /// Pick a photo of your own for the cover. Only the photo picked is shared with the app
+    /// (no photo library permission needed), and it is resized and saved in Core Data on Save.
+    private var coverSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Cover Photo")
+            HStack(spacing: 14) {
+                coverPreview
+                    .frame(width: 84, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        if viewModel.isPreparingCover {
+                            ProgressView()
+                        }
+                    }
+                VStack(alignment: .leading, spacing: 6) {
+                    PhotosPicker(selection: $pickedCover, matching: .images, preferredItemEncoding: .compatible) {
+                        Label(viewModel.hasCustomCover ? "Change photo" : "Choose a photo",
+                              systemImage: "photo.on.rectangle")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    if viewModel.hasCustomCover {
+                        Button("Use the default photo", role: .destructive) {
+                            pickedCover = nil
+                            withAnimation { viewModel.removeCoverPhoto() }
+                        }
+                        .font(.subheadline)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .fieldStyle()
+            if let problem = viewModel.coverProblem {
+                Text(problem).font(.caption).foregroundStyle(.red)
+            } else {
+                Text("Kept on this iPhone only. Your other devices show a photo of the destination.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: pickedCover) { _, item in
+            guard let item else { return }
+            Task {
+                do {
+                    if let data = try await item.loadTransferable(type: Data.self) {
+                        await viewModel.useCoverPhoto(data)
+                    }
+                } catch {
+                    viewModel.reportCoverProblem("Couldn't load that photo. \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var coverPreview: some View {
+        if let data = viewModel.coverThumbnailData, let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .accessibilityLabel("Your cover photo")
+        } else {
+            PhotoView(photo: viewModel.defaultCover, showsSymbol: false)
+        }
     }
 
     private var companionsSection: some View {

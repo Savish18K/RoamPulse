@@ -55,6 +55,12 @@ final class AppRouter {
     var selectedTab: AppTab = .home
     var activeSheet: AppSheet?
     var isLocked = false
+
+    /// Back to the Home tab with no sheet open, e.g. after signing out.
+    func reset() {
+        selectedTab = .home
+        activeSheet = nil
+    }
 }
 
 // MARK: - Building screens

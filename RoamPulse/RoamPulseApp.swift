@@ -4,7 +4,8 @@ import SwiftUI
 
 @main
 struct RoamPulseApp: App {
-    /// Built once: Core Data, the real clock and the weather service.
+    /// Built once: Firebase, sign-in, sync, the real clock and the weather service.
+    /// `live()` configures Firebase first, so it is ready before anything uses it.
     @State private var dependencies = AppDependencies.live()
     @State private var router = AppRouter()
 
@@ -13,6 +14,7 @@ struct RoamPulseApp: App {
             RootView()
                 .environment(dependencies)
                 .environment(dependencies.store)
+                .environment(dependencies.session)
                 .environment(router)
         }
     }
@@ -20,11 +22,12 @@ struct RoamPulseApp: App {
 
 // MARK: - RootView
 
-/// Decides between onboarding and the main app, shows the lock screen
+/// Decides between onboarding, signing in and the main app, shows the lock screen
 /// and presents every sheet in the app.
 struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(TripStore.self) private var store
+    @Environment(AppSession.self) private var session
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasOnboarded") private var hasOnboarded = false
     @AppStorage("appLockEnabled") private var appLockEnabled = false
@@ -34,20 +37,36 @@ struct RootView: View {
         @Bindable var router = router
 
         Group {
-            if hasOnboarded {
-                MainTabView()
-                    .blur(radius: router.isLocked ? 20 : 0)
-                    .allowsHitTesting(!router.isLocked)
-                    .overlay {
-                        if router.isLocked {
-                            LockView().transition(.opacity)
-                        }
-                    }
-            } else {
+            if !hasOnboarded {
                 OnboardingView {
                     withAnimation { hasOnboarded = true }
                 }
+            } else {
+                switch session.state {
+                case .starting:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Theme.background)
+                case .signedOut:
+                    AuthView(viewModel: AuthViewModel(session: session))
+                        .transition(.opacity)
+                case .signedIn(let user):
+                    MainTabView()
+                        // A new account gets fresh screens, not the last person's scroll positions.
+                        .id(user.uid)
+                        .blur(radius: router.isLocked ? 20 : 0)
+                        .allowsHitTesting(!router.isLocked)
+                        .overlay {
+                            if router.isLocked {
+                                LockView().transition(.opacity)
+                            }
+                        }
+                }
             }
+        }
+        .animation(.default, value: session.state)
+        .onChange(of: session.user?.uid) {
+            router.reset()
         }
         .sheet(item: $router.activeSheet) { sheet in
             SheetContent(sheet: sheet)
@@ -58,7 +77,7 @@ struct RootView: View {
         .preferredColorScheme(appTheme.colorScheme)
         .onAppear { router.isLocked = appLockEnabled }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background && appLockEnabled {
+            if phase == .background && appLockEnabled && session.user != nil {
                 router.isLocked = true
             }
         }
@@ -112,6 +131,7 @@ struct MainTabView: View {
     MainTabView()
         .environment(dependencies)
         .environment(dependencies.store)
+        .environment(dependencies.session)
         .environment(AppRouter())
         .preferredColorScheme(.dark)
 }

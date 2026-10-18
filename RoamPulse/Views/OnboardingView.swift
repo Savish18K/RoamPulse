@@ -55,9 +55,10 @@ struct OnboardingView: View {
         .background(Theme.background)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 14) {
-                Text("No account. Your data stays on this iPhone.")
+                Text("Sign in to back up and share your trips. Voice notes, photos and transcripts never leave this iPhone.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                 Button("Get Started", action: onGetStarted)
                     .buttonStyle(PrimaryButtonStyle())
             }

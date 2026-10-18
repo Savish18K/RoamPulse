@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Weather and activity advisories for one trip.
-/// The forecast comes from `WeatherViewModel` (sample data until OpenWeatherMap is added in Increment 4).
+/// The forecast comes from `WeatherViewModel` (sample data until OpenWeatherMap is added in Increment 7).
 struct WeatherView: View {
     @State private var viewModel: WeatherViewModel
 

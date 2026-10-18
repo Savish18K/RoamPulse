@@ -162,7 +162,7 @@ struct HomeView: View {
 
     private func heroCard(_ trip: Trip) -> some View {
         ZStack(alignment: .bottomLeading) {
-            PhotoView(photo: trip.cover, showsSymbol: false)
+            TripCoverView(trip: trip, showsSymbol: false)
             LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 4) {
                 Text(trip.name).font(.title2.bold())

@@ -12,39 +12,55 @@ final class AppDependencies {
     let clock: Clock
     let weather: WeatherService
     let store: TripStore
+    let auth: AuthService
+    let sync: SyncService
+    let session: AppSession
 
-    init(repository: TripRepository, clock: Clock, weather: WeatherService) {
+    init(clock: Clock, weather: WeatherService, auth: AuthService, sync: SyncService, isCloudAvailable: Bool,
+         openRepository: @escaping (String) throws -> TripRepository) {
         self.clock = clock
         self.weather = weather
-        self.store = TripStore(repository: repository, clock: clock)
+        self.auth = auth
+        self.sync = sync
+        // Empty until someone signs in and `session` opens their database.
+        let store = TripStore(repository: InMemoryTripRepository(), clock: clock)
+        self.store = store
+        self.session = AppSession(auth: auth, store: store, sync: sync, isCloudAvailable: isCloudAvailable,
+                                  openRepository: openRepository)
     }
 
-    /// The real app: Core Data on disk and the real time.
+    /// The real app: Firebase sign-in and sync, a Core Data database per account, and the real time.
     static func live() -> AppDependencies {
-        let persistence = PersistenceController.shared
+        // Firebase must be configured before anything uses Auth or Firestore.
+        let firebaseIsReady = FirebaseBootstrap.configure()
         let clock = SystemClock()
         let dependencies = AppDependencies(
-            repository: CoreDataTripRepository(context: persistence.container.viewContext),
             clock: clock,
-            weather: MockWeatherService(clock: clock)
+            weather: MockWeatherService(clock: clock),
+            auth: firebaseIsReady ? FirebaseAuthService() : UnavailableAuthService(),
+            sync: firebaseIsReady ? FirestoreSyncService(clock: clock) : NoSyncService(),
+            isCloudAvailable: firebaseIsReady,
+            openRepository: { accountID in try CoreDataTripRepository(accountID: accountID) }
         )
-        if let error = persistence.loadError {
-            dependencies.store.errorMessage = "Couldn't open the database. \(error.localizedDescription)"
-        } else {
-            dependencies.store.seedSampleDataIfNeeded()
-        }
+        dependencies.session.start()
         return dependencies
     }
 
-    /// SwiftUI previews: the sample trips in memory, nothing saved.
+    /// SwiftUI previews: signed in as the sample user, the sample trips in memory, nothing saved or synced.
     static func preview() -> AppDependencies {
         let clock = SystemClock()
         let sample = SampleData.make(now: clock.now)
-        return AppDependencies(
-            repository: InMemoryTripRepository(trips: sample.trips, memories: sample.memories),
+        let repository = InMemoryTripRepository(trips: sample.trips, memories: sample.memories)
+        let dependencies = AppDependencies(
             clock: clock,
-            weather: MockWeatherService(clock: clock)
+            weather: MockWeatherService(clock: clock),
+            auth: PreviewAuthService(),
+            sync: NoSyncService(),
+            isCloudAvailable: true,
+            openRepository: { _ in repository }
         )
+        dependencies.session.start()
+        return dependencies
     }
 
     /// The active sample trip, for previews.
