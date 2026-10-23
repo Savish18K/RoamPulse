@@ -3,8 +3,6 @@ import Foundation
 // The OpenWeatherMap REST API (free plan): geocoding, current weather and the 5 day / 3 hour forecast.
 // https://openweathermap.org/api
 
-// MARK: - Configuration
-
 enum OpenWeatherMapConfig {
     /// The API key from OpenWeatherMap.plist (key `API_KEY`), or nil if it hasn't been filled in.
     /// Without a key the app shows sample weather instead.
@@ -16,8 +14,6 @@ enum OpenWeatherMapConfig {
         return key
     }
 }
-
-// MARK: - Errors
 
 enum WeatherError: LocalizedError, Equatable {
     /// No connection, and no saved forecast to show instead.
@@ -47,8 +43,6 @@ enum WeatherError: LocalizedError, Equatable {
     }
 }
 
-// MARK: - HTTP
-
 /// The one network call the client makes, behind a protocol so tests can return saved JSON.
 protocol HTTPClient {
     func data(from url: URL) async throws -> (Data, URLResponse)
@@ -61,8 +55,6 @@ struct URLSessionHTTPClient: HTTPClient {
         try await session.data(from: url)
     }
 }
-
-// MARK: - Responses
 
 // Only the fields the app uses. Snake-case JSON keys (temp_min) are converted to camelCase.
 
@@ -151,8 +143,6 @@ struct OpenWeatherMapBundle: Codable, Hashable {
     var current: OWMCurrent
     var forecast: OWMForecast
 }
-
-// MARK: - Client
 
 struct OpenWeatherMapClient {
     let apiKey: String

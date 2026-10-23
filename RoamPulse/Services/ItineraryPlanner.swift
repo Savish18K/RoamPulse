@@ -4,8 +4,6 @@ import Foundation
 /// Everything here is a pure function (data in, data out), so it is easy to unit test.
 enum ItineraryPlanner {
 
-    // MARK: - Ordering
-
     /// Activities in time order. Activities at the same time are sorted by title,
     /// so the order never jumps around.
     static func ordered(_ activities: [Activity]) -> [Activity] {
@@ -69,8 +67,6 @@ enum ItineraryPlanner {
     static func clashes(day: Int, minutes: Int, ignoring id: UUID?, in activities: [Activity]) -> [Activity] {
         activities.filter { $0.day == day && $0.minutes == minutes && $0.id != id }
     }
-
-    // MARK: - Demanding-day rule
 
     /// Effort points for one activity.
     static func points(for effort: Effort) -> Int {

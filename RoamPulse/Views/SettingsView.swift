@@ -2,8 +2,6 @@ import AVFAudio
 import Speech
 import SwiftUI
 
-// MARK: - SettingsView
-
 /// Profile → Settings: account, notifications, app lock, permissions, appearance and data.
 /// Everything here reads and changes real state; nothing is a placeholder.
 struct SettingsView: View {
@@ -67,8 +65,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Account
-
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Account")
@@ -109,8 +105,6 @@ struct SettingsView: View {
             passwordResetMessage = error.localizedDescription
         }
     }
-
-    // MARK: - Notifications
 
     private func notificationsSection(_ reminders: ReminderService) -> some View {
         @Bindable var reminders = reminders
@@ -202,8 +196,6 @@ struct SettingsView: View {
         )
     }
 
-    // MARK: - Privacy
-
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Privacy").padding(.top, 10)
@@ -244,8 +236,6 @@ struct SettingsView: View {
         }
         return "Uses \(appLock.biometry.name), with your passcode as a backup. Also hides RoamPulse in the app switcher."
     }
-
-    // MARK: - Permissions
 
     private var permissionsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -293,8 +283,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Appearance
-
     private var appearanceSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Appearance").padding(.top, 10)
@@ -317,8 +305,6 @@ struct SettingsView: View {
             set: { appTheme = AppTheme.allCases[$0] }
         )
     }
-
-    // MARK: - Data
 
     private var dataSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -360,8 +346,6 @@ struct SettingsView: View {
         .previewEnvironment(.preview())
 }
 
-// MARK: - System permissions
-
 /// The microphone and speech recognition permissions the voice journal will ask for.
 enum SystemPermissions {
     enum Status: Equatable {
@@ -392,8 +376,6 @@ enum SystemPermissions {
         }
     }
 }
-
-// MARK: - EditProfileView
 
 /// Settings → Name.
 struct EditProfileView: View {
@@ -457,8 +439,6 @@ struct EditProfileView: View {
         }
     }
 }
-
-// MARK: - DeleteAccountView
 
 /// Settings → Delete account. Explains what is deleted and asks for the password again.
 struct DeleteAccountView: View {
@@ -541,8 +521,6 @@ struct DeleteAccountView: View {
         }
     }
 }
-
-// MARK: - Export
 
 /// Settings → Export my data: everything on this iPhone as a readable JSON file.
 enum DataExporter {

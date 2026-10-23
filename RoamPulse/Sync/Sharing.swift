@@ -77,8 +77,6 @@ struct InviteRecord: Codable, Equatable {
     }
 }
 
-// MARK: - Codes
-
 enum InviteCode {
     /// No 0/O, 1/I/L or 5/S, so a code read out loud or typed from a screenshot isn't misread.
     static let alphabet = Array("ABCDEFGHJKMNPQRTUVWXYZ2346789")
@@ -142,8 +140,6 @@ enum InviteCode {
     }
 }
 
-// MARK: - Errors
-
 enum SharingError: LocalizedError, Equatable {
     case notSignedIn
     /// The server didn't answer in time. Sharing needs a connection, unlike normal editing.
@@ -164,8 +160,6 @@ enum SharingError: LocalizedError, Equatable {
         }
     }
 }
-
-// MARK: - Timeout
 
 /// Runs `operation`, but gives up with `SharingError.offline` after `seconds`.
 ///

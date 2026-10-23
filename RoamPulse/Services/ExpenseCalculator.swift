@@ -11,8 +11,6 @@ enum ExpenseCalculator {
 
     static func fromCents(_ cents: Int) -> Double { Double(cents) / 100 }
 
-    // MARK: - Splitting
-
     /// Splits `amount` equally. Any leftover cents go to the first people in the list,
     /// so the shares always add up to exactly the amount.
     /// e.g. LKR 100 between 3 people → 33.34, 33.33, 33.33.
@@ -31,8 +29,6 @@ enum ExpenseCalculator {
     static func unassigned(total: Double, shares: [Double]) -> Double {
         fromCents(toCents(total) - shares.map(toCents).reduce(0, +))
     }
-
-    // MARK: - Balances
 
     /// Each member's net balance: what they paid, minus their share of every expense,
     /// adjusted by the settle-up payments already made.
@@ -58,8 +54,6 @@ enum ExpenseCalculator {
     static func balances(for trip: Trip) -> [Balance] {
         balances(members: trip.members, expenses: trip.expenses, payments: trip.payments)
     }
-
-    // MARK: - Settle up
 
     /// One side of the settle-up: a member and how much they owe or are owed, in cents.
     private struct Position {
@@ -104,8 +98,6 @@ enum ExpenseCalculator {
     private static func largestFirst(_ a: Position, _ b: Position) -> Bool {
         a.cents != b.cents ? a.cents > b.cents : a.member.name < b.member.name
     }
-
-    // MARK: - Budget
 
     /// The budget warning shows once this share of the budget is spent.
     static let warningPercent = 90

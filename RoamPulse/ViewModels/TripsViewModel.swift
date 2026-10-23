@@ -1,8 +1,6 @@
 import Foundation
 import Observation
 
-// MARK: - TripsListViewModel
-
 /// Trips tab: trips grouped into Active, Upcoming and Completed, with search and delete.
 @MainActor
 @Observable
@@ -78,8 +76,6 @@ final class TripsListViewModel {
     }
 }
 
-// MARK: - TripFormViewModel
-
 /// Create Trip and Edit Trip sheet.
 @MainActor
 @Observable
@@ -152,8 +148,6 @@ final class TripFormViewModel {
         }
     }
 
-    // MARK: Destination search
-
     /// Looks up places matching the destination. Called by the view a moment after typing stops.
     func searchPlaces() async {
         let query = destination.trimmed
@@ -170,8 +164,6 @@ final class TripFormViewModel {
         destination = place.name
         placeSuggestions = []
     }
-
-    // MARK: Cover photo
 
     /// The trip's own photo will be shown (a new one was picked, or it already had one that isn't being removed).
     var hasCustomCover: Bool {
@@ -225,8 +217,6 @@ final class TripFormViewModel {
     var title: String { isEditing ? "Edit Trip" : "Create Trip" }
     var saveTitle: String { isEditing ? "Save Changes" : "Save Trip" }
 
-    // MARK: Validation
-
     var datesAreValid: Bool { Calendar.trip.days(from: startDate, to: endDate) >= 0 }
 
     var dayCount: Int { Calendar.trip.days(from: startDate, to: endDate) + 1 }
@@ -252,8 +242,6 @@ final class TripFormViewModel {
         return "\(count) \(count == 1 ? "activity" : "activities") on removed days will move to Day \(dayCount)."
     }
 
-    // MARK: Companions
-
     func addCompanion() {
         let newName = newCompanionName.trimmed
         newCompanionName = ""
@@ -274,8 +262,6 @@ final class TripFormViewModel {
         guard canRemove(member) else { return }
         companions.removeAll { $0.id == member.id }
     }
-
-    // MARK: Saving
 
     /// Creates or updates the trip. Returns false if the form isn't valid or saving failed.
     func save() -> Bool {

@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Clock
-
 /// Where "now" comes from.
 /// The app uses the real time (`SystemClock`); tests and previews use a `FixedClock`
 /// so results don't change depending on when they run.
@@ -16,8 +14,6 @@ struct SystemClock: Clock {
 struct FixedClock: Clock {
     var now: Date
 }
-
-// MARK: - Calendar helpers
 
 extension Calendar {
     /// Gregorian calendar used for all trip day maths, whatever calendar the phone is set to.

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - LandmarksGridView
-
 /// Grid of the 10 landmarks the model knows, showing which ones were found.
 struct LandmarksGridView: View {
     @Environment(TripStore.self) private var store
@@ -139,8 +137,6 @@ struct LandmarkCard: View {
     }
 }
 
-// MARK: - LandmarkDetailView
-
 struct LandmarkDetailView: View {
     let landmarkID: UUID
 
@@ -234,7 +230,7 @@ struct LandmarkDetailView: View {
             .ignoresSafeArea(edges: .top)
             .safeAreaInset(edge: .bottom) {
                 BackActionBar(actionTitle: "+ Add Photo") {
-                    router.activeSheet = .addPhoto(memoryID: nil)
+                    router.activeSheet = .newMemory(tripID: nil, withPhotos: true)
                 }
             }
         }
@@ -290,7 +286,7 @@ struct LandmarkDetailView: View {
             Spacer()
             Group {
                 if let photo = memory.photos.first {
-                    PhotoView(photo: photo)
+                    MemoryPhotoView(photo: photo, thumbnail: true)
                 } else {
                     Theme.card.overlay { Image(systemName: "mic").foregroundStyle(.purple) }
                 }

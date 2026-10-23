@@ -1,4 +1,4 @@
-# RoamPulse architecture (Increments 1–10)
+# RoamPulse architecture (Increments 1–13)
 
 ## Layers
 
@@ -180,6 +180,40 @@ empty tombstones and their items are deleted, shared trips are left, own invites
 (3) delete the Firebase account; (4) delete the account's folder on the iPhone
 (`PersistenceController.deleteStore`, including photo files). If (2) fails offline, the account is kept.
 
+## Home dashboard (`HomeViewModel`)
+
+`state` picks the most useful view: `.active` (a trip today) › `.upcoming` › `.completed` › `.noTrips`.
+Weather is only loaded for an active trip or one starting within ~5 days (the forecast range); otherwise the
+card says when the forecast will appear. A failed download shows the reason instead of a spinner.
+Before a trip, `readiness` lists packing, itinerary coverage, budget and companions, each linking to its screen.
+
+## Journal (`JournalViewModels.swift`)
+
+- `MemoryFormViewModel` (new and edit): trip, date (kept inside the trip's dates; the trip day is worked out from
+  it), title, text, place, people (members of that trip), optional mood, linked activity of that day.
+  Save is disabled with a reason until there is a title and some content (text, photo or recording).
+- **Photos:** `MemoryPhoto` is `.sample(SamplePhoto)` or `.stored(UUID)`. Picked photos are resized off the main
+  thread (`ImageProcessor`) and only saved on Save: `TripStore.saveMemory` saves the images first, then the
+  memory pointing at them, and deletes the images again if the memory can't be saved.
+- In Core Data each photo is a `PhotoEntity` row; a picked one links to its `StoredImageEntity` (cascade).
+  `syncPhotos` keeps rows that are still in the list, so editing the text never re-saves photos; a removed
+  photo's row is deleted and its image with it. Deleting a memory or trip cascades the same way.
+- Editing keeps what the form doesn't show (recording length, landmark, tags). Picking a different mood by hand
+  clears the sentiment that was read from a recording.
+- A linked activity is saved as its label ("Day 2 • 17:30 Nine Arch Bridge viewpoint"); "mark as visited"
+  ticks it off in the itinerary.
+
+## Insights and Statistics (`InsightsViewModels.swift`)
+
+- `MemorySearch` (pure): matching (title, text, place, people, tags, landmark — case-insensitive), the matching
+  sentence as a snippet, suggestions (most-mentioned places and people), mood score (sentiment, or a value for a
+  hand-picked mood).
+- `InsightsViewModel`: trip filter, results, timeline grouped by day (with trip and day number), mood per day.
+  `AppRouter.searchInsights(for:)` lets a tapped place or person on a memory open the search.
+- `TravelStats.make` (pure): trips that have started in the period, days (an active trip counts days so far),
+  places, memories, photos, spending by category and by trip, "on budget" only across trips that have a budget,
+  landmarks named on memories. The view draws a donut (`SectorMark`) and stacked bars (`BarMark`) with Swift Charts.
+
 ## Photos
 
 - **Sample photos** (`Assets.xcassets/Photos`, 1200 px, 130–550 KB) stay in the asset catalog. They are part of
@@ -226,7 +260,7 @@ Items already on the list are left out.
 
 ## Tests (`RoamPulseTests`, Swift Testing, ⌘U)
 
-155 tests in eleven suites:
+176 tests in thirteen suites:
 
 | Suite | Covers |
 |---|---|
@@ -239,6 +273,8 @@ Items already on the list are left out.
 | ImageTests | resizing (big, small, not a photo), cover saved/replaced/removed/deleted in Core Data, no orphan photos, the Create Trip form's photo, forecast cache deleted with the trip |
 | SharingTests | invite codes (format, typing, expiry), "me" per account, edits never rewrite members, new trips owned by their maker, leave vs delete, invite/join screens, timeout |
 | WeatherTests | real JSON decoding, cache round trip, snapshot building, daily rows, symbols, per-activity rain/heat advice and windows, headline, service caching/refresh/offline/401/geocoding/shared download, destination search in the form |
+| JournalTests | defaults, validation, saving people/mood/linked activity (ticked off), day changes, date clamping, photos resized and saved, removing photos / deleting memories deletes images, 10-photo limit, mixed sample + picked photos, edits keep hidden fields, trip filter and delete |
+| InsightsTests | search fields, snippets, suggestions, router search, timeline, day moods, TravelStats (period, days so far, spending, landmarks, budget), Home states, readiness, weather error |
 | ReminderTests + AppLockTests | packing/activity/weather reminders and their rules, limit, permission asked once, edits replace and deletes cancel; app lock on/off, delay, unlock, cancel |
 
 ## Questions you might be asked

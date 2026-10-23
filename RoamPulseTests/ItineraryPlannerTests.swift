@@ -10,8 +10,6 @@ struct ItineraryPlannerTests {
         Activity(day: day, title: title, minutes: hour * 60 + minute, place: "Ella", effort: effort)
     }
 
-    // MARK: - Demanding-day rule
-
     @Test func anEmptyDayHasNoBadge() {
         #expect(ItineraryPlanner.intensity(of: []) == nil)
     }
@@ -74,8 +72,6 @@ struct ItineraryPlannerTests {
         #expect(advice?.contains("in a row") == true)
     }
 
-    // MARK: - Ordering
-
     @Test func activitiesAreShownInTimeOrder() {
         let day = [activity("Dinner", at: 19), activity("Hike", at: 6), activity("Lunch", at: 13)]
         #expect(ItineraryPlanner.ordered(day).map(\.title) == ["Hike", "Lunch", "Dinner"])
@@ -85,8 +81,6 @@ struct ItineraryPlannerTests {
         let day = [activity("Tea", at: 15), activity("Falls", at: 15)]
         #expect(ItineraryPlanner.ordered(day).map(\.title) == ["Falls", "Tea"])
     }
-
-    // MARK: - Drag to reorder
 
     @Test func reorderingKeepsTheDaysTimeSlots() {
         let day = [activity("Hike", at: 6), activity("Spice garden", at: 11), activity("Falls", at: 15)]
@@ -124,8 +118,6 @@ struct ItineraryPlannerTests {
         #expect(all.first == otherDay)
         #expect(all.first { $0.title == "Falls" }?.timeText == "06:00")
     }
-
-    // MARK: - Moving between days
 
     @Test func movingToAnotherDayKeepsTheTime() {
         let falls = activity("Ravana Falls", at: 15, effort: .moderate, day: 3)

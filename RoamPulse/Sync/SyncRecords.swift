@@ -13,8 +13,6 @@ import Foundation
 // Every item is its own document, so two phones changing different expenses of the same trip
 // don't overwrite each other. Ids are the same UUIDs used in Core Data.
 
-// MARK: - Collections
-
 /// The lists inside a trip. Each one is a Firestore subcollection of the trip's document.
 enum SyncCollection: String, CaseIterable, Comparable {
     case members, activities, packing, expenses, payments
@@ -31,8 +29,6 @@ struct ItemKey: Hashable, Comparable {
         (lhs.collection, lhs.id) < (rhs.collection, rhs.id)
     }
 }
-
-// MARK: - Records
 
 /// The trip's own document.
 struct TripRecord: Codable, Equatable {
@@ -127,8 +123,6 @@ enum ItemRecord: Equatable {
     var expense: ExpenseRecord? { if case .expense(let record) = self { record } else { nil } }
     var payment: PaymentRecord? { if case .payment(let record) = self { record } else { nil } }
 }
-
-// MARK: - Trip ↔ records
 
 enum TripRecords {
     static func cents(_ amount: Double) -> Int { Int((amount * 100).rounded()) }
@@ -264,8 +258,6 @@ enum TripRecords {
     }
 }
 
-// MARK: - Changes to upload
-
 /// One document write.
 enum SyncWrite: Equatable {
     /// A new trip document: written in full, including its owner and members.
@@ -338,8 +330,6 @@ enum TripChangeSet {
         return writes
     }
 }
-
-// MARK: - What the cloud has
 
 /// Firestore's current copy of one trip, put together from the trip's document and its five lists,
 /// which arrive from six separate listeners.

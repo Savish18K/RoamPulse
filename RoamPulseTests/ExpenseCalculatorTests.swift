@@ -36,8 +36,6 @@ struct ExpenseCalculatorTests {
         ]
     }
 
-    // MARK: - Splitting
-
     @Test func equalSplitGivesLeftoverCentsToTheFirstPeople() {
         let shares = ExpenseCalculator.equalShares(of: 100, between: [savishka, samee, suu])
         #expect(shares.map(\.amount) == [33.34, 33.33, 33.33])
@@ -61,8 +59,6 @@ struct ExpenseCalculatorTests {
         // 0.1 + 0.2 is 0.30000000000000004 as a Double, but the cents maths gets it exactly right.
         #expect(ExpenseCalculator.unassigned(total: 0.3, shares: [0.1, 0.2]) == 0)
     }
-
-    // MARK: - Balances
 
     @Test func balancesMatchThePrototypeTrip() {
         let balances = ExpenseCalculator.balances(members: crew, expenses: prototypeExpenses, payments: [])
@@ -100,8 +96,6 @@ struct ExpenseCalculatorTests {
         let balances = ExpenseCalculator.balances(members: [savishka, samee], expenses: [lunch], payments: [payBack])
         #expect(balances.allSatisfy { $0.amount == 0 })
     }
-
-    // MARK: - Settle up
 
     @Test func settlementMatchesThePrototype() {
         let balances = ExpenseCalculator.balances(members: crew, expenses: prototypeExpenses, payments: [])
@@ -160,8 +154,6 @@ struct ExpenseCalculatorTests {
         let plan = ExpenseCalculator.settlements(for: balances)
         #expect(plan.map(\.from.name) == ["Samee", "Suu"])
     }
-
-    // MARK: - Budget warning
 
     @Test func budgetWarningStartsAtNinetyPercent() {
         #expect(ExpenseCalculator.budgetStatus(spent: 89_999, budget: 100_000) == .onTrack)

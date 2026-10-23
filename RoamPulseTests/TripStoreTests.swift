@@ -23,8 +23,6 @@ struct TripStoreTests {
         TripStore(repository: repository ?? InMemoryTripRepository(trips: trips), clock: FixedClock(now: now))
     }
 
-    // MARK: - Status and sorting
-
     @Test func tripsAreSortedIntoActiveUpcomingAndCompleted() {
         let trips = [
             trip("Later", startsIn: 60, days: 3),
@@ -64,8 +62,6 @@ struct TripStoreTests {
         #expect(broken.dayCount == 1)
     }
 
-    // MARK: - Store
-
     @Test func anAddedTripIsSaved() {
         let repository = InMemoryTripRepository()
         let store = makeStore(repository: repository)
@@ -101,8 +97,6 @@ struct TripStoreTests {
         #expect(store.trips.isEmpty)
         #expect(store.memories.isEmpty)
     }
-
-    // MARK: - Trip form
 
     @Test func creatingATripAddsTheDefaultPackingListAndYou() throws {
         let store = makeStore()
@@ -150,8 +144,6 @@ struct TripStoreTests {
         #expect(form.canRemove(me) == false)
     }
 
-    // MARK: - Itinerary view model
-
     @Test func draggingAnActivityOntoAnotherReordersTheDay() {
         var ella = trip("Ella", startsIn: -2, days: 4) // today is Day 3
         let hike = Activity(day: 3, title: "Hike", minutes: 360, place: "Ella", effort: .high)
@@ -178,8 +170,6 @@ struct TripStoreTests {
         #expect(detail.moveActivity(falls.id, toDayIndex: 3)) // the "Day 4" tab
         #expect(store.trip(ella.id)?.activities.first?.day == 4)
     }
-
-    // MARK: - Expense view models
 
     @Test func settlingUpRecordsPaymentsUntilNobodyOwes() {
         var ella = trip("Ella", startsIn: -1, days: 4)

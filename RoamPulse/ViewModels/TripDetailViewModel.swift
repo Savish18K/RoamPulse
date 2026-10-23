@@ -1,8 +1,6 @@
 import Foundation
 import Observation
 
-// MARK: - TripDetailViewModel
-
 /// Trip detail: summary tiles, day tabs and the selected day's schedule.
 @MainActor
 @Observable
@@ -30,8 +28,6 @@ final class TripDetailViewModel {
 
     var now: Date { clock.now }
 
-    // MARK: Header and tiles
-
     func statusText(for trip: Trip) -> String { trip.statusText(at: now) }
 
     func subtitle(for trip: Trip) -> String {
@@ -55,8 +51,6 @@ final class TripDetailViewModel {
         return "\(count) \(count == 1 ? "memory" : "memories")"
     }
 
-    // MARK: Day tabs
-
     var dayTitles: [String] { (1...(trip?.dayCount ?? 1)).map { "Day \($0)" } }
 
     /// The segmented control works with 0-based indexes.
@@ -70,8 +64,6 @@ final class TripDetailViewModel {
         guard let trip else { return [] }
         return Set(WeatherAdvisor.advisoryDays(for: trip, in: weather).map { $0 - 1 })
     }
-
-    // MARK: Schedule
 
     var activities: [Activity] { trip?.activities(onDay: selectedDay) ?? [] }
 
@@ -110,8 +102,6 @@ final class TripDetailViewModel {
     func canMoveUp(_ activity: Activity) -> Bool { activities.first?.id != activity.id }
 
     func canMoveDown(_ activity: Activity) -> Bool { activities.last?.id != activity.id }
-
-    // MARK: Actions
 
     func toggleDone(_ activity: Activity) {
         store.updateTrip(tripID) { trip in
@@ -177,8 +167,6 @@ final class TripDetailViewModel {
         store.deleteTrip(tripID)
     }
 
-    // MARK: Sharing
-
     /// The owner deletes the trip; someone it was shared with can only leave it.
     var canDeleteForEveryone: Bool { trip.map(store.isOwner) ?? true }
 
@@ -202,8 +190,6 @@ final class TripDetailViewModel {
         weather = try? await weatherService.forecast(for: trip)
     }
 }
-
-// MARK: - ActivityFormViewModel
 
 /// Add Activity and Edit Activity sheet.
 @MainActor
@@ -296,8 +282,6 @@ final class ActivityFormViewModel {
         }
     }
 }
-
-// MARK: - PackingViewModel
 
 /// Packing list: progress ring, items by category and weather suggestions.
 @MainActor

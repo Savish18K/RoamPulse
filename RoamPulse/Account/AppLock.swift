@@ -2,8 +2,6 @@ import Foundation
 import LocalAuthentication
 import Observation
 
-// MARK: - Device authentication
-
 /// Which biometric sensor the iPhone has.
 enum Biometry: Equatable {
     case faceID, touchID, opticID, none
@@ -85,8 +83,6 @@ struct LocalDeviceAuthenticator: DeviceAuthenticating {
     }
 }
 
-// MARK: - AppLock
-
 /// The optional app lock (Settings → Privacy).
 ///
 /// When it is on, the app locks on launch and when it comes back after being in the background for
@@ -129,8 +125,6 @@ final class AppLock {
 
     var canBeUsed: Bool { authenticator.canAuthenticate() }
 
-    // MARK: Turning it on and off
-
     /// Returns false (and leaves the setting as it was) if the person couldn't confirm it's them.
     @discardableResult
     func setEnabled(_ enabled: Bool) async -> Bool {
@@ -150,8 +144,6 @@ final class AppLock {
         defaults.set(enabled, forKey: Key.enabled)
         return true
     }
-
-    // MARK: App lifecycle
 
     /// The app opened with someone signed in.
     func lockOnLaunch() {
@@ -177,8 +169,6 @@ final class AppLock {
         backgroundedAt = nil
         errorMessage = nil
     }
-
-    // MARK: Unlocking
 
     func unlock() async {
         guard isLocked, !isAuthenticating else { return }

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - RoamPulseApp
-
 @main
 struct RoamPulseApp: App {
     /// Built once: Firebase, sign-in, sync, the real clock and the weather service.
@@ -27,8 +25,6 @@ struct RoamPulseApp: App {
         }
     }
 }
-
-// MARK: - RootView
 
 /// Decides between onboarding, signing in and the main app, shows the lock screen,
 /// keeps reminders up to date and presents every sheet in the app.
@@ -131,8 +127,6 @@ struct RootView: View {
     }
 }
 
-// MARK: - MainTabView
-
 /// The five tabs from the prototype. Each tab has its own NavigationStack.
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
@@ -158,11 +152,11 @@ struct MainTabView: View {
             .tabItem { Label("Trips", systemImage: "safari") }
             .tag(AppTab.trips)
 
-            NavigationStack { JournalView().appDestinations() }
+            NavigationStack { JournalView(viewModel: JournalViewModel(store: dependencies.store)).appDestinations() }
                 .tabItem { Label("Journal", systemImage: "book") }
                 .tag(AppTab.journal)
 
-            NavigationStack { InsightsView().appDestinations() }
+            NavigationStack { InsightsView(viewModel: InsightsViewModel(store: dependencies.store)).appDestinations() }
                 .tabItem { Label("Insights", systemImage: "chart.xyaxis.line") }
                 .tag(AppTab.insights)
 

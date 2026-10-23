@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - WeatherService
-
 /// Gives the forecast for a trip's destination, and finds places for the Create Trip form.
 ///
 /// The app uses `OpenWeatherMapService` (live data, cached for offline use). Without an API key,
@@ -30,8 +28,6 @@ struct Place: Hashable, Identifiable {
 
     var id: String { "\(name)-\(latitude)-\(longitude)" }
 }
-
-// MARK: - MockWeatherService
 
 /// Sample forecast that looks like the prototype: light rain today, heavy rain tomorrow afternoon.
 /// The days are worked out from the clock, so they always line up with "today".
@@ -116,8 +112,6 @@ final class MockWeatherService: WeatherService {
         Self.samplePlaces.filter { $0.name.localizedCaseInsensitiveContains(query.trimmed) }
     }
 }
-
-// MARK: - WeatherAdvisor
 
 /// Weather advice for the itinerary: which outdoor activity is at risk, when, and a better time.
 ///
@@ -223,8 +217,6 @@ enum WeatherAdvisor {
             message: "\(activity.title) (Day \(first.day), \(activity.timeText)): \(first.message)"
         )
     }
-
-    // MARK: Helpers
 
     /// The wet steps next to each other around `slot`, as one time window (e.g. 14:00–20:00).
     private static func wetRun(around slot: ForecastSlot, in slots: [ForecastSlot]) -> (start: Date, end: Date) {

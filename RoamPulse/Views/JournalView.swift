@@ -1,71 +1,155 @@
+import PhotosUI
 import SwiftUI
 
-// MARK: - JournalView
-
+/// Journal tab: every memory, newest first, with a filter per trip.
 struct JournalView: View {
-    @Environment(TripStore.self) private var store
+    @State private var viewModel: JournalViewModel
     @Environment(AppRouter.self) private var router
+
+    init(viewModel: JournalViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 14) {
-                ForEach(Array(store.sortedMemories.enumerated()), id: \.element.id) { index, memory in
-                    MemoryCard(memory: memory, isFeatured: index == 0)
-                        .contentShape(Rectangle())
-                        .onTapGesture { router.activeSheet = .memory(memory.id) }
-                        .accessibilityAddTraits(.isButton)
+                if viewModel.tripsWithMemories.count > 1 {
+                    tripFilter
                 }
-                if store.memories.isEmpty {
-                    ContentUnavailableView("No memories yet", systemImage: "waveform",
-                                           description: Text("Record a voice memory or add a photo from your trip."))
+
+                let memories = viewModel.memories
+                ForEach(Array(memories.enumerated()), id: \.element.id) { index, memory in
+                    Button {
+                        router.activeSheet = .memory(memory.id)
+                    } label: {
+                        MemoryCard(memory: memory, tripName: viewModel.tripFilter == nil ? viewModel.tripName(for: memory) : nil,
+                                   isFeatured: index == 0)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            router.activeSheet = .editMemory(memory.id)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button(role: .destructive) {
+                            viewModel.memoryPendingDelete = memory
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
+
+                if viewModel.hasNoMemories {
+                    emptyState
                 }
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
+            .animation(.snappy, value: viewModel.memories)
         }
         .background(Theme.background)
         .navigationTitle("Journal")
         .safeAreaInset(edge: .bottom) {
-            FloatingActionBar(
-                primaryTitle: "Record Memory",
-                primaryAction: { router.activeSheet = .recordMemory },
-                secondaryTitle: "Add Photo",
-                secondaryAction: { router.activeSheet = .addPhoto(memoryID: store.latestMemory?.id) }
-            )
+            if viewModel.canWriteMemory {
+                FloatingActionBar(
+                    primaryTitle: "New Memory",
+                    primaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: false) },
+                    secondaryTitle: "Add Photos",
+                    secondaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: true) }
+                )
+            }
+        }
+        .confirmationDialog(
+            "Delete this memory?",
+            isPresented: Binding(get: { viewModel.memoryPendingDelete != nil },
+                                 set: { if !$0 { viewModel.memoryPendingDelete = nil } }),
+            titleVisibility: .visible,
+            presenting: viewModel.memoryPendingDelete
+        ) { memory in
+            Button("Delete “\(memory.title)”", role: .destructive) {
+                withAnimation { viewModel.confirmDelete() }
+            }
+        } message: { _ in
+            Text("Its text and photos will be removed from this iPhone. It can't be undone.")
         }
     }
+
+    private var tripFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button { viewModel.tripFilter = nil } label: {
+                    Chip("All trips", isSelected: viewModel.tripFilter == nil)
+                }
+                ForEach(viewModel.tripsWithMemories) { trip in
+                    Button { viewModel.tripFilter = trip.id } label: {
+                        Chip(trip.name, isSelected: viewModel.tripFilter == trip.id)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if viewModel.canWriteMemory {
+            ContentUnavailableView {
+                Label("No memories yet", systemImage: "book.closed")
+            } description: {
+                Text("Write down what happened, add photos and tag who was there. They stay on this iPhone.")
+            } actions: {
+                Button("Write a Memory") {
+                    router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: false)
+                }
+                .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
+            }
+            .padding(.top, 40)
+        } else {
+            ContentUnavailableView {
+                Label("No trips yet", systemImage: "suitcase")
+            } description: {
+                Text("Memories belong to a trip. Create one first.")
+            } actions: {
+                Button("Create Trip") { router.activeSheet = .createTrip }
+                    .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
+            }
+            .padding(.top, 40)
+        }
+    }
+}
+
+#Preview {
+    let dependencies = AppDependencies.preview()
+    NavigationStack { JournalView(viewModel: JournalViewModel(store: dependencies.store)) }
+        .previewEnvironment(dependencies)
 }
 
 /// Card for one memory in the Journal list.
 struct MemoryCard: View {
     let memory: Memory
+    /// Shown when the list has several trips.
+    var tripName: String?
     var isFeatured = false
     @Environment(AppRouter.self) private var router
-    @State private var isPlaying = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(memory.title).font(.title3.bold()).lineLimit(1)
-                    Text("\(memory.date.text("EEE HH:mm")) • \(memory.place)")
+                    Text(memory.title).font(.title3.bold()).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer()
-                if memory.hasVoice {
-                    Button {
-                        isPlaying.toggle()
-                    } label: {
-                        Image(systemName: isPlaying ? "pause.circle" : "play.circle")
-                            .font(.title2)
-                            .foregroundStyle(isFeatured ? .white : .secondary)
-                            .frame(width: 44, height: 44)
-                            .background(isFeatured ? Theme.purple : Theme.fill, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isPlaying ? "Pause" : "Play recording")
-                }
+                Image(systemName: kindIcon)
+                    .font(.title3)
+                    .foregroundStyle(isFeatured ? .white : .secondary)
+                    .frame(width: 40, height: 40)
+                    .background(isFeatured ? Theme.purple : Theme.fill, in: Circle())
+                    .accessibilityLabel(memory.kindText)
             }
 
             if memory.transcriptUnavailable {
@@ -79,11 +163,12 @@ struct MemoryCard: View {
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            } else if !memory.transcript.isEmpty {
+            } else if memory.hasText {
                 Text(memory.transcript)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
 
             if !memory.photos.isEmpty {
@@ -91,7 +176,7 @@ struct MemoryCard: View {
             }
 
             let tags = chips
-            if !tags.isEmpty {
+            if !tags.isEmpty || memory.landmark != nil {
                 FlowLayout {
                     if let landmark = memory.landmark {
                         Chip(landmark, icon: "building.columns.fill", tint: .purple)
@@ -107,6 +192,7 @@ struct MemoryCard: View {
                 Text(footerText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Spacer()
                 if let mood = memory.mood {
                     MoodBadge(mood: mood)
@@ -126,11 +212,24 @@ struct MemoryCard: View {
                 }
         }
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Theme.stroke))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the memory")
+    }
+
+    private var subtitle: String {
+        var parts = ["\(memory.date.text("EEE HH:mm"))", memory.place]
+        if let tripName, !tripName.isEmpty { parts.append(tripName) }
+        return parts.joined(separator: " • ")
+    }
+
+    private var kindIcon: String {
+        if memory.hasVoice { return "waveform" }
+        return memory.photos.isEmpty ? "text.alignleft" : "photo"
     }
 
     private var photoStrip: some View {
         HStack(spacing: 10) {
-            PhotoView(photo: memory.photos[0])
+            MemoryPhotoView(photo: memory.photos[0])
                 .overlay(alignment: .bottomLeading) {
                     if let landmark = memory.landmark {
                         GlassPill(landmark, icon: "building.columns.fill")
@@ -140,9 +239,14 @@ struct MemoryCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             if memory.photos.count > 1 {
-                PhotoView(photo: memory.photos[1])
+                MemoryPhotoView(photo: memory.photos[1], thumbnail: true)
                     .frame(width: 110)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(alignment: .bottomTrailing) {
+                        if memory.photos.count > 2 {
+                            GlassPill("+\(memory.photos.count - 2)").font(.caption).padding(8)
+                        }
+                    }
             }
         }
         .frame(height: 160)
@@ -153,9 +257,6 @@ struct MemoryCard: View {
         var tags = memory.placeTags
         if !memory.sceneTags.isEmpty {
             tags.append("Scene: " + memory.sceneTags.prefix(2).joined(separator: ", ").lowercased())
-        }
-        if memory.landmark != nil && tags.isEmpty {
-            tags.append(memory.place)
         }
         return tags
     }
@@ -169,30 +270,25 @@ struct MemoryCard: View {
     }
 }
 
-#Preview {
-    NavigationStack { JournalView() }
-        .previewEnvironment(.preview())
-}
-
-// MARK: - MemoryDetailView
-
-/// Memory detail sheet: photos, mood, playback, tags, transcript and linked activity.
+/// Memory detail sheet: photos, mood, text, tags, people and the linked activity.
+/// Tapping a place or person opens Insights filtered to it.
 struct MemoryDetailView: View {
     let memoryID: UUID
 
     @Environment(TripStore.self) private var store
-    @State private var isEditing = false
-    @State private var draft = ""
+    @Environment(AppRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @State private var isPlaying = false
     @State private var progress: Double = 0
     @State private var photoIndex = 0
+    @State private var confirmDelete = false
 
     var body: some View {
         Group {
             if let memory = store.memory(memoryID) {
                 content(memory)
             } else {
-                ContentUnavailableView("Memory not found", systemImage: "waveform")
+                ContentUnavailableView("Memory not found", systemImage: "book.closed")
             }
         }
         .presentationDragIndicator(.visible)
@@ -207,16 +303,29 @@ struct MemoryDetailView: View {
                         Text(memory.title).font(.title.bold())
                         Text("\(memory.date.text("EEEE HH:mm")) • \(memory.place) • Day \(memory.day)")
                             .foregroundStyle(.secondary)
+                        if let trip = store.trip(memory.tripID) {
+                            Text(trip.name).font(.subheadline).foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
-                    Button(isEditing ? "Done" : "Edit") {
-                        if isEditing {
-                            store.updateTranscript(draft, for: memory.id)
-                        } else {
-                            draft = memory.transcript
+                    Menu {
+                        Button {
+                            router.activeSheet = .editMemory(memory.id)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
                         }
-                        withAnimation { isEditing.toggle() }
+                        Button(role: .destructive) {
+                            confirmDelete = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.headline)
+                            .frame(width: 44, height: 44)
+                            .background(Theme.fill, in: Circle())
                     }
+                    .accessibilityLabel("Memory options")
                 }
                 .padding(.top, 12)
 
@@ -237,6 +346,7 @@ struct MemoryDetailView: View {
                         }
                     }
                     .card(fill: Theme.raised)
+                    .accessibilityElement(children: .combine)
                 }
 
                 if memory.hasVoice {
@@ -254,19 +364,28 @@ struct MemoryDetailView: View {
 
                 FlowLayout {
                     if let landmark = memory.landmark {
-                        Chip(landmark, icon: "building.columns.fill", tint: .purple)
+                        chipButton(landmark, icon: "building.columns.fill", tint: .purple, search: landmark)
                     }
-                    Chip(memory.place, icon: "mappin.and.ellipse")
-                    if !memory.people.isEmpty {
-                        HStack(spacing: 6) {
-                            AvatarStack(members: memory.people, size: 22)
-                            Text(memory.peopleText)
+                    chipButton(memory.place, icon: "mappin.and.ellipse", search: memory.place)
+                    ForEach(memory.placeTags.filter { $0 != memory.place }, id: \.self) { tag in
+                        chipButton(tag, icon: nil, search: tag)
+                    }
+                    ForEach(memory.people) { person in
+                        Button {
+                            searchInsights(for: person.name)
+                        } label: {
+                            HStack(spacing: 6) {
+                                AvatarView(member: person, size: 22)
+                                Text(person.name)
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Theme.fill, in: Capsule())
                         }
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Theme.fill, in: Capsule())
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Shows every memory with \(person.name)")
                     }
                 }
 
@@ -277,23 +396,20 @@ struct MemoryDetailView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel("Full Transcript")
-                    if isEditing {
-                        TextEditor(text: $draft)
-                            .frame(minHeight: 140)
-                            .scrollContentBackground(.hidden)
-                            .padding(8)
-                            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    } else if memory.transcriptUnavailable {
-                        Text("This language can't be written down on this device yet. Tap Edit to type it yourself.")
+                    SectionLabel(memory.hasVoice ? "Full Transcript" : "What happened")
+                    if memory.transcriptUnavailable {
+                        Text("This language can't be written down on this device yet.")
                             .foregroundStyle(.secondary)
-                    } else if memory.transcript.isEmpty {
-                        Text(memory.hasVoice ? "Transcribing on this iPhone…" : "Photo memory — no recording.")
+                        Button("Type it myself") { router.activeSheet = .typeNote(memory.id) }
+                            .font(.subheadline.bold())
+                    } else if !memory.hasText {
+                        Text(memory.photos.isEmpty ? "No text yet." : "Photo memory, no text.")
                             .foregroundStyle(.secondary)
                     } else {
                         Text(memory.transcript)
                             .font(.body)
                             .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                 }
 
@@ -313,6 +429,7 @@ struct MemoryDetailView: View {
                         }
                     }
                     .card(padding: 12, fill: Theme.raised, cornerRadius: 16)
+                    .accessibilityElement(children: .combine)
                 }
             }
             .padding(20)
@@ -329,7 +446,7 @@ struct MemoryDetailView: View {
                 .padding(.vertical, 8)
             }
         }
-        // Simulated playback progress until AVFoundation playback is added.
+        // Sample memories have a length but no audio yet; real playback comes with recording (Increment 14).
         .task(id: isPlaying) {
             while isPlaying, !Task.isCancelled, progress < 1 {
                 try? await Task.sleep(for: .milliseconds(100))
@@ -340,16 +457,38 @@ struct MemoryDetailView: View {
                 progress = 0
             }
         }
+        .confirmationDialog("Delete this memory?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete Memory", role: .destructive) {
+                if store.deleteMemory(memory.id) { dismiss() }
+            }
+        } message: {
+            Text("Its text and photos will be removed from this iPhone. It can't be undone.")
+        }
+    }
+
+    private func chipButton(_ title: String, icon: String?, tint: Color? = nil, search: String) -> some View {
+        Button {
+            searchInsights(for: search)
+        } label: {
+            Chip(title, icon: icon, tint: tint)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Shows every memory mentioning \(title)")
+    }
+
+    private func searchInsights(for text: String) {
+        dismiss()
+        router.searchInsights(for: text)
     }
 
     private func photos(_ memory: Memory) -> some View {
         TabView(selection: $photoIndex) {
             ForEach(Array(memory.photos.enumerated()), id: \.offset) { index, photo in
-                PhotoView(photo: photo).tag(index)
+                MemoryPhotoView(photo: photo).tag(index)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 230)
+        .frame(height: 260)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(alignment: .topTrailing) {
             if memory.photos.count > 1 {
@@ -363,6 +502,9 @@ struct MemoryDetailView: View {
                     .padding(12)
             }
         }
+        .accessibilityElement()
+        .accessibilityLabel("\(memory.photos.count) photo\(memory.photos.count == 1 ? "" : "s")"
+                            + (memory.landmark.map { ", recognised as \($0)" } ?? ""))
     }
 }
 
@@ -375,105 +517,332 @@ struct MemoryDetailView: View {
         .previewEnvironment(dependencies)
 }
 
-// MARK: - RecordMemoryView
-
-/// Record a voice memory. The recording is simulated for now —
-/// AVFoundation + Speech will replace the timer and waveform.
-struct RecordMemoryView: View {
-    @Environment(TripStore.self) private var store
+/// New Memory and Edit Memory: what happened, photos, who was there, how it felt,
+/// and which planned activity it belongs to.
+struct MemoryFormView: View {
+    @State private var viewModel: MemoryFormViewModel
+    @State private var pickedPhotos: [PhotosPickerItem] = []
+    @State private var showsPhotoPicker: Bool
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
 
-    @State private var title = ""
-    @State private var place = ""
-    @State private var isRecording = false
-    @State private var elapsed = 0
+    private enum Field {
+        case title, text, place
+    }
 
-    private var trip: Trip? { store.currentTrip }
-    private var day: Int { trip?.dayNumber(at: store.now) ?? 1 }
+    /// - Parameter opensPhotoPicker: true for "Add Photos", which starts with the photo picker open.
+    init(viewModel: MemoryFormViewModel, opensPhotoPicker: Bool = false) {
+        _viewModel = State(initialValue: viewModel)
+        _showsPhotoPicker = State(initialValue: opensPhotoPicker)
+    }
 
     var body: some View {
-        VStack(spacing: 18) {
-            FormField(label: "Memory Title") {
-                TextField("View from the homestay balcony", text: $title)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    tripAndTime
+                    FormField(label: "Title") {
+                        TextField("Blue train at Nine Arch Bridge", text: $viewModel.title)
+                            .focused($focusedField, equals: .title)
+                            .submitLabel(.next)
+                            .onSubmit { focusedField = .text }
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionLabel("What happened")
+                        TextEditor(text: $viewModel.text)
+                            .focused($focusedField, equals: .text)
+                            .frame(minHeight: 120)
+                            .scrollContentBackground(.hidden)
+                            .padding(10)
+                            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.stroke))
+                            .overlay(alignment: .topLeading) {
+                                if viewModel.text.isEmpty {
+                                    Text("Waited on the ridge for the blue train…")
+                                        .foregroundStyle(.tertiary)
+                                        .padding(18)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                            .accessibilityLabel("What happened")
+                    }
+                    photosSection
+                    placeSection
+                    if !viewModel.members.isEmpty {
+                        peopleSection
+                    }
+                    moodSection
+                    if !viewModel.activitiesOnDay.isEmpty {
+                        activitySection
+                    }
+                    if let problem = viewModel.problem, !viewModel.title.isEmpty || viewModel.photoCount > 0 {
+                        Text(problem).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(20)
             }
-
-            HStack(spacing: 12) {
-                FormField(label: "Trip & Day") {
-                    Text("\(trip?.name ?? "No trip") • Day \(day)")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            .scrollDismissesKeyboard(.interactively)
+            .background(Theme.card)
+            .navigationTitle(viewModel.formTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
-                FormField(label: "Place") {
-                    TextField("Ella", text: $place)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if viewModel.save() { dismiss() }
+                    }
+                    .disabled(!viewModel.canSave)
                 }
-                .frame(maxWidth: 150)
             }
-
-            WaveformView(isAnimating: isRecording)
-                .frame(height: 100)
-
-            Text(elapsed.timerText)
-                .font(.system(size: 52, weight: .light, design: .rounded))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-
-            Text("Recordings and transcripts stay on this device.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                Button {
-                    withAnimation { isRecording.toggle() }
-                } label: {
-                    Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                        .font(.title)
-                        .foregroundStyle(.white)
-                        .frame(width: 80, height: 80)
-                        .background(Theme.purple, in: Circle())
-                        .padding(10)
-                        .background(Theme.purple.opacity(0.25), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
-
-                Spacer()
-
-                Button("Save Memory", action: save)
-                    .buttonStyle(PrimaryButtonStyle(fullWidth: false))
-                    .disabled(elapsed == 0)
+            .photosPicker(isPresented: $showsPhotoPicker, selection: $pickedPhotos,
+                          maxSelectionCount: max(viewModel.remainingPhotoSlots, 1),
+                          matching: .images, preferredItemEncoding: .compatible)
+            .onChange(of: pickedPhotos) { _, items in
+                guard !items.isEmpty else { return }
+                pickedPhotos = []
+                Task { await loadPhotos(items) }
+            }
+            .onAppear {
+                if !showsPhotoPicker && !viewModel.isEditing { focusedField = .title }
             }
         }
-        .padding(24)
-        .presentationDetents([.fraction(0.75), .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Theme.card)
-        .sensoryFeedback(.start, trigger: isRecording)
-        .task(id: isRecording) {
-            while isRecording, !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                if isRecording && !Task.isCancelled { elapsed += 1 }
+    }
+
+    private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        var files: [Data] = []
+        for item in items {
+            do {
+                if let data = try await item.loadTransferable(type: Data.self) {
+                    files.append(data)
+                }
+            } catch {
+                viewModel.reportPhotoProblem("Couldn't load a photo. \(error.localizedDescription)")
+            }
+        }
+        await viewModel.addPhotos(files)
+    }
+
+    private var tripAndTime: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Trip")
+            VStack(spacing: 0) {
+                Picker(selection: $viewModel.tripID) {
+                    ForEach(viewModel.trips) { trip in
+                        Text(trip.name).tag(Optional(trip.id))
+                    }
+                } label: {
+                    Label("Trip", systemImage: "suitcase")
+                }
+                .pickerStyle(.menu)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                Divider().padding(.leading, 16)
+                DatePicker(selection: $viewModel.date, in: viewModel.dateRange) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("When")
+                        Text(viewModel.dayText).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            .card(padding: 0, fill: Theme.raised, cornerRadius: 14)
+        }
+    }
+
+    private var photosSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                SectionLabel("Photos")
+                Spacer()
+                if viewModel.photoCount > 0 {
+                    Text("\(viewModel.photoCount) of \(MemoryFormViewModel.maxPhotos)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    Button {
+                        showsPhotoPicker = true
+                    } label: {
+                        VStack(spacing: 6) {
+                            if viewModel.isPreparingPhotos {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "photo.badge.plus").font(.title2)
+                            }
+                            Text("Add").font(.caption)
+                        }
+                        .foregroundStyle(.blue)
+                        .frame(width: 84, height: 84)
+                        .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5])).foregroundStyle(.blue.opacity(0.6)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.remainingPhotoSlots == 0 || viewModel.isPreparingPhotos)
+                    .accessibilityLabel("Add photos")
+
+                    ForEach(viewModel.existingPhotos, id: \.key) { photo in
+                        thumbnail {
+                            MemoryPhotoView(photo: photo, thumbnail: true)
+                        } remove: {
+                            withAnimation { viewModel.removeExistingPhoto(photo) }
+                        }
+                    }
+                    ForEach(Array(viewModel.newPhotos.enumerated()), id: \.offset) { index, photo in
+                        thumbnail {
+                            if let image = UIImage(data: photo.thumbnail) {
+                                Image(uiImage: image).resizable().scaledToFill()
+                            }
+                        } remove: {
+                            withAnimation { viewModel.removeNewPhoto(at: index) }
+                        }
+                    }
+                }
+                .padding(.top, 6)
+            }
+            if let problem = viewModel.photoProblem {
+                Text(problem).font(.caption).foregroundStyle(.red)
+            } else {
+                Text("Only the photos you pick are shared with RoamPulse. They're resized and kept on this iPhone.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    private func save() {
-        guard let trip else { return }
-        let memory = Memory(
-            tripID: trip.id,
-            title: title.trimmingCharacters(in: .whitespaces).isEmpty ? "Untitled memory" : title,
-            date: store.now,
-            day: day,
-            place: place.isEmpty ? trip.mainPlace : place,
-            transcript: "",
-            duration: elapsed,
-            people: []
-        )
-        store.addMemory(memory)
-        dismiss()
+    private func thumbnail<Content: View>(@ViewBuilder content: () -> Content, remove: @escaping () -> Void) -> some View {
+        content()
+            .frame(width: 84, height: 84)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Button(action: remove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.6))
+                }
+                .padding(4)
+                .accessibilityLabel("Remove photo")
+            }
+    }
+
+    private var placeSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FormField(label: "Place") {
+                TextField("Ella", text: $viewModel.place)
+                    .focused($focusedField, equals: .place)
+            }
+            if !viewModel.placeSuggestions.isEmpty {
+                FlowLayout {
+                    ForEach(viewModel.placeSuggestions, id: \.self) { place in
+                        Button { viewModel.place = place } label: {
+                            Chip(place, icon: "mappin", isSelected: viewModel.place == place)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var peopleSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel("Who was there")
+            FlowLayout {
+                ForEach(viewModel.members) { member in
+                    let isSelected = viewModel.peopleIDs.contains(member.id)
+                    Button {
+                        viewModel.togglePerson(member)
+                    } label: {
+                        HStack(spacing: 6) {
+                            AvatarView(member: member, size: 24)
+                            Text(member.isMe ? "\(member.name) (me)" : member.name)
+                        }
+                        .font(.subheadline)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(isSelected ? Color.blue.opacity(0.25) : Theme.fill, in: Capsule())
+                        .overlay(Capsule().strokeBorder(isSelected ? Color.blue : Color.clear))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+        }
+    }
+
+    private var moodSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel("How did it feel?")
+            HStack(spacing: 8) {
+                ForEach(Mood.allCases) { mood in
+                    let isSelected = viewModel.mood == mood
+                    Button {
+                        viewModel.mood = isSelected ? nil : mood
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: mood.icon).font(.title3).symbolRenderingMode(.multicolor)
+                            Text(mood.rawValue).font(.caption)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(isSelected ? mood.color.opacity(0.2) : Theme.raised,
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(isSelected ? mood.color : Theme.stroke))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+            Text("Optional. Tap again to clear.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var activitySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Part of the plan")
+            VStack(spacing: 0) {
+                Picker(selection: $viewModel.linkedActivityID) {
+                    Text("Not linked").tag(UUID?.none)
+                    ForEach(viewModel.activitiesOnDay) { activity in
+                        Text("\(activity.timeText) \(activity.title)").tag(Optional(activity.id))
+                    }
+                } label: {
+                    Label("Activity", systemImage: "calendar")
+                }
+                .pickerStyle(.menu)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                if viewModel.linkedActivityID != nil {
+                    Divider().padding(.leading, 16)
+                    Toggle("Mark activity as visited", isOn: $viewModel.markVisited)
+                        .tint(.green)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                }
+            }
+            .card(padding: 0, fill: Theme.raised, cornerRadius: 14)
+        }
     }
 }
 
-/// Animated purple bars shown while recording.
+#Preview {
+    let dependencies = AppDependencies.preview()
+    Text("Journal")
+        .sheet(isPresented: .constant(true)) {
+            MemoryFormView(viewModel: MemoryFormViewModel(store: dependencies.store, clock: dependencies.clock))
+        }
+        .previewEnvironment(dependencies)
+}
+
+/// Animated purple bars shown while recording (used by voice recording in Increment 14).
 struct WaveformView: View {
     var isAnimating: Bool
     var barCount = 26
@@ -530,12 +899,4 @@ struct TypeNoteView: View {
         .presentationDetents([.medium, .large])
         .presentationBackground(Theme.card)
     }
-}
-
-#Preview {
-    Text("Journal")
-        .sheet(isPresented: .constant(true)) {
-            RecordMemoryView()
-        }
-        .previewEnvironment(.preview())
 }

@@ -10,8 +10,6 @@ struct WeatherTests {
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let calendar = Calendar.trip
 
-    // MARK: - Fixtures
-
     /// Real-shaped responses (trimmed to the fields the app reads).
     static let currentJSON = """
     {"weather":[{"id":500,"main":"Rain","description":"light rain","icon":"10d"}],
@@ -56,8 +54,6 @@ struct WeatherTests {
                         daily: [], slots: slots)
     }
 
-    // MARK: - JSON
-
     @Test func realResponsesAreRead() throws {
         let current = try OpenWeatherMapClient.decoder.decode(OWMCurrent.self, from: Data(Self.currentJSON.utf8))
         #expect(current.main.tempMax == 21.7, "snake_case temp_max becomes tempMax")
@@ -78,8 +74,6 @@ struct WeatherTests {
         let saved = try OpenWeatherMapClient.encoder.encode(bundle)
         #expect(try OpenWeatherMapClient.decoder.decode(OpenWeatherMapBundle.self, from: saved) == bundle)
     }
-
-    // MARK: - Building the screens
 
     @Test func theSnapshotUsesTheCurrentWeatherAndTheFutureSteps() throws {
         let bundle = OpenWeatherMapBundle(
@@ -130,8 +124,6 @@ struct WeatherTests {
     func conditionCodesBecomeSymbols(code: Int, icon: String, symbol: String) {
         #expect(ForecastBuilder.symbol(code: code, icon: icon) == symbol)
     }
-
-    // MARK: - Advice per activity
 
     /// Day 3 (Mon 14 Dec): dry morning, heavy rain 12:00–18:00.
     private var rainyDay: WeatherSnapshot {
@@ -184,8 +176,6 @@ struct WeatherTests {
         let afterLunch = calendar.date(2026, 12, 14, 14)
         #expect(WeatherAdvisor.headline(for: plan, snapshot: rainyDay, now: afterLunch)?.shortMessage.hasPrefix("Ravana Falls") == true)
     }
-
-    // MARK: - Service
 
     private func makeService(http: FakeHTTPClient, trip: Trip, clock: Clock? = nil)
         -> (OpenWeatherMapService, TripStore) {

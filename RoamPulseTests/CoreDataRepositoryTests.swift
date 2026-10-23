@@ -72,7 +72,7 @@ struct CoreDataRepositoryTests {
         let trip = sampleTrip()
         try repository.save(trip)
         let memory = Memory(tripID: trip.id, title: "Blue train", date: trip.startDate, day: 2, place: "Ella",
-                            transcript: "", duration: 0, people: [samee], photos: [.nineArchBridge])
+                            transcript: "", duration: 0, people: [samee], photos: [.sample(.nineArchBridge)])
         try repository.save(memory)
 
         try repository.deleteTrip(id: trip.id)
@@ -90,7 +90,7 @@ struct CoreDataRepositoryTests {
                             place: "Ella", transcript: "It crossed right on time.", duration: 80, people: [samee],
                             mood: .positive, sentiment: 0.71, placeTags: ["Ella", "Demodara"],
                             landmark: "Nine Arch Bridge", landmarkConfidence: 0.94, sceneTags: ["Bridge", "Forest"],
-                            photos: [.nineArchBridge, .blueTrainBridge], isVisited: true)
+                            photos: [.sample(.nineArchBridge), .sample(.blueTrainBridge)], isVisited: true)
         try repository.save(memory)
 
         #expect(try repository.loadMemories() == [memory])

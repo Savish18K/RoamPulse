@@ -21,8 +21,6 @@ struct ReminderTests {
         return trip
     }
 
-    // MARK: - Planner
-
     @Test func thePackingReminderComesTheEveningBefore() throws {
         let reminder = try #require(ReminderPlanner.packingReminder(for: upcomingTrip(), settings: ReminderSettings(), now: now))
         #expect(reminder.fireDate == calendar.date(2026, 12, 15, 19, 0))
@@ -94,8 +92,6 @@ struct ReminderTests {
         #expect(alerts.map(\.title) == ["Heavy rain likely • Tomorrow"], "the hike is the day after tomorrow")
         #expect(ReminderPlanner.weatherAlerts(for: trip, snapshot: weather, now: now, alreadySent: Set(alerts.map(\.id))).isEmpty)
     }
-
-    // MARK: - Service
 
     private func makeService(permission: NotificationPermission = .allowed)
         -> (ReminderService, FakeNotificationScheduler, UserDefaults) {

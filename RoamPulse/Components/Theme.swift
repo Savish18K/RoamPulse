@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Theme
-
 /// Shared colours and sizes so every screen matches the Figma prototype.
 enum Theme {
     // Brand gradient used on primary buttons (blue → purple).
@@ -52,8 +50,6 @@ extension Color {
         )
     }
 }
-
-// MARK: - Formatters
 
 extension Date {
     /// Formats the date with a fixed pattern, e.g. `date.text("EEE d MMM")` → "Sun 13 Dec".

@@ -55,8 +55,6 @@ final class AppSession {
         }
     }
 
-    // MARK: - Actions
-
     func signIn(email: String, password: String) async throws {
         let user = try await auth.signIn(email: email, password: password)
         userDidChange(user)
@@ -111,8 +109,6 @@ final class AppSession {
             store.errorMessage = "Your account was deleted, but some data couldn't be removed from this iPhone. \(error.localizedDescription)"
         }
     }
-
-    // MARK: - Opening and closing an account
 
     /// Called by the auth service, and after each action, so it must cope with the same user twice.
     private func userDidChange(_ user: AppUser?) {

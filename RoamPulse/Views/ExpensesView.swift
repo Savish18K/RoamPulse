@@ -1,8 +1,6 @@
 import SwiftUI
 import Charts
 
-// MARK: - ExpensesView
-
 struct ExpensesView: View {
     @State private var viewModel: ExpensesViewModel
     @Environment(AppRouter.self) private var router
@@ -190,8 +188,6 @@ struct ExpenseRow: View {
     .previewEnvironment(dependencies)
 }
 
-// MARK: - ExpenseAnalyticsView
-
 struct ExpenseAnalyticsView: View {
     @State private var viewModel: ExpenseAnalyticsViewModel
     @State private var mode = 0
@@ -346,8 +342,6 @@ struct ExpenseAnalyticsView: View {
     .previewEnvironment(dependencies)
 }
 
-// MARK: - ExpenseFormView
-
 /// Add Expense and Edit Expense, with its own number pad like the prototype.
 /// The number pad types into whichever amount is selected: the total, or a person's share.
 struct ExpenseFormView: View {
@@ -410,8 +404,6 @@ struct ExpenseFormView: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(Theme.background)
     }
-
-    // MARK: - Sections
 
     private var amountDisplay: some View {
         let isActive = viewModel.activeField == .total
@@ -555,8 +547,6 @@ struct ExpenseFormView: View {
                 .foregroundStyle(viewModel.unassigned == 0 ? .green : .secondary)
         }
     }
-
-    // MARK: - Keypad
 
     private var keypad: some View {
         VStack(spacing: 10) {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - OnboardingView
-
 struct OnboardingView: View {
     var onGetStarted: () -> Void
 
@@ -92,8 +90,6 @@ struct OnboardingView: View {
     OnboardingView {}
         .preferredColorScheme(.dark)
 }
-
-// MARK: - LockView
 
 /// Shown over the blurred app when App Lock is on. Asks for Face ID / Touch ID straight away;
 /// if that fails, the system offers the passcode.

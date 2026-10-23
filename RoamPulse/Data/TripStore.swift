@@ -38,8 +38,6 @@ final class TripStore {
         reload()
     }
 
-    // MARK: - Account
-
     /// Switches to the signed-in person's own database and shows their trips.
     func open(repository: TripRepository, user: AppUser) {
         self.repository = repository
@@ -75,8 +73,6 @@ final class TripStore {
         }
     }
 
-    // MARK: - Lookups
-
     var now: Date { clock.now }
 
     /// Trips split into Active, Upcoming and Completed.
@@ -103,15 +99,14 @@ final class TripStore {
     /// Different places where at least one activity was done.
     var placesVisited: Int { Self.placesVisited(in: trips) }
 
-    static func placesVisited(in trips: [Trip]) -> Int {
+    /// Pure, so it can be used outside the main actor (e.g. by `TravelStats`).
+    nonisolated static func placesVisited(in trips: [Trip]) -> Int {
         Set(trips.flatMap(\.activities).filter(\.isDone).map { $0.place.lowercased() }).count
     }
 
     func memory(_ id: UUID) -> Memory? { memories.first { $0.id == id } }
 
     func memories(inTrip tripID: UUID) -> [Memory] { sortedMemories.filter { $0.tripID == tripID } }
-
-    // MARK: - Trips
 
     // Each change returns false if it couldn't be saved, so a form can stay open.
 
@@ -167,8 +162,6 @@ final class TripStore {
         }
     }
 
-    // MARK: - Sharing
-
     /// True when this account created the trip, or it was made before trips had owners,
     /// or nobody is signed in (no sharing without an account).
     func isOwner(of trip: Trip) -> Bool {
@@ -200,8 +193,6 @@ final class TripStore {
         }
     }
 
-    // MARK: - Weather cache
-
     func cachedForecast(for tripID: UUID) -> CachedForecast? {
         try? repository.cachedForecast(for: tripID)
     }
@@ -210,8 +201,6 @@ final class TripStore {
     func saveForecast(_ forecast: CachedForecast, for tripID: UUID) {
         try? repository.saveForecast(forecast, for: tripID)
     }
-
-    // MARK: - Cover photo
 
     /// Saves a photo picked for the trip's cover (replacing and deleting the old one), or removes it with nil.
     @discardableResult
@@ -237,8 +226,6 @@ final class TripStore {
     func imageData(_ id: UUID, thumbnail: Bool) -> Data? {
         try? repository.imageData(id: id, thumbnail: thumbnail)
     }
-
-    // MARK: - Changes from the cloud
 
     // These save straight to the repository and are not passed to `sync`, so a change that came
     // from the cloud is never uploaded again.
@@ -272,8 +259,6 @@ final class TripStore {
         }
     }
 
-    // MARK: - Journal
-
     @discardableResult
     func addMemory(_ memory: Memory) -> Bool {
         guard save(memory) else { return false }
@@ -292,6 +277,44 @@ final class TripStore {
         return true
     }
 
+    /// Saves a new or edited memory together with photos picked for it.
+    /// The photos are saved first (as `StoredImageEntity` rows) so the memory can point at them;
+    /// if the memory then can't be saved, those photos are deleted again so nothing is left behind.
+    @discardableResult
+    func saveMemory(_ memory: Memory, newPhotos: [PreparedImage]) -> Bool {
+        var memory = memory
+        var savedImageIDs: [UUID] = []
+        do {
+            for image in newPhotos {
+                savedImageIDs.append(try repository.saveImage(image))
+            }
+        } catch {
+            savedImageIDs.forEach { try? repository.deleteImage(id: $0) }
+            report(error, failedTo: "save the photos")
+            return false
+        }
+        memory.photos += savedImageIDs.map(MemoryPhoto.stored)
+
+        let saved = self.memory(memory.id) == nil ? addMemory(memory) : updateMemory(memory.id) { $0 = memory }
+        if !saved {
+            savedImageIDs.forEach { try? repository.deleteImage(id: $0) }
+        }
+        return saved
+    }
+
+    /// Deletes a journal memory and the photos picked for it.
+    @discardableResult
+    func deleteMemory(_ id: UUID) -> Bool {
+        do {
+            try repository.deleteMemory(id: id)
+            memories.removeAll { $0.id == id }
+            return true
+        } catch {
+            report(error, failedTo: "delete the memory")
+            return false
+        }
+    }
+
     func updateTranscript(_ text: String, for memoryID: UUID) {
         updateMemory(memoryID) { memory in
             memory.transcript = text
@@ -305,7 +328,7 @@ final class TripStore {
     func addPhoto(_ photo: SamplePhoto, landmark: String?, confidence: Double?, sceneTags: [String], to memoryID: UUID?) -> UUID? {
         if let memoryID, memory(memoryID) != nil {
             updateMemory(memoryID) { memory in
-                memory.photos.append(photo)
+                memory.photos.append(.sample(photo))
                 if memory.landmark == nil, let landmark {
                     memory.landmark = landmark
                     memory.landmarkConfidence = confidence
@@ -330,13 +353,11 @@ final class TripStore {
             landmark: landmark,
             landmarkConfidence: confidence,
             sceneTags: sceneTags,
-            photos: [photo]
+            photos: [.sample(photo)]
         )
         addMemory(memory)
         return memory.id
     }
-
-    // MARK: - All data
 
     /// Settings → Delete all data. Also deletes the trips from the cloud.
     func deleteAllData() {
@@ -359,8 +380,6 @@ final class TripStore {
         for trip in sample.trips { addTrip(trip) }
         for memory in sample.memories { addMemory(memory) }
     }
-
-    // MARK: - Saving
 
     private func save(_ trip: Trip) -> Bool {
         do {

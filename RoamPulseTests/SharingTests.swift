@@ -30,8 +30,6 @@ struct SharingTests {
         return trip
     }
 
-    // MARK: - Codes
-
     @Test func codesAreEightUnambiguousCharacters() {
         let codes = (0..<200).map { _ in InviteCode.generate() }
         #expect(codes.allSatisfy { $0.count == InviteCode.length })
@@ -64,8 +62,6 @@ struct SharingTests {
         #expect(record.position == 3, "added at the end of the list")
         #expect(record.userUID == friend)
     }
-
-    // MARK: - Owner and members in the cloud
 
     @Test func eachPhoneWorksOutWhoIsMe() {
         var shared = trip()
@@ -109,8 +105,6 @@ struct SharingTests {
         #expect(TripChangeSet.writes(from: old, to: joined, accountID: friend, now: now).isEmpty)
     }
 
-    // MARK: - TripStore
-
     private func makeStore(account: String, trips: [Trip] = []) -> (TripStore, RecordingSyncService) {
         let store = TripStore(repository: InMemoryTripRepository(trips: trips), clock: FixedClock(now: now))
         store.open(repository: InMemoryTripRepository(trips: trips),
@@ -151,8 +145,6 @@ struct SharingTests {
         #expect(sync.changes.count == 1)
         #expect(sync.leftTrips.isEmpty)
     }
-
-    // MARK: - Screens
 
     @Test func sharingMakesACodeAndMessage() async {
         let (store, sync) = makeStore(account: owner, trips: [trip()])
@@ -202,8 +194,6 @@ struct SharingTests {
         #expect(join.errorMessage == SharingError.inviteNotFound.errorDescription)
         #expect(join.step == .enterCode)
     }
-
-    // MARK: - Timeout
 
     @Test func aQuickAnswerIsReturned() async throws {
         let value = try await withTimeout(seconds: 2) { 42 }

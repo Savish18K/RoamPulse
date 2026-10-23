@@ -89,6 +89,7 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="fileName" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="image" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="StoredImageEntity" inverseName="photo" inverseEntity="StoredImageEntity"/>
         <relationship name="memory" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MemoryEntity" inverseName="photos" inverseEntity="MemoryEntity"/>
     </entity>
     <entity name="StoredImageEntity" representedClassName="StoredImageEntity" syncable="YES" codeGenerationType="class">
@@ -98,6 +99,7 @@
         <attribute name="pixelHeight" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="pixelWidth" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <relationship name="photo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PhotoEntity" inverseName="image" inverseEntity="PhotoEntity"/>
         <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="coverImage" inverseEntity="TripEntity"/>
     </entity>
     <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">

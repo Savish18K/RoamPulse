@@ -1,8 +1,6 @@
 import Foundation
 import Observation
 
-// MARK: - ShareTripViewModel
-
 /// Invite Friends sheet: makes an invite code for the trip and the message to send.
 @MainActor
 @Observable
@@ -52,8 +50,6 @@ final class ShareTripViewModel {
         }
     }
 }
-
-// MARK: - JoinTripViewModel
 
 /// Join Trip sheet: enter a friend's code, say which member you are, join.
 @MainActor

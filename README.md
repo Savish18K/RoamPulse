@@ -89,7 +89,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the layers fit together.
 
 ## Current state
 
-Increments 1–10 are done:
+Increments 1–13 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -111,8 +111,18 @@ Increments 1–10 are done:
   background; hides the app in the app switcher; turning it on or off needs Face ID.
 - **Settings & Profile:** real account details, notification options, app lock, real permission statuses,
   theme, export of all data as JSON, delete all trips, delete account.
+- **Home dashboard:** four states — a trip today (plan, weather, budget, latest memory, quick actions), a trip
+  coming up (countdown and "get ready" checklist), all trips finished (recap and "where to next?"), no trips
+  (welcome with Create, Join or sample trips). Every card has an empty or error state.
+- **Journal:** write memories with text, up to 10 photos (resized, stored in Core Data), who was there, a mood,
+  and the activity they belong to (which can be ticked off as visited). Edit, delete, filter by trip.
+- **Insights:** search everything written, places, people and landmarks (matches highlighted, suggestions from
+  your own memories); a timeline by day; mood per day. Tapping a place or person on a memory opens the search.
+- **Statistics:** trips, days, places, memories, landmarks, spending by category (donut chart) and by trip
+  (stacked bar chart), for this year or all time.
 
-Journal recording, photo recognition and the map are still the prototype screens (Increments 11+).
+Voice recording, landmark recognition and the map are still to come (Increments 14–16; the
+photo-recognition prototype screens are kept in `PhotosView.swift`).
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator

@@ -46,8 +46,6 @@ final class AuthViewModel {
 
     var isNewAccount: Bool { mode == .signUp }
 
-    // MARK: Validation
-
     var nameProblem: String? {
         guard showsProblems, isNewAccount else { return nil }
         return AuthValidator.nameProblem(name)
@@ -66,8 +64,6 @@ final class AuthViewModel {
             && AuthValidator.emailProblem(email) == nil
             && AuthValidator.passwordProblem(password, isNewAccount: isNewAccount) == nil
     }
-
-    // MARK: Actions
 
     /// Signs in or creates the account. When it works, `AppSession` switches to the main app.
     func submit() async {

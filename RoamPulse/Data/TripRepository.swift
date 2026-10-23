@@ -52,8 +52,6 @@ enum RepositoryError: LocalizedError {
     }
 }
 
-// MARK: - InMemoryTripRepository
-
 /// Keeps everything in dictionaries; nothing is written to disk. Used by tests and previews.
 final class InMemoryTripRepository: TripRepository {
     private var trips: [UUID: Trip] = [:]
@@ -89,6 +87,9 @@ final class InMemoryTripRepository: TripRepository {
         }
         trips[id] = nil
         forecasts[id] = nil
+        for memory in memories.values where memory.tripID == id {
+            memory.storedImageIDs.forEach { images[$0] = nil }
+        }
         memories = memories.filter { $0.value.tripID != id }
     }
 
@@ -99,11 +100,15 @@ final class InMemoryTripRepository: TripRepository {
     func save(_ memory: Memory) throws {
         try checkFailure()
         guard trips[memory.tripID] != nil else { throw RepositoryError.tripNotFound }
+        // Like Core Data, photos removed from the memory are deleted.
+        let removed = Set(memories[memory.id]?.storedImageIDs ?? []).subtracting(memory.storedImageIDs)
+        removed.forEach { images[$0] = nil }
         memories[memory.id] = memory
     }
 
     func deleteMemory(id: UUID) throws {
         try checkFailure()
+        memories[id]?.storedImageIDs.forEach { images[$0] = nil }
         memories[id] = nil
     }
 

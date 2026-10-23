@@ -43,8 +43,6 @@ final class FirestoreSyncService: SyncService {
         db.collection("trips").document(id.uuidString)
     }
 
-    // MARK: - Starting and stopping
-
     func start(accountID: String, store: TripStore) {
         stop()
         self.accountID = accountID
@@ -77,8 +75,6 @@ final class FirestoreSyncService: SyncService {
         errorMessage = nil
         status = .off
     }
-
-    // MARK: - Up: changes made on this iPhone
 
     func tripDidChange(from old: Trip?, to new: Trip?) {
         guard let accountID else { return }
@@ -128,8 +124,6 @@ final class FirestoreSyncService: SyncService {
             batch.deleteDocument(tripDocument(tripID).collection(key.collection.rawValue).document(key.id))
         }
     }
-
-    // MARK: - Sharing
 
     private var invites: CollectionReference { db.collection("invites") }
 
@@ -217,8 +211,6 @@ final class FirestoreSyncService: SyncService {
         stopListening(to: trip.id)
     }
 
-    // MARK: - Deleting the account's cloud data
-
     func deleteCloudData(for trips: [Trip]) async throws {
         guard let accountID else { throw SharingError.notSignedIn }
 
@@ -252,8 +244,6 @@ final class FirestoreSyncService: SyncService {
             }
         }
     }
-
-    // MARK: - Down: changes from the cloud
 
     private func tripsChanged(_ snapshot: QuerySnapshot?, error: Error?) {
         guard let snapshot else {
@@ -350,8 +340,6 @@ final class FirestoreSyncService: SyncService {
         listListeners[tripID] = nil
         mirrors[tripID] = nil
     }
-
-    // MARK: - Status
 
     private func report(_ error: Error?) {
         if let error = error as? FirestoreErrorCode, error.code == .permissionDenied {

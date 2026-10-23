@@ -1,6 +1,8 @@
 import SwiftUI
 
-// MARK: - PhotoPickerView
+// Prototype of the landmark-recognition flow (Figma screens 12–15), kept as the design for
+// Increment 15. It isn't opened from the app yet: "Add Photos" now uses the real photo picker in
+// the journal form (MemoryFormView), and Increment 15 adds Vision + Core ML recognition to that flow.
 
 /// Mock photo picker that matches the prototype.
 /// In the real app this becomes PhotosUI's `PhotosPicker`.
@@ -167,8 +169,6 @@ struct PhotoPickerView: View {
         .previewEnvironment(.preview())
 }
 
-// MARK: - PhotoRecognitionView
-
 /// Recognising → Recognised (≥ 70%) or Please confirm (< 70%), one photo at a time.
 /// Results come from `SamplePhoto.recognition` until the Core ML model is added.
 struct PhotoRecognitionView: View {
@@ -224,8 +224,6 @@ struct PhotoRecognitionView: View {
         }
         .task(id: index) { await recognise() }
     }
-
-    // MARK: - Recognising
 
     private var recognisingContent: some View {
         Group {
@@ -289,8 +287,6 @@ struct PhotoRecognitionView: View {
         .padding(.vertical, 10)
         .opacity(isPending ? 0.5 : 1)
     }
-
-    // MARK: - Recognised
 
     private var recognisedContent: some View {
         let top = result.top ?? LandmarkCandidate(name: "Unknown", confidence: 0)
@@ -361,8 +357,6 @@ struct PhotoRecognitionView: View {
         }
     }
 
-    // MARK: - Please confirm
-
     private var confirmContent: some View {
         Group {
             photoHeader(badge: "Not sure. Please confirm", icon: "questionmark.circle")
@@ -422,8 +416,6 @@ struct PhotoRecognitionView: View {
         guard let chosen else { return false }
         return !result.candidates.contains { $0.name == chosen }
     }
-
-    // MARK: - Shared pieces
 
     private func photoHeader(badge: String, icon: String?) -> some View {
         PhotoView(photo: photo)
@@ -493,8 +485,6 @@ struct PhotoRecognitionView: View {
         return chosen == RecognitionResult.otherLabel ? "Save without label" : "Confirm \(chosen)"
     }
 
-    // MARK: - Actions
-
     private func recognise() async {
         stage = .recognising
         progress = 0
@@ -529,8 +519,6 @@ struct PhotoRecognitionView: View {
         }
     }
 }
-
-// MARK: - Helper views
 
 /// Green → blue confidence bar with a tick at the 70% threshold.
 struct ConfidenceBar: View {

@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - AppUser
-
 /// The signed-in person. A plain struct, so nothing above `FirebaseAuthService` depends on Firebase.
 struct AppUser: Hashable {
     /// Firebase's id for the account. It never changes, so it names the account's database and cloud data.
@@ -29,8 +27,6 @@ struct AppUser: Hashable {
     }
 }
 
-// MARK: - AuthService
-
 /// Signing in, signing up and signing out.
 ///
 /// The app uses `FirebaseAuthService`. Tests use a fake, and the app falls back to
@@ -52,8 +48,6 @@ protocol AuthService: AnyObject {
     /// Deletes the signed-in account for good.
     func deleteAccount() async throws
 }
-
-// MARK: - AuthError
 
 /// Sign-in problems in plain words. `FirebaseAuthService` turns Firebase's error codes into these.
 enum AuthError: LocalizedError, Equatable {
@@ -92,8 +86,6 @@ enum AuthError: LocalizedError, Equatable {
     }
 }
 
-// MARK: - AuthValidator
-
 /// Checks the sign-in form before anything is sent. Each function returns a message, or nil if the value is fine.
 enum AuthValidator {
     /// Firebase accepts 6, but 8 is the usual minimum for a reasonable password.
@@ -120,8 +112,6 @@ enum AuthValidator {
         return nil
     }
 }
-
-// MARK: - UnavailableAuthService
 
 /// Used when Firebase isn't set up, and in the unit-test host app. Nobody is ever signed in,
 /// and every action explains that sign-in isn't set up.
@@ -150,8 +140,6 @@ final class UnavailableAuthService: AuthService {
     func reauthenticate(password: String) async throws { throw AuthError.notConfigured }
     func deleteAccount() async throws { throw AuthError.notConfigured }
 }
-
-// MARK: - PreviewAuthService
 
 /// Always signed in as the sample user. Used by SwiftUI previews.
 @MainActor

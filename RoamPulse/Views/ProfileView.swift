@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - ProfileView
-
 struct ProfileView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -116,8 +114,8 @@ struct ProfileView: View {
                 FloatingActionBar(
                     primaryTitle: "Add Expense",
                     primaryAction: { router.activeSheet = .addExpense(tripID: trip.id) },
-                    secondaryTitle: "Record Memory",
-                    secondaryAction: { router.activeSheet = .recordMemory }
+                    secondaryTitle: "New Memory",
+                    secondaryAction: { router.activeSheet = .newMemory(tripID: trip.id, withPhotos: false) }
                 )
             }
         }
@@ -181,162 +179,6 @@ extension SettingsRow where Trailing == EmptyView {
 
 #Preview {
     NavigationStack { ProfileView() }
-        .previewEnvironment(.preview())
-}
-
-// MARK: - StatisticsView
-
-struct StatisticsView: View {
-    @Environment(TripStore.self) private var store
-    @Environment(AppRouter.self) private var router
-    @State private var range = 0
-
-    /// Rough LKR → USD rate for the "equivalent" line.
-    private let usdRate = 300.3
-
-    private var thisYear: Int { Calendar.trip.component(.year, from: store.now) }
-
-    private var trips: [Trip] {
-        let travelled = store.travelledTrips
-        guard range == 0 else { return travelled }
-        return travelled.filter { Calendar.trip.component(.year, from: $0.startDate) == thisYear }
-    }
-
-    private var daysTravelled: Int {
-        trips.reduce(0) { total, trip in
-            total + (trip.status(at: store.now) == .active ? (trip.dayNumber(at: store.now) ?? 0) : trip.dayCount)
-        }
-    }
-
-    private var totalSpent: Double { trips.reduce(0) { $0 + $1.totalSpent } }
-    private var totalBudget: Double { trips.reduce(0) { $0 + $1.budget } }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                SegmentedTabs(options: [String(thisYear), "All time"], selection: $range)
-
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-                    tile("Trips", "\(trips.count)")
-                    tile("Days", "\(daysTravelled)")
-                    tile("Places", "\(TripStore.placesVisited(in: trips))")
-                    tile("Memories", "\(store.memories.count)")
-                }
-
-                landmarksCard
-                spendingCard
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Explore travel memories").foregroundStyle(.secondary)
-                    Button("Read the year back in Insights") { router.selectedTab = .insights }
-                        .font(.headline)
-                }
-                .card()
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 24)
-        }
-        .background(Theme.background)
-        .navigationTitle("Statistics")
-    }
-
-    private func tile(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).foregroundStyle(.secondary)
-            Text(value).font(.largeTitle.bold())
-        }
-        .card(padding: 18)
-    }
-
-    private var landmarksCard: some View {
-        let found = store.landmarks.filter(\.isFound)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Landmarks recognised").foregroundStyle(.secondary)
-                Spacer()
-                Image(systemName: "building.columns").foregroundStyle(.purple)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(found.count)").font(.largeTitle.bold())
-                Text("of \(store.landmarks.count) Sri Lankan landmarks").foregroundStyle(.secondary)
-            }
-            ProgressView(value: Double(found.count), total: Double(max(store.landmarks.count, 1)))
-                .tint(.purple)
-            HStack(spacing: 8) {
-                ForEach(found) { landmark in
-                    PhotoView(photo: landmark.photo)
-                        .frame(width: 56, height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                Text("\(store.landmarks.count - found.count) more to find")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .frame(height: 56)
-                    .background(Theme.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-        }
-        .card(padding: 18)
-    }
-
-    private var spendingCard: some View {
-        let largest = trips.map(\.totalSpent).max() ?? 1
-
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Total Spending").foregroundStyle(.secondary)
-                Spacer()
-                Text(totalSpent <= totalBudget ? "On Budget" : "Over Budget")
-                    .font(.subheadline)
-                    .foregroundStyle(totalSpent <= totalBudget ? .green : .orange)
-            }
-            Text(totalSpent.lkr)
-                .font(.system(size: 40, weight: .bold))
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
-            Text("~ USD \((totalSpent / usdRate).grouped) equivalent")
-                .foregroundStyle(.secondary)
-
-            Text("By Trip").foregroundStyle(.secondary).padding(.top, 6)
-            ForEach(trips) { trip in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(trip.name)
-                        Spacer()
-                        Text(trip.totalSpent.lkr).font(.subheadline.bold()).foregroundStyle(.secondary)
-                    }
-                    GeometryReader { proxy in
-                        HStack(spacing: 0) {
-                            ForEach(ExpenseCategory.allCases) { category in
-                                Rectangle()
-                                    .fill(category.color)
-                                    .frame(width: proxy.size.width * trip.spent(on: category) / max(largest, 1))
-                            }
-                        }
-                    }
-                    .frame(height: 8)
-                    .background(Theme.fill)
-                    .clipShape(Capsule())
-                }
-            }
-
-            HStack(spacing: 12) {
-                ForEach(ExpenseCategory.allCases) { category in
-                    HStack(spacing: 4) {
-                        Circle().fill(category.color).frame(width: 8, height: 8)
-                        Text(category.rawValue)
-                    }
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .card(padding: 18)
-    }
-}
-
-#Preview {
-    NavigationStack { StatisticsView() }
         .previewEnvironment(.preview())
 }
 

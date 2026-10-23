@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Memory
-
 enum Mood: String, CaseIterable, Identifiable {
     case positive = "Positive"
     case mixed = "Mixed"
@@ -35,7 +33,26 @@ enum Mood: String, CaseIterable, Identifiable {
     }
 }
 
-/// A journal entry: a voice recording, photos, or both.
+/// A photo in a memory: one of the app's sample photos, or one the user picked
+/// (resized and saved in Core Data as a `StoredImageEntity`, never uploaded).
+enum MemoryPhoto: Hashable {
+    case sample(SamplePhoto)
+    case stored(UUID)
+
+    /// Stable within a memory, for SwiftUI lists and for matching Core Data rows.
+    var key: String {
+        switch self {
+        case .sample(let photo): "sample-\(photo.rawValue)"
+        case .stored(let id): "stored-\(id.uuidString)"
+        }
+    }
+
+    var storedImageID: UUID? {
+        if case .stored(let id) = self { id } else { nil }
+    }
+}
+
+/// A journal entry: written text, photos, a voice recording, or any mix of them.
 struct Memory: Identifiable, Hashable {
     var id = UUID()
     var tripID: UUID
@@ -53,7 +70,7 @@ struct Memory: Identifiable, Hashable {
     var landmark: String?
     var landmarkConfidence: Double?
     var sceneTags: [String] = []
-    var photos: [SamplePhoto] = []
+    var photos: [MemoryPhoto] = []
     var linkedActivity: String?
     var isVisited = false
     /// True when on-device speech recognition doesn't support the language.
@@ -63,17 +80,21 @@ struct Memory: Identifiable, Hashable {
 
     var peopleText: String { people.map(\.name).joined(separator: ", ") }
 
-    /// "Photo + voice", "Photo" or "Voice"
+    var hasText: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// "Photo + voice", "Photo", "Voice" or "Note"
     var kindText: String {
         switch (photos.isEmpty, hasVoice) {
         case (false, true): "Photo + voice"
         case (false, false): "Photo"
-        default: "Voice"
+        case (true, true): "Voice"
+        case (true, false): "Note"
         }
     }
-}
 
-// MARK: - Landmark
+    /// The photos the user picked (not samples), whose image data is stored in Core Data.
+    var storedImageIDs: [UUID] { photos.compactMap(\.storedImageID) }
+}
 
 enum LandmarkCategory: String, CaseIterable, Identifiable {
     case bridge = "Bridge"
@@ -142,8 +163,6 @@ struct RecognitionResult: Hashable {
         return top.confidence >= Self.threshold && top.name != Self.otherLabel
     }
 }
-
-// MARK: - Weather
 
 struct HourlyForecast: Identifiable, Hashable {
     let id = UUID()
@@ -252,4 +271,5 @@ struct WeatherSnapshot: Hashable {
 
 // Encodable for Settings → Export my data.
 extension Memory: Encodable {}
+extension MemoryPhoto: Encodable {}
 extension Mood: Encodable {}

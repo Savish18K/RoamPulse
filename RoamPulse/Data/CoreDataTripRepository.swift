@@ -25,8 +25,6 @@ final class CoreDataTripRepository: TripRepository {
         try? deleteUnlinkedImages()
     }
 
-    // MARK: - Trips
-
     func loadTrips() throws -> [Trip] {
         let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "startDate", ascending: true)]
@@ -51,8 +49,6 @@ final class CoreDataTripRepository: TripRepository {
         try commit()
     }
 
-    // MARK: - Memories
-
     func loadMemories() throws -> [Memory] {
         let request: NSFetchRequest<MemoryEntity> = MemoryEntity.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
@@ -65,7 +61,44 @@ final class CoreDataTripRepository: TripRepository {
         }
         let entity = try find(MemoryEntity.self, id: memory.id) ?? MemoryEntity(context: context)
         entity.update(from: memory, trip: trip, context: context)
+        try syncPhotos(memory.photos, of: entity)
         try commit()
+    }
+
+    /// Makes the memory's photo rows match `photos`, keeping rows (and their stored images) that are
+    /// still there. A removed photo's row is deleted, and with it (cascade) the image the user picked.
+    private func syncPhotos(_ photos: [MemoryPhoto], of memory: MemoryEntity) throws {
+        var unused = memory.photos.rows(of: PhotoEntity.self)
+        var rows: [PhotoEntity] = []
+        for photo in photos {
+            if let index = unused.firstIndex(where: { Self.row($0, shows: photo) }) {
+                rows.append(unused.remove(at: index))
+                continue
+            }
+            let row = PhotoEntity(context: context)
+            row.id = UUID()
+            row.createdAt = memory.date
+            switch photo {
+            case .sample(let sample):
+                row.assetName = sample.rawValue
+            case .stored(let imageID):
+                guard let image = try find(StoredImageEntity.self, id: imageID) else {
+                    context.delete(row) // the image was never saved, so there is nothing to show
+                    continue
+                }
+                row.image = image
+            }
+            rows.append(row)
+        }
+        unused.forEach(context.delete)
+        memory.photos = NSOrderedSet(array: rows)
+    }
+
+    private static func row(_ row: PhotoEntity, shows photo: MemoryPhoto) -> Bool {
+        switch photo {
+        case .sample(let sample): row.image == nil && row.assetName == sample.rawValue
+        case .stored(let imageID): row.image?.id == imageID
+        }
     }
 
     func deleteMemory(id: UUID) throws {
@@ -81,8 +114,6 @@ final class CoreDataTripRepository: TripRepository {
         }
         try commit()
     }
-
-    // MARK: - Images
 
     // Photos are stored as Binary attributes with "Allows External Storage" turned on, so Core Data
     // keeps big ones as separate files next to the database and only small ones inside SQLite.
@@ -112,8 +143,6 @@ final class CoreDataTripRepository: TripRepository {
         try commit()
     }
 
-    // MARK: - Forecast cache
-
     func saveForecast(_ forecast: CachedForecast, for tripID: UUID) throws {
         guard let trip = try find(TripEntity.self, id: tripID) else { throw RepositoryError.tripNotFound }
         let cache = trip.forecast ?? ForecastCacheEntity(context: context)
@@ -141,17 +170,15 @@ final class CoreDataTripRepository: TripRepository {
         trip.coverImage = try imageID.flatMap { try find(StoredImageEntity.self, id: $0) }
     }
 
-    /// Removes photos that were saved but never linked to a trip (for example if the app quit in between).
+    /// Removes photos that were saved but never linked to a trip or memory (for example if the app quit in between).
     private func deleteUnlinkedImages() throws {
         let request: NSFetchRequest<StoredImageEntity> = StoredImageEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "trip == nil")
+        request.predicate = NSPredicate(format: "trip == nil AND photo == nil")
         for image in try context.fetch(request) {
             context.delete(image)
         }
         try commit()
     }
-
-    // MARK: - Helpers
 
     /// Fetches the row of the given entity type with this id.
     private func find<Entity: NSManagedObject>(_ type: Entity.Type, id: UUID) throws -> Entity? {
@@ -173,8 +200,6 @@ final class CoreDataTripRepository: TripRepository {
         }
     }
 }
-
-// MARK: - Struct → entity
 
 /// Makes a list of saved rows match `items`:
 /// rows whose id is still in `items` are updated, new items get a new row, and rows
@@ -350,22 +375,8 @@ private extension MemoryEntity {
         people = NSOrderedSet(array: memory.people.compactMap { person in
             tripMembers.first { $0.id == person.id }
         })
-
-        // Photos are rebuilt when the list of photos changed.
-        let currentPhotos = photos.rows(of: PhotoEntity.self)
-        guard currentPhotos.compactMap(\.assetName) != memory.photos.map(\.rawValue) else { return }
-        currentPhotos.forEach(context.delete)
-        photos = NSOrderedSet(array: memory.photos.map { photo in
-            let row = PhotoEntity(context: context)
-            row.id = UUID()
-            row.assetName = photo.rawValue
-            row.createdAt = memory.date
-            return row
-        })
     }
 }
-
-// MARK: - Entity → struct
 
 // Each init returns nil if a required value is missing, so one damaged row is skipped
 // instead of crashing the app.
@@ -484,7 +495,10 @@ private extension Memory {
             landmark: entity.landmark,
             landmarkConfidence: entity.landmarkConfidence?.doubleValue,
             sceneTags: entity.sceneTags ?? [],
-            photos: entity.photos.rows(of: PhotoEntity.self).compactMap { SamplePhoto(rawValue: $0.assetName ?? "") },
+            photos: entity.photos.rows(of: PhotoEntity.self).compactMap { row -> MemoryPhoto? in
+                if let imageID = row.image?.id { return .stored(imageID) }
+                return SamplePhoto(rawValue: row.assetName ?? "").map(MemoryPhoto.sample)
+            },
             linkedActivity: entity.linkedActivity,
             isVisited: entity.isVisited,
             transcriptUnavailable: entity.transcriptUnavailable

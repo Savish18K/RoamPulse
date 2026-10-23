@@ -26,8 +26,9 @@ enum AppSheet: Identifiable {
     case editActivity(tripID: UUID, activityID: UUID)
     case addExpense(tripID: UUID)
     case editExpense(tripID: UUID, expenseID: UUID)
-    case recordMemory
-    case addPhoto(memoryID: UUID?)
+    /// "Add Photos" opens the form with the photo picker showing.
+    case newMemory(tripID: UUID?, withPhotos: Bool)
+    case editMemory(UUID)
     case memory(UUID)
     case typeNote(UUID)
     case about
@@ -44,8 +45,8 @@ enum AppSheet: Identifiable {
         case .editActivity(_, let activityID): "editActivity-\(activityID)"
         case .addExpense(let tripID): "addExpense-\(tripID)"
         case .editExpense(_, let expenseID): "editExpense-\(expenseID)"
-        case .recordMemory: "recordMemory"
-        case .addPhoto(let memoryID): "addPhoto-\(memoryID?.uuidString ?? "new")"
+        case .newMemory(let tripID, let withPhotos): "newMemory-\(tripID?.uuidString ?? "current")-\(withPhotos)"
+        case .editMemory(let id): "editMemory-\(id)"
         case .memory(let id): "memory-\(id)"
         case .typeNote(let id): "typeNote-\(id)"
         case .about: "about"
@@ -64,12 +65,21 @@ final class AppRouter {
     var activeSheet: AppSheet?
     /// Screens pushed on the Trips tab, so a notification can open a trip.
     var tripsPath: [AppRoute] = []
+    /// Set to open Insights searching for this text (e.g. a place or person tapped on a memory).
+    var insightsSearch: String?
 
     /// Back to the Home tab with no sheet open, e.g. after signing out.
     func reset() {
         selectedTab = .home
         activeSheet = nil
         tripsPath = []
+    }
+
+    /// Opens Insights → Search for every memory mentioning `text`.
+    func searchInsights(for text: String) {
+        activeSheet = nil
+        insightsSearch = text
+        selectedTab = .insights
     }
 
     /// Shows a trip's detail screen, e.g. after tapping one of its reminders.
@@ -79,8 +89,6 @@ final class AppRouter {
         tripsPath = [.tripDetail(id)]
     }
 }
-
-// MARK: - Building screens
 
 // `AppDestinations` and `SheetContent` are the only places pushed screens and sheets are created.
 // Each screen gets a view model built with the shared services from `AppDependencies`.
@@ -152,10 +160,11 @@ struct SheetContent: View {
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, store: store, clock: clock))
         case .editExpense(let tripID, let expenseID):
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, expenseID: expenseID, store: store, clock: clock))
-        case .recordMemory:
-            RecordMemoryView()
-        case .addPhoto(let memoryID):
-            PhotoPickerView(memoryID: memoryID)
+        case .newMemory(let tripID, let withPhotos):
+            MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, store: store, clock: clock),
+                           opensPhotoPicker: withPhotos)
+        case .editMemory(let id):
+            MemoryFormView(viewModel: MemoryFormViewModel(memoryID: id, store: store, clock: clock))
         case .memory(let id):
             MemoryDetailView(memoryID: id)
         case .typeNote(let id):

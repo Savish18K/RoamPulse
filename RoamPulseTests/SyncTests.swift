@@ -57,8 +57,6 @@ struct SyncTests {
         return mirror
     }
 
-    // MARK: - Records
-
     @Test func aTripSurvivesTheRoundTripThroughFirestoreRecords() {
         let trip = sampleTrip()
         #expect(mirror(of: trip).trip(id: trip.id, accountID: account) == trip)
@@ -104,8 +102,6 @@ struct SyncTests {
         #expect(rebuilt?.expenses.first?.shares.count == 1)
         #expect(rebuilt?.payments.isEmpty == true)
     }
-
-    // MARK: - What to upload
 
     @Test func aNewTripCreatesItsDocumentFirstAndThenEveryItem() {
         let trip = sampleTrip()
@@ -167,8 +163,6 @@ struct SyncTests {
         #expect(writes.count == 1 + 10)
     }
 
-    // MARK: - When the cloud's copy is used
-
     @Test func aTripIsOnlyBuiltOnceEveryPartHasArrived() {
         let trip = sampleTrip()
         var cloud = RemoteTripMirror()
@@ -196,8 +190,6 @@ struct SyncTests {
         cloud.receiveHeader(TripRecord.tombstone(owner: account, members: [account], at: now), hasPendingWrites: false)
         #expect(cloud.trip(id: trip.id, accountID: account) == nil)
     }
-
-    // MARK: - TripStore and the sync service
 
     private func makeStore(_ trips: [Trip] = []) -> (TripStore, RecordingSyncService, InMemoryTripRepository) {
         let repository = InMemoryTripRepository(trips: trips)

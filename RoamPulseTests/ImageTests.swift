@@ -40,8 +40,6 @@ struct ImageTests {
         try persistence.container.viewContext.count(for: StoredImageEntity.fetchRequest())
     }
 
-    // MARK: - Resizing
-
     @Test func aBigPhotoIsShrunkTo2048PixelsWithASmallThumbnail() throws {
         let prepared = try #require(ImageProcessor.prepare(photo(width: 4032, height: 3024)))
         #expect(max(prepared.pixelWidth, prepared.pixelHeight) == ImageProcessor.maxPixelSize)
@@ -61,8 +59,6 @@ struct ImageTests {
     @Test func dataThatIsNotAPhotoIsRejected() {
         #expect(ImageProcessor.prepare(Data("not a photo".utf8)) == nil)
     }
-
-    // MARK: - Saving in Core Data
 
     @Test func aCoverPhotoIsSavedAndLoadsBackWithTheTrip() throws {
         let (store, repository) = coreDataStore()
@@ -113,8 +109,6 @@ struct ImageTests {
         #expect(repository.images.isEmpty)
     }
 
-    // MARK: - Create Trip form
-
     @Test func aPhotoPickedInTheFormIsSavedWithTheNewTrip() async throws {
         let (store, _) = coreDataStore()
         let form = TripFormViewModel(store: store, clock: FixedClock(now: now))
@@ -153,8 +147,6 @@ struct ImageTests {
         #expect(form.coverProblem != nil)
         #expect(!form.hasCustomCover)
     }
-
-    // MARK: - Forecast cache (stored with the trip)
 
     @Test func theForecastCacheIsSavedWithTheTripAndDeletedWithIt() throws {
         let (store, repository) = coreDataStore()

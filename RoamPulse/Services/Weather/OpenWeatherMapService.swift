@@ -48,8 +48,6 @@ final class OpenWeatherMapService: WeatherService {
         }
     }
 
-    // MARK: - Loading
-
     private func load(_ trip: Trip, refresh: Bool) async throws -> WeatherSnapshot {
         let cached = store?.cachedForecast(for: trip.id)
         let cachedBundle = cached.flatMap { try? OpenWeatherMapClient.decoder.decode(OpenWeatherMapBundle.self, from: $0.payload) }

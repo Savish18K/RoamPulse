@@ -36,8 +36,6 @@ struct OfflineMapView: View {
         .toolbar(.hidden, for: .tabBar)
     }
 
-    // MARK: - Header
-
     private var header: some View {
         HStack(spacing: 14) {
             Button {
@@ -131,8 +129,6 @@ struct OfflineMapView: View {
         }
         .foregroundStyle(.white)
     }
-
-    // MARK: - Target card
 
     private var targetCard: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -229,8 +225,6 @@ struct OfflineMapView: View {
         .frame(maxWidth: .infinity)
     }
 }
-
-// MARK: - Map drawing
 
 /// Contour lines, railway and route drawn with Canvas, plus labels and member pins.
 private struct TopoMap: View {

@@ -25,8 +25,6 @@ struct AccountTests {
              members: [Member(name: "Me", colorHex: 0, isMe: true)], cover: .galleFort)
     }
 
-    // MARK: - Form checks
-
     @Test(arguments: ["savishka@icloud.com", "a.b+trips@uni.ac.lk", "  padded@mail.com  "])
     func validEmailsPass(_ email: String) {
         #expect(AuthValidator.emailProblem(email) == nil)
@@ -56,8 +54,6 @@ struct AccountTests {
         #expect(unnamed.name == "suu")
         #expect(unnamed.initials == "SU")
     }
-
-    // MARK: - Session
 
     @Test func nobodySignedInShowsTheSignInScreen() {
         let (session, store) = makeSession()
@@ -129,8 +125,6 @@ struct AccountTests {
         #expect(databases.repositories.count == 2)
     }
 
-    // MARK: - Name and account deletion
-
     @Test func changingTheNameUpdatesTheProfile() async throws {
         let (session, store) = makeSession()
         try await session.signUp(name: "Savi", email: "savi@mail.com", password: "password1")
@@ -180,8 +174,6 @@ struct AccountTests {
         #expect(auth.deletedAccounts.isEmpty, "never delete the account while its cloud data is still there")
         #expect(session.user != nil)
     }
-
-    // MARK: - Sign-in form
 
     @Test func anIncompleteFormShowsProblemsAndSendsNothing() async {
         let (session, _) = makeSession()

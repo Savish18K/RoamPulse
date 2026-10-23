@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - TripDetailView
-
 /// Hub for one trip: summary tiles, day tabs and the day's schedule.
 struct TripDetailView: View {
     @State private var viewModel: TripDetailViewModel
@@ -116,8 +114,6 @@ struct TripDetailView: View {
         .accessibilityLabel("Trip options")
     }
 
-    // MARK: - Tiles
-
     private func tiles(_ trip: Trip) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
             NavigationLink(value: AppRoute.packing(trip.id)) {
@@ -137,8 +133,6 @@ struct TripDetailView: View {
         }
         .buttonStyle(.plain)
     }
-
-    // MARK: - Schedule
 
     private func schedule(_ trip: Trip) -> some View {
         let activities = viewModel.activities
@@ -323,8 +317,6 @@ struct TripDetailView: View {
     .previewEnvironment(dependencies)
 }
 
-// MARK: - ActivityFormView
-
 /// Add Activity and Edit Activity.
 struct ActivityFormView: View {
     @State private var viewModel: ActivityFormViewModel
@@ -431,8 +423,6 @@ struct ActivityFormView: View {
         .presentationBackground(Theme.card)
     }
 }
-
-// MARK: - PackingView
 
 struct PackingView: View {
     @State private var viewModel: PackingViewModel

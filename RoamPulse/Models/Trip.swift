@@ -3,8 +3,6 @@ import SwiftUI
 // These are plain value types. Views and view models only ever see these;
 // Core Data entities are converted to and from them in CoreDataTripRepository.
 
-// MARK: - Member
-
 /// A person travelling on a trip.
 struct Member: Identifiable, Hashable {
     var id: UUID
@@ -41,8 +39,6 @@ struct UserProfile: Equatable {
     var email: String
 }
 
-// MARK: - Trip
-
 enum TripStatus {
     case upcoming, active, completed
 }
@@ -76,8 +72,6 @@ struct Trip: Identifiable, Hashable {
     var latitude: Double?
     var longitude: Double?
 }
-
-// MARK: - Dates & status
 
 extension Trip {
     /// True when someone else's account has joined the trip.
@@ -166,8 +160,6 @@ extension Sequence where Element == Trip {
     }
 }
 
-// MARK: - Itinerary
-
 extension Trip {
     /// The day's activities in time order (see `ItineraryPlanner`).
     func activities(onDay day: Int) -> [Activity] {
@@ -185,8 +177,6 @@ extension Trip {
         ItineraryPlanner.intensity(of: activities(onDay: day))
     }
 }
-
-// MARK: - Packing & money
 
 extension Trip {
     var packedCount: Int { packing.filter(\.isPacked).count }
@@ -215,8 +205,6 @@ extension Trip {
             || payments.contains { $0.from.id == member.id || $0.to.id == member.id }
     }
 }
-
-// MARK: - Activity
 
 enum Effort: String, CaseIterable, Identifiable {
     case low = "Low"
@@ -271,16 +259,12 @@ enum DayIntensity {
     }
 }
 
-// MARK: - PackingItem
-
 struct PackingItem: Identifiable, Hashable {
     var id = UUID()
     var name: String
     var category: String
     var isPacked = false
 }
-
-// MARK: - Expense
 
 enum ExpenseCategory: String, CaseIterable, Identifiable {
     case transport = "Transport"
@@ -396,8 +380,6 @@ enum BudgetStatus: Equatable {
         }
     }
 }
-
-// MARK: - Export
 
 // Encodable so Settings → Export my data can write everything as JSON.
 // (Synthesised conformance has to be declared in the same file as the type.)

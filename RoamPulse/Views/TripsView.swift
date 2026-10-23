@@ -1,8 +1,6 @@
 import PhotosUI
 import SwiftUI
 
-// MARK: - TripsListView
-
 struct TripsListView: View {
     @State private var viewModel: TripsListViewModel
     @Environment(AppRouter.self) private var router
@@ -185,8 +183,6 @@ struct ActiveTripCard: View {
     }
     .previewEnvironment(dependencies)
 }
-
-// MARK: - TripFormView
 
 /// Create Trip and Edit Trip.
 struct TripFormView: View {

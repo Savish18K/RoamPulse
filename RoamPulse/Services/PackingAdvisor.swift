@@ -31,8 +31,6 @@ enum PackingAdvisor {
         }
     }
 
-    // MARK: - Suggestion rules
-
     /// Rain gear is suggested when a trip day has at least this chance of rain (%).
     static let rainyDay = 60
     /// Sun protection is suggested when a trip day is at least this hot (°C).

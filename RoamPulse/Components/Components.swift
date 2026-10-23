@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Card
-
 /// Rounded card background used for most boxes in the prototype.
 struct CardModifier: ViewModifier {
     var padding: CGFloat
@@ -95,8 +93,6 @@ struct StatTile: View {
         .card(padding: 14, cornerRadius: 16)
     }
 }
-
-// MARK: - Buttons
 
 /// Blue → purple capsule button.
 struct PrimaryButtonStyle: ButtonStyle {
@@ -208,8 +204,6 @@ struct BackActionBar: View {
         .padding(.bottom, 4)
     }
 }
-
-// MARK: - Chip
 
 /// Rounded tag, e.g. "Kandy", "Outdoor", "Nine Arch Bridge".
 struct Chip: View {
@@ -352,8 +346,6 @@ struct FlowLayout: Layout {
     }
 }
 
-// MARK: - AvatarView
-
 /// Round avatar with the member's initials.
 /// Add an image named `avatar_<name>` (e.g. `avatar_savishka`) to Assets to show a picture instead.
 struct AvatarView: View {
@@ -396,8 +388,6 @@ struct AvatarStack: View {
         }
     }
 }
-
-// MARK: - PhotoView
 
 /// Shows a sample photo. Uses the asset with the same name if it exists,
 /// otherwise a gradient placeholder. Always fills the space it is given.
@@ -475,8 +465,6 @@ struct HeroHeader<Content: View>: View {
         }
     }
 }
-
-// MARK: - SegmentedTabs
 
 /// Segmented control styled like the prototype (dark track, raised selected pill).
 /// `dots` marks options with an orange dot, e.g. a day with a weather advisory.
@@ -576,8 +564,6 @@ struct ProgressRing: View {
         .animation(.spring, value: progress)
     }
 }
-
-// MARK: - Errors & previews
 
 extension View {
     /// Shows the store's error message (a failed save, for example) as an alert.

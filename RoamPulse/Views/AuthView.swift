@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - AuthView
-
 /// Sign in or create an account. Shown after onboarding whenever nobody is signed in.
 struct AuthView: View {
     @State private var viewModel: AuthViewModel

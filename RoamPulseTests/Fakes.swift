@@ -4,8 +4,6 @@ import Foundation
 // Stand-ins for Firebase, the network, notifications and Face ID, so the tests run offline
 // and give the same result every time.
 
-// MARK: - Auth
-
 /// Pretends to be Firebase Authentication, keeping accounts in a dictionary.
 @MainActor
 final class FakeAuthService: AuthService {
@@ -95,8 +93,6 @@ final class FakeAuthService: AuthService {
     }
 }
 
-// MARK: - Sync
-
 /// Records what the store asks to upload instead of talking to Firestore.
 @MainActor
 final class RecordingSyncService: SyncService {
@@ -177,8 +173,6 @@ final class AccountDatabases {
     }
 }
 
-// MARK: - Notifications
-
 /// Pretends to be UNUserNotificationCenter.
 @MainActor
 final class FakeNotificationScheduler: NotificationScheduling {
@@ -214,8 +208,6 @@ final class FakeNotificationScheduler: NotificationScheduling {
     }
 }
 
-// MARK: - Face ID
-
 /// Says yes or no instead of asking for Face ID.
 @MainActor
 final class FakeAuthenticator: DeviceAuthenticating {
@@ -236,8 +228,6 @@ final class FakeAuthenticator: DeviceAuthenticating {
     }
 }
 
-// MARK: - Clock
-
 /// A clock the test can move forward.
 final class MutableClock: Clock {
     var now: Date
@@ -250,8 +240,6 @@ final class MutableClock: Clock {
         now = now.addingTimeInterval(minutes * 60)
     }
 }
-
-// MARK: - Network
 
 /// Answers OpenWeatherMap requests with saved JSON instead of using the network.
 final class FakeHTTPClient: HTTPClient, @unchecked Sendable {

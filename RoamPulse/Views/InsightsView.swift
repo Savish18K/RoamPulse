@@ -1,67 +1,98 @@
-import SwiftUI
 import Charts
-
-// MARK: - InsightsView
+import SwiftUI
 
 /// Search, Timeline, Mood and Landmarks views over the journal.
 struct InsightsView: View {
+    @State private var viewModel: InsightsViewModel
     @State private var tab = 0
+    @Environment(AppRouter.self) private var router
+
+    init(viewModel: InsightsViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 SegmentedTabs(options: ["Search", "Timeline", "Mood", "Landmarks"], selection: $tab)
 
-                switch tab {
-                case 0: MemorySearchView()
-                case 1: MemoryTimelineView()
-                case 2: MoodView()
-                default: LandmarksGridView()
+                if viewModel.tripsWithMemories.count > 1 && tab != 3 {
+                    tripFilter
+                }
+
+                if !viewModel.hasMemories && tab != 3 {
+                    ContentUnavailableView {
+                        Label("Nothing to look back on yet", systemImage: "chart.xyaxis.line")
+                    } description: {
+                        Text("Write memories in the Journal and they'll show up here: searchable, by day and by mood.")
+                    } actions: {
+                        Button("Open Journal") { router.selectedTab = .journal }
+                    }
+                    .padding(.top, 30)
+                } else {
+                    switch tab {
+                    case 0: MemorySearchView(viewModel: viewModel)
+                    case 1: MemoryTimelineView(viewModel: viewModel)
+                    case 2: MoodView(viewModel: viewModel)
+                    default: LandmarksGridView()
+                    }
                 }
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Theme.background)
         .navigationTitle("Insights")
+        // A place or person tapped on a memory opens the search for it.
+        .onChange(of: router.insightsSearch, initial: true) { _, text in
+            guard let text else { return }
+            tab = 0
+            viewModel.tripFilter = nil
+            viewModel.query = text
+            router.insightsSearch = nil
+        }
+    }
+
+    private var tripFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button { viewModel.tripFilter = nil } label: {
+                    Chip("All trips", isSelected: viewModel.tripFilter == nil)
+                }
+                ForEach(viewModel.tripsWithMemories) { trip in
+                    Button { viewModel.tripFilter = trip.id } label: {
+                        Chip(trip.name, isSelected: viewModel.tripFilter == trip.id)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
     }
 }
 
 #Preview {
-    NavigationStack { InsightsView() }
-        .previewEnvironment(.preview())
+    let dependencies = AppDependencies.preview()
+    NavigationStack { InsightsView(viewModel: InsightsViewModel(store: dependencies.store)) }
+        .previewEnvironment(dependencies)
 }
 
-// MARK: - MemorySearchView
-
-/// Search memories by what was said, a place or a person.
+/// Search memories by what was written or said, a place, a person or a landmark.
 struct MemorySearchView: View {
-    @Environment(TripStore.self) private var store
+    @Bindable var viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router
-    @State private var query = "tea"
-
-    private let suggestions = ["tea", "Kandy", "train", "Suresha"]
-
-    private var results: [Memory] {
-        let text = query.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return [] }
-        return store.sortedMemories.filter { memory in
-            let haystack = [memory.title, memory.transcript, memory.place, memory.peopleText]
-                + memory.placeTags
-            return haystack.contains { $0.localizedCaseInsensitiveContains(text) }
-        }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search what was said, places, people…", text: $query)
+                TextField("Search what happened, places, people…", text: $viewModel.query)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                if !query.isEmpty {
+                    .submitLabel(.search)
+                if !viewModel.query.isEmpty {
                     Button {
-                        query = ""
+                        viewModel.query = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                     }
@@ -71,28 +102,32 @@ struct MemorySearchView: View {
             .padding(12)
             .background(Theme.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(suggestions, id: \.self) { suggestion in
-                        Button { query = suggestion } label: {
-                            Chip(suggestion, icon: suggestion == "tea" ? "cup.and.saucer" : nil,
-                                 isSelected: query.caseInsensitiveCompare(suggestion) == .orderedSame)
+            if !viewModel.suggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(viewModel.suggestions, id: \.self) { suggestion in
+                            Button { viewModel.query = suggestion } label: {
+                                Chip(suggestion, isSelected: viewModel.query.caseInsensitiveCompare(suggestion) == .orderedSame)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
 
-            if query.isEmpty {
-                Text("Search your memories by what was said, a place or a person.")
+            if viewModel.query.trimmed.isEmpty {
+                Text("Search your memories by what happened, a place or a person, or tap a suggestion.")
                     .foregroundStyle(.secondary)
+            } else if viewModel.results.isEmpty {
+                ContentUnavailableView.search(text: viewModel.query)
             } else {
-                Text("\(results.count) result\(results.count == 1 ? "" : "s") found for “\(query)”")
+                Text("\(viewModel.results.count) result\(viewModel.results.count == 1 ? "" : "s") for “\(viewModel.query)”")
                     .font(.headline)
                     .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.updatesFrequently)
             }
 
-            ForEach(results) { memory in
+            ForEach(viewModel.results) { memory in
                 Button {
                     router.activeSheet = .memory(memory.id)
                 } label: {
@@ -106,39 +141,37 @@ struct MemorySearchView: View {
     private func resultCard(_ memory: Memory) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(memory.id == store.latestMemory?.id ? "Latest Memory" : "\(memory.place) • Day \(memory.day)")
+                Text(viewModel.isLatest(memory) ? "Latest Memory" : viewModel.tripName(for: memory))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.purple)
+                    .lineLimit(1)
                 Spacer()
-                Text("\(memory.date.text("EEE HH:mm")) • Near \(memory.place)")
+                Text("\(memory.date.text("EEE HH:mm")) • \(memory.place)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Text(memory.title).font(.title3.weight(.semibold))
-            let snippetText = snippet(for: memory)
-            if !snippetText.isEmpty {
-                Text(highlighted(snippetText))
+            Text(highlighted(memory.title)).font(.title3.weight(.semibold))
+            if memory.hasText {
+                Text(highlighted(viewModel.snippet(for: memory)))
                     .foregroundStyle(.secondary)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            if !memory.people.isEmpty {
+                Text(highlighted("With \(memory.peopleText)")).font(.caption).foregroundStyle(.secondary)
+            }
         }
         .card(padding: 18, cornerRadius: 24)
+        .accessibilityElement(children: .combine)
     }
 
-    /// The sentence of the transcript that contains the search text.
-    private func snippet(for memory: Memory) -> String {
-        let sentences = memory.transcript.components(separatedBy: ". ")
-        guard let index = sentences.firstIndex(where: { $0.localizedCaseInsensitiveContains(query) }) else {
-            return String(memory.transcript.prefix(120))
-        }
-        let sentence = sentences[index]
-        return (index > 0 ? "… " : "") + sentence + (sentence.hasSuffix(".") ? "" : ".")
-    }
-
+    /// The search text in bold purple wherever it appears.
     private func highlighted(_ text: String) -> AttributedString {
         var attributed = AttributedString(text)
+        let query = viewModel.query.trimmed
+        guard !query.isEmpty else { return attributed }
         var searchStart = attributed.startIndex
         while let range = attributed[searchStart...].range(of: query, options: .caseInsensitive) {
             attributed[range].foregroundColor = Color.purple
@@ -149,36 +182,26 @@ struct MemorySearchView: View {
     }
 }
 
-// MARK: - MemoryTimelineView
-
 /// All memories by day, newest first.
 struct MemoryTimelineView: View {
-    @Environment(TripStore.self) private var store
+    let viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router
-
-    private var days: [Date] {
-        Set(store.memories.map { Calendar.trip.startOfDay(for: $0.date) }).sorted(by: >)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            ForEach(days, id: \.self) { day in
-                let memories = store.sortedMemories.filter { Calendar.trip.isDate($0.date, inSameDayAs: day) }
+            ForEach(viewModel.timeline) { day in
                 VStack(alignment: .leading, spacing: 0) {
-                    SectionLabel("\(day.text("EEEE d MMM")) • Day \(memories.first?.day ?? 1)")
+                    SectionLabel(day.title)
                         .padding(.bottom, 10)
-                    ForEach(memories) { memory in
+                    ForEach(day.memories) { memory in
                         Button {
                             router.activeSheet = .memory(memory.id)
                         } label: {
-                            row(memory, isLast: memory.id == memories.last?.id)
+                            row(memory, isLast: memory.id == day.memories.last?.id)
                         }
                         .buttonStyle(.plain)
                     }
                 }
-            }
-            if store.memories.isEmpty {
-                ContentUnavailableView("Nothing on the timeline yet", systemImage: "clock")
             }
         }
     }
@@ -196,13 +219,14 @@ struct MemoryTimelineView: View {
                     Rectangle().fill(Theme.stroke).frame(width: 2).frame(maxHeight: .infinity)
                 }
             }
+            .accessibilityHidden(true)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(memory.date.text("HH:mm")) • \(memory.kindText)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(memory.title).font(.headline)
+                    Text(memory.title).font(.headline).multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
                         Text(memory.place).foregroundStyle(.secondary)
                         if let mood = memory.mood { MoodBadge(mood: mood) }
@@ -211,12 +235,13 @@ struct MemoryTimelineView: View {
                 }
                 Spacer()
                 if let photo = memory.photos.first {
-                    PhotoView(photo: photo)
+                    MemoryPhotoView(photo: photo, thumbnail: true)
                         .frame(width: 56, height: 56)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }
             .padding(.bottom, 18)
+            .accessibilityElement(children: .combine)
         }
         .fixedSize(horizontal: false, vertical: true)
         .contentShape(Rectangle())
@@ -226,97 +251,101 @@ struct MemoryTimelineView: View {
         switch (memory.photos.isEmpty, memory.hasVoice) {
         case (false, true): "photo.on.rectangle"
         case (false, false): "photo"
-        default: "mic.fill"
+        case (true, true): "mic.fill"
+        case (true, false): "text.alignleft"
         }
     }
 }
 
-// MARK: - MoodView
-
-/// How each day felt, based on the sentiment of that day's memories.
+/// How each day felt: the sentiment of that day's memories, or the mood picked by hand.
 struct MoodView: View {
-    @Environment(TripStore.self) private var store
+    let viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router
-
-    private struct DayMood: Identifiable {
-        let date: Date
-        let score: Double
-        var id: Date { date }
-        var color: Color { score > 0.2 ? .green : (score < -0.2 ? .red : .gray) }
-    }
-
-    private var dayMoods: [DayMood] {
-        let scored = store.memories.filter { $0.sentiment != nil }
-        let groups = Dictionary(grouping: scored) { Calendar.trip.startOfDay(for: $0.date) }
-        return groups.map { date, memories in
-            let total = memories.compactMap(\.sentiment).reduce(0, +)
-            return DayMood(date: date, score: total / Double(memories.count))
-        }
-        .sorted { $0.date < $1.date }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("How each day felt").font(.headline)
-                Chart(dayMoods) { day in
-                    BarMark(
-                        x: .value("Day", day.date.text("EEE d")),
-                        y: .value("Mood", day.score),
-                        width: .fixed(44)
-                    )
-                    .foregroundStyle(day.color)
-                    .cornerRadius(6)
-                    RuleMark(y: .value("Neutral", 0))
-                        .foregroundStyle(Color.secondary)
+            if viewModel.dayMoods.isEmpty {
+                ContentUnavailableView {
+                    Label("No moods yet", systemImage: "face.smiling")
+                } description: {
+                    Text("Pick how it felt when you write a memory, and each day's mood appears here.")
                 }
-                .chartYScale(domain: -1...1)
-                .frame(height: 180)
-                .accessibilityLabel("Average mood per day")
-            }
-            .card(padding: 18)
-
-            HStack(spacing: 10) {
-                ForEach(Mood.allCases) { mood in
-                    let count = store.memories.filter { $0.mood == mood }.count
-                    VStack(spacing: 4) {
-                        Image(systemName: mood.icon).font(.title2).symbolRenderingMode(.multicolor)
-                        Text("\(count)").font(.title3.bold())
-                        Text(mood.rawValue).font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("How each day felt").font(.headline)
+                    Chart(viewModel.dayMoods) { day in
+                        BarMark(
+                            x: .value("Day", day.date.text("EEE d")),
+                            y: .value("Mood", day.score),
+                            width: .fixed(36)
+                        )
+                        .foregroundStyle(day.mood.color)
+                        .cornerRadius(6)
+                        .accessibilityLabel(day.date.text("EEEE d MMMM"))
+                        .accessibilityValue("\(day.mood.rawValue), \(day.count) memor\(day.count == 1 ? "y" : "ies")")
+                        RuleMark(y: .value("Neutral", 0))
+                            .foregroundStyle(Color.secondary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .card(padding: 12, cornerRadius: 16)
-                }
-            }
-
-            SectionLabel("Memories by mood")
-            VStack(spacing: 0) {
-                let moodMemories = store.sortedMemories.filter { $0.mood != nil }
-                ForEach(moodMemories) { memory in
-                    Button {
-                        router.activeSheet = .memory(memory.id)
-                    } label: {
-                        HStack {
-                            Image(systemName: memory.mood?.icon ?? "circle")
-                                .symbolRenderingMode(.multicolor)
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(memory.title).font(.subheadline.bold())
-                                Text("\(memory.date.text("EEE HH:mm")) • \(memory.place)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    .chartYScale(domain: -1...1)
+                    .chartYAxis {
+                        AxisMarks(values: [-1, 0, 1]) { value in
+                            AxisGridLine()
+                            AxisValueLabel {
+                                switch value.as(Double.self) ?? 0 {
+                                case 1: Text("Positive")
+                                case -1: Text("Negative")
+                                default: Text("Mixed")
+                                }
                             }
-                            Spacer()
-                            if let mood = memory.mood { MoodBadge(mood: mood) }
                         }
-                        .padding(14)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    if memory.id != moodMemories.last?.id { Divider() }
+                    .frame(height: 180)
                 }
+                .card(padding: 18)
+
+                HStack(spacing: 10) {
+                    ForEach(Mood.allCases) { mood in
+                        VStack(spacing: 4) {
+                            Image(systemName: mood.icon).font(.title2).symbolRenderingMode(.multicolor)
+                            Text("\(viewModel.count(of: mood))").font(.title3.bold())
+                            Text(mood.rawValue).font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .card(padding: 12, cornerRadius: 16)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+
+                SectionLabel("Memories by mood")
+                VStack(spacing: 0) {
+                    let moodMemories = viewModel.memoriesWithMood
+                    ForEach(moodMemories) { memory in
+                        Button {
+                            router.activeSheet = .memory(memory.id)
+                        } label: {
+                            HStack {
+                                Image(systemName: memory.mood?.icon ?? "circle")
+                                    .symbolRenderingMode(.multicolor)
+                                    .frame(width: 28)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(memory.title).font(.subheadline.bold())
+                                    Text("\(memory.date.text("EEE HH:mm")) • \(memory.place)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if let mood = memory.mood { MoodBadge(mood: mood) }
+                            }
+                            .padding(14)
+                            .contentShape(Rectangle())
+                            .accessibilityElement(children: .combine)
+                        }
+                        .buttonStyle(.plain)
+                        if memory.id != moodMemories.last?.id { Divider() }
+                    }
+                }
+                .card(padding: 0)
             }
-            .card(padding: 0)
         }
     }
 }

@@ -2,8 +2,6 @@ import Foundation
 import Observation
 import UserNotifications
 
-// MARK: - Permission
-
 enum NotificationPermission: Equatable {
     case notDetermined
     case allowed
@@ -17,8 +15,6 @@ enum NotificationPermission: Equatable {
         }
     }
 }
-
-// MARK: - Scheduling
 
 /// The parts of `UNUserNotificationCenter` the app uses, behind a protocol so tests can record
 /// what would be scheduled.
@@ -75,8 +71,6 @@ final class UserNotificationScheduler: NotificationScheduling {
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 }
-
-// MARK: - ReminderService
 
 /// Keeps the scheduled local notifications in step with the trips (UserNotifications).
 ///
@@ -159,8 +153,6 @@ final class ReminderService {
         defaults.set(Array(sent.sorted().suffix(200)), forKey: Self.sentAlertsKey)
     }
 }
-
-// MARK: - Showing and opening notifications
 
 /// Shows reminders even while the app is open, and opens the trip when one is tapped.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {

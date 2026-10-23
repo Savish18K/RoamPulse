@@ -1,8 +1,6 @@
 import Foundation
 import Observation
 
-// MARK: - ExpensesViewModel
-
 /// Expenses screen: budget card, balances and the expenses grouped by day.
 @MainActor
 @Observable
@@ -19,8 +17,6 @@ final class ExpensesViewModel {
     }
 
     var trip: Trip? { store.trip(tripID) }
-
-    // MARK: Budget
 
     var budgetStatus: BudgetStatus { trip?.budgetStatus ?? .noBudget }
 
@@ -43,8 +39,6 @@ final class ExpensesViewModel {
         case .onTrack, .nearLimit: return "left of \(trip.budget.grouped)"
         }
     }
-
-    // MARK: Balances and expenses
 
     /// Who is owed the most first.
     var balances: [Balance] {
@@ -81,8 +75,6 @@ final class ExpensesViewModel {
         expensePendingDelete = nil
     }
 
-    // MARK: Sharing
-
     /// Plain-text summary for the Share button (Messages, WhatsApp…).
     var shareSummary: String {
         guard let trip else { return "" }
@@ -107,8 +99,6 @@ final class ExpensesViewModel {
         return lines.joined(separator: "\n")
     }
 }
-
-// MARK: - ExpenseAnalyticsViewModel
 
 /// Analytics: spending by category and by day, and the settle-up plan.
 @MainActor
@@ -165,8 +155,6 @@ final class ExpenseAnalyticsViewModel {
         }
     }
 }
-
-// MARK: - ExpenseFormViewModel
 
 /// Add Expense and Edit Expense sheet, with its own number pad and equal or custom splits.
 @MainActor
@@ -229,8 +217,6 @@ final class ExpenseFormViewModel {
 
     var amount: Double { Double(totalText) ?? 0 }
 
-    // MARK: Equal split
-
     var equalParticipants: [Member] { members.filter { !excludedIDs.contains($0.id) } }
 
     func isIncluded(_ member: Member) -> Bool { !excludedIDs.contains(member.id) }
@@ -250,8 +236,6 @@ final class ExpenseFormViewModel {
         let each = ExpenseCalculator.equalShares(of: amount, between: equalParticipants).first?.amount ?? 0
         return "\(who) • \(each.lkr) each"
     }
-
-    // MARK: Custom split
 
     func setSplitMethod(_ method: SplitMethod) {
         splitMethod = method
@@ -276,8 +260,6 @@ final class ExpenseFormViewModel {
         return unassigned > 0 ? "\(unassigned.lkr) left to assign" : "\((-unassigned).lkr) too much"
     }
 
-    // MARK: Result
-
     /// Who owes what, from the chosen split. Always adds up to `amount` when valid.
     var shares: [ExpenseShare] {
         switch splitMethod {
@@ -301,8 +283,6 @@ final class ExpenseFormViewModel {
     var canSave: Bool { amount > 0 && payer != nil && !shares.isEmpty && validationMessage == nil }
 
     var saveTitle: String { "\(isEditing ? "Save" : "Add") \(amount.lkr)" }
-
-    // MARK: Number pad
 
     func text(for field: Field) -> String {
         switch field {
@@ -342,8 +322,6 @@ final class ExpenseFormViewModel {
         }
     }
 }
-
-// MARK: - AmountInput
 
 /// Rules for typing an amount on the number pad: one decimal point, at most
 /// two decimal places and nine digits.

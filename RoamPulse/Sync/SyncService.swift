@@ -15,8 +15,6 @@ protocol SyncService: AnyObject {
     /// `old` is nil for a new trip and `new` is nil for a deleted one.
     func tripDidChange(from old: Trip?, to new: Trip?)
 
-    // MARK: Sharing (these need a connection)
-
     /// Saves a new invite code for the trip and returns it.
     func createInvite(for trip: Trip, ownerName: String) async throws -> TripInvite
     /// Looks up a code a friend typed in.

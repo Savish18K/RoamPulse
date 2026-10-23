@@ -1,14 +1,10 @@
 import SwiftUI
 
-// MARK: - SampleData
-
 /// Sample trips that mirror the Figma prototype.
 ///
 /// They are added when a new account is created, and again from Settings → Load sample trips.
 /// Dates are worked out from "now", so Hill Country Explorer is always on its second day.
 enum SampleData {
-
-    // MARK: - People
 
     static let profile = UserProfile(fullName: "Savishka Kuruppu", email: "savishka@icloud.com")
 
@@ -35,8 +31,6 @@ enum SampleData {
             return calendar.date(day, atMinutes: hour * 60 + minute)
         }
     }
-
-    // MARK: - Trips
 
     /// The sample trips and journal. Hill Country Explorer started yesterday,
     /// Jaffna is a few months away, and the Colombo and Sigiriya trips are finished.
@@ -107,7 +101,7 @@ enum SampleData {
                    transcript: "The mist cleared just as we passed the viaduct. Looking down we can see tea pluckers with bright baskets working along the steep green terraces. The landscape opened up and the tea estates started somewhere after Nanu Oya filling the valleys in endless rows.",
                    duration: 130, people: [crew.samee, crew.suu], mood: .positive, sentiment: 0.74,
                    placeTags: ["Kandy", "Peradeniya", "Nanu Oya", "Haputale"],
-                   photos: [.trainWindow, .teaEstate],
+                   photos: [.sample(.trainWindow), .sample(.teaEstate)],
                    linkedActivity: "Day 2 • 08:45 Scenic train ride through hills", isVisited: true),
             Memory(tripID: trip.id, title: "View from the homestay balcony", date: days.at(0, 16, 22), day: 2,
                    place: "Ella",
@@ -122,13 +116,13 @@ enum SampleData {
             Memory(tripID: trip.id, title: "Bridge from the tea ridge", date: days.at(0, 17, 48), day: 2,
                    place: "Ella", transcript: "", duration: 0, people: [crew.suu, crew.samee],
                    landmark: "Nine Arch Bridge", landmarkConfidence: 0.81, sceneTags: ["Train", "Bridge", "Mountain"],
-                   photos: [.blueTrainBridge], linkedActivity: "Day 2 • 17:30 Nine Arch Bridge viewpoint", isVisited: true),
+                   photos: [.sample(.blueTrainBridge)], linkedActivity: "Day 2 • 17:30 Nine Arch Bridge viewpoint", isVisited: true),
             Memory(tripID: trip.id, title: "Blue train at Nine Arch Bridge", date: days.at(0, 17, 52), day: 2,
                    place: "Ella",
                    transcript: "Waited on the ridge with Suu and Samee for the blue train to Badulla. It crossed Nine Arch Bridge right on time and the whole crowd went quiet. Best view of the trip so far.",
                    duration: 80, people: [crew.suu, crew.samee], mood: .positive, sentiment: 0.71,
                    placeTags: ["Ella"], landmark: "Nine Arch Bridge", landmarkConfidence: 0.94,
-                   sceneTags: ["Bridge", "Mountain", "Forest"], photos: [.nineArchBridge, .blueTrainBridge],
+                   sceneTags: ["Bridge", "Mountain", "Forest"], photos: [.sample(.nineArchBridge), .sample(.blueTrainBridge)],
                    linkedActivity: "Day 2 • 17:30 Nine Arch Bridge viewpoint", isVisited: true),
         ]
         return (trip, memories)
@@ -213,8 +207,6 @@ enum SampleData {
         return trip
     }
 
-    // MARK: - Helpers
-
     private static func template(packed: Bool) -> [PackingItem] {
         PackingAdvisor.defaultTemplate().map { item in
             var item = item
@@ -236,8 +228,6 @@ enum SampleData {
                 shares: ExpenseCalculator.equalShares(of: amount, between: splitWith), date: date)
     }
 
-    // MARK: - Landmarks
-
     static let landmarks: [Landmark] = [
         Landmark(name: "Nine Arch Bridge", location: "Demodara, Ella", category: .bridge, photo: .nineArchBridge,
                  status: .recognised(confidence: 0.94), tripName: "Hill Country Explorer", photoCount: 2, voiceCount: 1),
@@ -257,8 +247,6 @@ enum SampleData {
     ]
 
 }
-
-// MARK: - SamplePhoto
 
 /// Sample photos used across the prototype.
 ///
