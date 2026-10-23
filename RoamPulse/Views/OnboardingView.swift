@@ -95,11 +95,10 @@ struct OnboardingView: View {
 
 // MARK: - LockView
 
-/// Shown over the blurred app when App Lock is on.
-/// The buttons only simulate unlocking — LocalAuthentication will be added later.
+/// Shown over the blurred app when App Lock is on. Asks for Face ID / Touch ID straight away;
+/// if that fails, the system offers the passcode.
 struct LockView: View {
-    @Environment(AppRouter.self) private var router
-    @State private var isScanning = false
+    @Environment(AppLock.self) private var appLock
 
     var body: some View {
         VStack(spacing: 16) {
@@ -108,6 +107,7 @@ struct LockView: View {
                 .font(.title)
                 .frame(width: 76, height: 76)
                 .background(.ultraThinMaterial, in: Circle())
+                .accessibilityHidden(true)
             Text("RoamPulse is locked")
                 .font(.title2.bold())
             Text("Your memories, photos and expenses\nstay private on this iPhone.")
@@ -115,41 +115,52 @@ struct LockView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             VStack(spacing: 14) {
-                Image(systemName: "faceid")
+                Image(systemName: appLock.biometry.icon)
                     .font(.system(size: 60, weight: .light))
-                    .symbolEffect(.pulse, isActive: isScanning)
-                Text("Face ID").font(.headline)
+                    .symbolEffect(.pulse, isActive: appLock.isAuthenticating)
+                Text(appLock.biometry.name).font(.headline)
             }
             .frame(width: 150, height: 150)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .accessibilityHidden(true)
+            if let error = appLock.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
             Spacer()
-            Button(action: unlock) {
-                Label("Unlock with Face ID", systemImage: "faceid")
+            Button {
+                Task { await appLock.unlock() }
+            } label: {
+                Label("Unlock with \(appLock.biometry.name)", systemImage: appLock.biometry.icon)
             }
             .buttonStyle(PrimaryButtonStyle())
-            Button("Use Passcode", action: unlock)
-                .font(.headline)
-                .foregroundStyle(.primary)
+            .disabled(appLock.isAuthenticating)
+            Text("If \(appLock.biometry.name) doesn't work, you can use your iPhone passcode.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
                 .padding(.vertical, 8)
         }
         .padding(.horizontal, 24)
         .padding(.bottom)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.black.opacity(0.4))
-    }
-
-    private func unlock() {
-        isScanning = true
-        Task {
-            try? await Task.sleep(for: .milliseconds(800))
-            withAnimation { router.isLocked = false }
-            isScanning = false
-        }
+        .task { await appLock.unlock() }
     }
 }
 
-#Preview {
-    LockView()
-        .environment(AppRouter())
-        .preferredColorScheme(.dark)
+/// Covers the app in the app switcher when App Lock is on, so trips and expenses can't be seen there.
+struct PrivacyCover: View {
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.ultraThickMaterial)
+            Image(systemName: "lock.fill")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
 }

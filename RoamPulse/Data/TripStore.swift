@@ -21,6 +21,8 @@ final class TripStore {
     private(set) var profile = SampleData.profile
     /// The signed-in person as a trip member, used when creating a trip.
     private(set) var me = SampleData.me
+    /// The signed-in account. nil while signed out, and in tests that don't need one.
+    private(set) var accountID: String?
     /// Set when loading or saving fails. RootView shows it as an alert.
     var errorMessage: String?
 
@@ -47,8 +49,10 @@ final class TripStore {
 
     /// Updates the name shown on Profile, e.g. once a new account's name has been saved.
     func updateAccount(_ user: AppUser) {
+        accountID = user.uid
         profile = UserProfile(fullName: user.name, email: user.email)
-        me = Member(id: me.id, name: user.firstName, initials: user.initials, colorHex: me.colorHex, isMe: true)
+        me = Member(id: me.id, name: user.firstName, initials: user.initials, colorHex: me.colorHex, isMe: true,
+                    userUID: user.uid)
     }
 
     /// Signed out: forgets the data in memory. The account's database stays on the iPhone for next time.
@@ -59,6 +63,7 @@ final class TripStore {
         memories = []
         profile = SampleData.profile
         me = SampleData.me
+        accountID = nil
     }
 
     func reload() {
@@ -112,6 +117,7 @@ final class TripStore {
 
     @discardableResult
     func addTrip(_ trip: Trip) -> Bool {
+        let trip = claimed(trip)
         guard save(trip) else { return false }
         trips.append(trip)
         sync?.tripDidChange(from: nil, to: trip)
@@ -134,6 +140,8 @@ final class TripStore {
     }
 
     /// Deletes the trip and everything in it, including its journal memories.
+    /// For a trip someone else shared, this means leaving it: it is removed from this iPhone
+    /// but stays for everyone else.
     @discardableResult
     func deleteTrip(_ id: UUID) -> Bool {
         let old = trip(id)
@@ -141,7 +149,9 @@ final class TripStore {
             try repository.deleteTrip(id: id)
             trips.removeAll { $0.id == id }
             memories.removeAll { $0.tripID == id }
-            sync?.tripDidChange(from: old, to: nil)
+            if let old {
+                uploadRemoval(of: old)
+            }
             return true
         } catch {
             report(error, failedTo: "delete the trip")
@@ -155,6 +165,50 @@ final class TripStore {
             guard let index = trip.activities.firstIndex(where: { $0.id == activityID }) else { return }
             trip.activities[index].isDone = true
         }
+    }
+
+    // MARK: - Sharing
+
+    /// True when this account created the trip, or it was made before trips had owners,
+    /// or nobody is signed in (no sharing without an account).
+    func isOwner(of trip: Trip) -> Bool {
+        trip.ownerUID == nil || accountID == nil || trip.ownerUID == accountID
+    }
+
+    /// A new trip belongs to the signed-in account, and "me" on it is linked to that account.
+    private func claimed(_ trip: Trip) -> Trip {
+        guard let accountID else { return trip }
+        var trip = trip
+        if trip.ownerUID == nil {
+            trip.ownerUID = accountID
+        }
+        if !trip.memberUIDs.contains(accountID) {
+            trip.memberUIDs.append(accountID)
+        }
+        for index in trip.members.indices where trip.members[index].isMe && trip.members[index].userUID == nil {
+            trip.members[index].userUID = accountID
+        }
+        return trip
+    }
+
+    /// The owner deletes the trip for everyone; anyone else just leaves it.
+    private func uploadRemoval(of trip: Trip) {
+        if isOwner(of: trip) {
+            sync?.tripDidChange(from: trip, to: nil)
+        } else {
+            sync?.leaveTrip(trip)
+        }
+    }
+
+    // MARK: - Weather cache
+
+    func cachedForecast(for tripID: UUID) -> CachedForecast? {
+        try? repository.cachedForecast(for: tripID)
+    }
+
+    /// Not being able to cache the forecast isn't worth an alert: it is only used offline.
+    func saveForecast(_ forecast: CachedForecast, for tripID: UUID) {
+        try? repository.saveForecast(forecast, for: tripID)
     }
 
     // MARK: - Cover photo
@@ -292,7 +346,7 @@ final class TripStore {
             trips = []
             memories = []
             for trip in deleted {
-                sync?.tripDidChange(from: trip, to: nil)
+                uploadRemoval(of: trip)
             }
         } catch {
             report(error, failedTo: "delete your data")

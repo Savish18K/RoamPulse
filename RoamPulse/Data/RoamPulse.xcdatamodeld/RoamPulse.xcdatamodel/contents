@@ -39,6 +39,7 @@
         <attribute name="initials" optional="YES" attributeType="String"/>
         <attribute name="isMe" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="userUID" optional="YES" attributeType="String"/>
         <relationship name="memories" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="MemoryEntity" inverseName="people" inverseEntity="MemoryEntity"/>
         <relationship name="paidExpenses" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ExpenseEntity" inverseName="paidBy" inverseEntity="ExpenseEntity"/>
         <relationship name="paymentsMade" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PaymentEntity" inverseName="payer" inverseEntity="PaymentEntity"/>
@@ -106,7 +107,11 @@
         <attribute name="destination" optional="YES" attributeType="String"/>
         <attribute name="endDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="latitude" optional="YES" attributeType="Double" usesScalarValueType="NO"/>
+        <attribute name="longitude" optional="YES" attributeType="Double" usesScalarValueType="NO"/>
+        <attribute name="memberUIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData" customClassName="[String]"/>
         <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="ownerUID" optional="YES" attributeType="String"/>
         <attribute name="remindersOn" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="activities" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="ActivityEntity" inverseName="trip" inverseEntity="ActivityEntity"/>

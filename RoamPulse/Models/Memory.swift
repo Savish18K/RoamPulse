@@ -164,6 +164,7 @@ struct DailyForecast: Identifiable, Hashable {
     var low: Int
 }
 
+/// The headline warning shown on Home and the Weather screen, for the next outdoor activity at risk.
 struct WeatherAdvisory: Hashable {
     var day: Int
     var title: String
@@ -171,7 +172,59 @@ struct WeatherAdvisory: Hashable {
     var message: String
 }
 
-/// Forecast for a trip's destination (mock until OpenWeatherMap is added in Increment 7).
+/// A warning for one outdoor activity, worked out by `WeatherAdvisor`.
+struct ActivityAdvisory: Hashable {
+    enum Kind: Hashable {
+        case storm, rain, heat
+    }
+
+    var activityID: UUID
+    var day: Int
+    var kind: Kind
+    /// e.g. "Heavy rain likely"
+    var title: String
+    /// e.g. "14:00–17:00"
+    var window: String
+    /// When the risky weather starts, used to send the alert only once.
+    var windowStart: Date
+    /// e.g. "Heavy rain likely 14:00–17:00 (90%). Drier around 08:00 (20%)."
+    var message: String
+
+    var icon: String {
+        switch kind {
+        case .storm: "cloud.bolt.rain.fill"
+        case .rain: "cloud.heavyrain.fill"
+        case .heat: "thermometer.sun.fill"
+        }
+    }
+}
+
+/// One 3-hour step of the forecast (OpenWeatherMap's 5 day / 3 hour forecast).
+struct ForecastSlot: Hashable {
+    static let length: TimeInterval = 3 * 60 * 60
+
+    var start: Date
+    var temperature: Int
+    /// Chance of rain or snow, 0–100.
+    var rainChance: Int
+    /// Rain (and snow) expected during the 3 hours, in mm.
+    var rainMM: Double
+    /// OpenWeatherMap's condition code: 2xx thunderstorm, 3xx drizzle, 5xx rain, 800 clear, 80x clouds.
+    var conditionCode: Int
+    var condition: String
+    var symbol: String
+
+    var end: Date { start.addingTimeInterval(Self.length) }
+    var isStormy: Bool { (200..<300).contains(conditionCode) }
+}
+
+enum WeatherSource: Hashable {
+    case openWeatherMap
+    /// Built-in sample data, used when no OpenWeatherMap API key is set (and in previews).
+    case sample
+}
+
+/// Forecast for a trip's destination.
 struct WeatherSnapshot: Hashable {
     var location: String
     var condition: String
@@ -183,8 +236,20 @@ struct WeatherSnapshot: Hashable {
     var windKmh: Int
     var rainChance: Int
     var sunset: String
-    var updatedAt: String
+    /// When the forecast was downloaded.
+    var fetchedAt: Date
     var hourly: [HourlyForecast]
     var daily: [DailyForecast]
-    var advisory: WeatherAdvisory?
+    /// Every 3-hour step, used for the advice on each activity.
+    var slots: [ForecastSlot]
+    /// True when there was no connection and a saved forecast is shown.
+    var isOffline = false
+    var source: WeatherSource = .openWeatherMap
+
+    /// "16:32"
+    var updatedAt: String { fetchedAt.text("HH:mm") }
 }
+
+// Encodable for Settings → Export my data.
+extension Memory: Encodable {}
+extension Mood: Encodable {}

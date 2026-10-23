@@ -76,7 +76,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
 
-        if let advisory = viewModel.weather?.advisory {
+        if let advisory = viewModel.advisory {
             NavigationLink(value: AppRoute.weather(trip.id)) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")

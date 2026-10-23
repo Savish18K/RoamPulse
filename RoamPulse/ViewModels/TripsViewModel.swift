@@ -89,7 +89,14 @@ final class TripFormViewModel {
     let tripID: UUID?
 
     var name = ""
-    var destination = ""
+    /// Typing a different destination forgets the place picked from the suggestions (and its coordinates).
+    var destination = "" {
+        didSet {
+            if destination != pickedPlace?.name {
+                pickedPlace = nil
+            }
+        }
+    }
     var startDate: Date
     var endDate: Date
     var budgetText = ""
@@ -110,11 +117,20 @@ final class TripFormViewModel {
     /// Set when a picked file couldn't be read as a photo.
     private(set) var coverProblem: String?
 
+    /// Shown when there are no search results (e.g. offline).
     let destinationSuggestions = ["Galle Fort", "Unawatuna", "Hikkaduwa", "Mirissa"]
+    /// Places matching the destination, from OpenWeatherMap's geocoding.
+    private(set) var placeSuggestions: [Place] = []
+    /// The suggestion the user tapped. Its coordinates are saved with the trip for the weather.
+    private(set) var pickedPlace: Place?
+    private let weather: WeatherService?
+    /// The destination when the form opened, so editing a trip doesn't search until it changes.
+    private var originalDestination = ""
 
-    init(tripID: UUID? = nil, store: TripStore, clock: Clock) {
+    init(tripID: UUID? = nil, store: TripStore, clock: Clock, weather: WeatherService? = nil) {
         self.store = store
         self.tripID = tripID
+        self.weather = weather
 
         // A new trip starts a week from today and lasts three days.
         let calendar = Calendar.trip
@@ -132,7 +148,27 @@ final class TripFormViewModel {
             budgetText = trip.budget > 0 ? String(Int(trip.budget)) : ""
             remindersOn = trip.remindersOn
             companions = trip.members
+            originalDestination = trip.destination
         }
+    }
+
+    // MARK: Destination search
+
+    /// Looks up places matching the destination. Called by the view a moment after typing stops.
+    func searchPlaces() async {
+        let query = destination.trimmed
+        guard let weather, query.count >= 2, pickedPlace == nil, query != originalDestination else {
+            placeSuggestions = []
+            return
+        }
+        // Offline or no results: the fixed suggestions are shown instead.
+        placeSuggestions = (try? await weather.searchPlaces(query)) ?? []
+    }
+
+    func pick(_ place: Place) {
+        pickedPlace = place
+        destination = place.name
+        placeSuggestions = []
     }
 
     // MARK: Cover photo
@@ -227,9 +263,10 @@ final class TripFormViewModel {
         companions.append(Member(name: newName, colorHex: color))
     }
 
-    /// You can't remove yourself, or someone who is already part of an expense.
+    /// You can't remove yourself, someone who has joined with their own account (they leave the trip
+    /// themselves), or someone who is already part of an expense.
     func canRemove(_ member: Member) -> Bool {
-        if member.isMe { return false }
+        if member.isMe || member.userUID != nil { return false }
         return !(existingTrip?.hasMoney(involving: member) ?? false)
     }
 
@@ -254,14 +291,22 @@ final class TripFormViewModel {
                 members: companions,
                 cover: .cover(for: destination),
                 remindersOn: remindersOn,
-                packing: PackingAdvisor.defaultTemplate()
+                packing: PackingAdvisor.defaultTemplate(),
+                latitude: pickedPlace?.latitude,
+                longitude: pickedPlace?.longitude
             )
             guard store.addTrip(trip) else { return false }
             return saveCoverChange(for: trip.id)
         }
 
         let newDayCount = dayCount
+        let picked = pickedPlace
         let saved = store.updateTrip(tripID) { trip in
+            if trip.destination != destination.trimmed || picked != nil {
+                // A new destination: use the picked place, or look it up again when the weather loads.
+                trip.latitude = picked?.latitude
+                trip.longitude = picked?.longitude
+            }
             trip.name = name.trimmed
             trip.destination = destination.trimmed
             trip.startDate = startDate

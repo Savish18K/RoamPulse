@@ -24,6 +24,20 @@ protocol TripRepository {
     /// The full-size JPEG, or the small thumbnail. nil if there is no image with that id.
     func imageData(id: UUID, thumbnail: Bool) throws -> Data?
     func deleteImage(id: UUID) throws
+
+    /// Keeps the last forecast downloaded for a trip, so the weather still shows offline.
+    /// Deleted with the trip.
+    func saveForecast(_ forecast: CachedForecast, for tripID: UUID) throws
+    func cachedForecast(for tripID: UUID) throws -> CachedForecast?
+}
+
+/// The raw weather download for a trip and when it was fetched.
+struct CachedForecast: Equatable {
+    /// The OpenWeatherMap responses as JSON (`OpenWeatherMapBundle`).
+    var payload: Data
+    /// Which coordinates it is for, e.g. "6.8667,81.0466". A new destination means a new download.
+    var location: String
+    var fetchedAt: Date
 }
 
 enum RepositoryError: LocalizedError {
@@ -45,6 +59,7 @@ final class InMemoryTripRepository: TripRepository {
     private var trips: [UUID: Trip] = [:]
     private var memories: [UUID: Memory] = [:]
     private(set) var images: [UUID: PreparedImage] = [:]
+    private(set) var forecasts: [UUID: CachedForecast] = [:]
 
     /// Set to true in a test to make saving fail, to check how errors are handled.
     var failSaves = false
@@ -73,6 +88,7 @@ final class InMemoryTripRepository: TripRepository {
             images[cover] = nil
         }
         trips[id] = nil
+        forecasts[id] = nil
         memories = memories.filter { $0.value.tripID != id }
     }
 
@@ -96,6 +112,7 @@ final class InMemoryTripRepository: TripRepository {
         trips = [:]
         memories = [:]
         images = [:]
+        forecasts = [:]
     }
 
     func saveImage(_ image: PreparedImage) throws -> UUID {
@@ -111,6 +128,16 @@ final class InMemoryTripRepository: TripRepository {
 
     func deleteImage(id: UUID) throws {
         images[id] = nil
+    }
+
+    func saveForecast(_ forecast: CachedForecast, for tripID: UUID) throws {
+        try checkFailure()
+        guard trips[tripID] != nil else { throw RepositoryError.tripNotFound }
+        forecasts[tripID] = forecast
+    }
+
+    func cachedForecast(for tripID: UUID) throws -> CachedForecast? {
+        forecasts[tripID]
     }
 
     private func checkFailure() throws {

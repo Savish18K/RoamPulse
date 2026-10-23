@@ -91,8 +91,9 @@ final class TripDetailViewModel {
         return ItineraryPlanner.demandingDayAdvice(today: intensity, previousDay: previous)
     }
 
-    func advisory(for activity: Activity) -> String? {
-        WeatherAdvisor.advisory(for: activity, in: weather)
+    func advisory(for activity: Activity) -> ActivityAdvisory? {
+        guard let trip else { return nil }
+        return WeatherAdvisor.advisory(for: activity, in: trip, snapshot: weather)
     }
 
     func statusText(for activity: Activity) -> String {
@@ -174,6 +175,26 @@ final class TripDetailViewModel {
     /// Returns true once the trip is gone, so the screen can close.
     func deleteTrip() -> Bool {
         store.deleteTrip(tripID)
+    }
+
+    // MARK: Sharing
+
+    /// The owner deletes the trip; someone it was shared with can only leave it.
+    var canDeleteForEveryone: Bool { trip.map(store.isOwner) ?? true }
+
+    /// Sharing needs an account (cloud sync).
+    var canShare: Bool { store.accountID != nil }
+
+    var deleteTitle: String { canDeleteForEveryone ? "Delete Trip" : "Leave Trip" }
+
+    func deleteMessage(for trip: Trip) -> String {
+        if !canDeleteForEveryone {
+            return "\(trip.name) will be removed from this iPhone. It stays for the rest of the group."
+        }
+        if trip.isShared {
+            return "It will be deleted for everyone on the trip. Your journal memories for it are removed from this iPhone."
+        }
+        return "Its itinerary, packing list, expenses and memories will be removed from this iPhone and your cloud backup."
     }
 
     func loadWeather() async {

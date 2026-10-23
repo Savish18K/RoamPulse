@@ -51,6 +51,9 @@ struct TripRecord: Codable, Equatable {
     /// Deleted trips are kept as a "tombstone" so other devices find out they were deleted.
     var isDeleted: Bool
     var updatedAt: Date
+    /// Where the weather comes from. Optional, because older trips may not have it.
+    var latitude: Double?
+    var longitude: Double?
 }
 
 /// Items keep their place in the list (`position`), because Firestore returns documents sorted by id.
@@ -132,10 +135,14 @@ enum TripRecords {
 
     static func amount(cents: Int) -> Double { Double(cents) / 100 }
 
-    /// The trip's own document. Until trips can be shared (Increment 6b) the signed-in account
-    /// is both the owner and the only member.
+    /// The trip's own document. A trip made before it had an owner belongs to the signed-in account.
     static func header(for trip: Trip, accountID: String, updatedAt: Date, isDeleted: Bool = false) -> TripRecord {
-        TripRecord(
+        let owner = trip.ownerUID ?? accountID
+        var members = trip.memberUIDs.isEmpty ? [owner] : trip.memberUIDs
+        if !members.contains(owner) {
+            members.insert(owner, at: 0)
+        }
+        return TripRecord(
             name: trip.name,
             destination: trip.destination,
             startDate: trip.startDate,
@@ -143,10 +150,12 @@ enum TripRecords {
             budget: trip.budget,
             cover: trip.cover.rawValue,
             remindersOn: trip.remindersOn,
-            ownerUID: accountID,
-            memberUIDs: [accountID],
+            ownerUID: owner,
+            memberUIDs: members,
             isDeleted: isDeleted,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            latitude: trip.latitude,
+            longitude: trip.longitude
         )
     }
 
@@ -160,7 +169,7 @@ enum TripRecords {
         for (position, member) in trip.members.enumerated() {
             add(.members, member.id, .member(MemberRecord(
                 position: position, name: member.name, initials: member.initials, colorHex: member.colorHex,
-                userUID: member.isMe ? accountID : nil)))
+                userUID: member.userUID ?? (member.isMe ? accountID : nil))))
         }
         for (position, activity) in trip.activities.enumerated() {
             add(.activities, activity.id, .activity(ActivityRecord(
@@ -194,7 +203,7 @@ enum TripRecords {
                      accountID: String) -> Trip {
         let members = sorted(lists[.members], \.member).map { id, record in
             Member(id: id, name: record.name, initials: record.initials, colorHex: record.colorHex,
-                   isMe: record.userUID == accountID)
+                   isMe: record.userUID == accountID, userUID: record.userUID)
         }
         var membersByID: [String: Member] = [:]
         for member in members { membersByID[member.id.uuidString] = member }
@@ -234,7 +243,11 @@ enum TripRecords {
             activities: activities,
             packing: packing,
             expenses: expenses,
-            payments: payments
+            payments: payments,
+            ownerUID: header.ownerUID,
+            memberUIDs: header.memberUIDs,
+            latitude: header.latitude,
+            longitude: header.longitude
         )
     }
 
@@ -255,9 +268,35 @@ enum TripRecords {
 
 /// One document write.
 enum SyncWrite: Equatable {
-    case setTrip(UUID, TripRecord)
+    /// A new trip document: written in full, including its owner and members.
+    case createTrip(UUID, TripRecord)
+    /// A change to a trip: only `TripRecord.contentFields` are written, never `ownerUID` or `memberUIDs`.
+    /// Those only change when someone joins or leaves, so an edit made on a phone that hasn't heard
+    /// about a new member yet can't remove them again.
+    case updateTrip(UUID, TripRecord)
     case setItem(tripID: UUID, ItemKey, ItemRecord)
     case deleteItem(tripID: UUID, ItemKey)
+}
+
+extension TripRecord {
+    /// The fields a trip update writes (everything except `ownerUID` and `memberUIDs`).
+    static let contentFields = ["name", "destination", "startDate", "endDate", "budget", "cover", "remindersOn",
+                                "isDeleted", "updatedAt", "latitude", "longitude"]
+
+    /// The same record with the membership fields blanked, to compare only what an update writes.
+    var content: TripRecord {
+        var record = self
+        record.ownerUID = ""
+        record.memberUIDs = []
+        return record
+    }
+
+    /// What is left of a deleted trip: just enough for other devices to remove it.
+    /// The name and everything else is cleared, so a deleted trip leaves no personal data behind.
+    static func tombstone(owner: String, members: [String], at date: Date) -> TripRecord {
+        TripRecord(name: "", destination: "", startDate: date, endDate: date, budget: 0, cover: "",
+                   remindersOn: false, ownerUID: owner, memberUIDs: members, isDeleted: true, updatedAt: date)
+    }
 }
 
 /// Works out the smallest set of writes that makes Firestore match a change made on this iPhone.
@@ -269,16 +308,21 @@ enum TripChangeSet {
         guard let new else {
             guard let old else { return [] }
             // Keep a tombstone for other devices, and remove the trip's items.
-            let tombstone = TripRecords.header(for: old, accountID: accountID, updatedAt: now, isDeleted: true)
+            let header = TripRecords.header(for: old, accountID: accountID, updatedAt: now)
+            let tombstone = TripRecord.tombstone(owner: header.ownerUID, members: header.memberUIDs, at: now)
             let items = TripRecords.items(for: old, accountID: accountID).keys.sorted()
-            return [.setTrip(old.id, tombstone)] + items.map { .deleteItem(tripID: old.id, $0) }
+            return [.updateTrip(old.id, tombstone)] + items.map { .deleteItem(tripID: old.id, $0) }
         }
 
         var writes: [SyncWrite] = []
         let newHeader = TripRecords.header(for: new, accountID: accountID, updatedAt: now)
-        let oldHeader = old.map { TripRecords.header(for: $0, accountID: accountID, updatedAt: now) }
-        if oldHeader != newHeader {
-            writes.append(.setTrip(new.id, newHeader))
+        if let old {
+            let oldHeader = TripRecords.header(for: old, accountID: accountID, updatedAt: now)
+            if oldHeader.content != newHeader.content {
+                writes.append(.updateTrip(new.id, newHeader))
+            }
+        } else {
+            writes.append(.createTrip(new.id, newHeader))
         }
 
         let oldItems = old.map { TripRecords.items(for: $0, accountID: accountID) } ?? [:]

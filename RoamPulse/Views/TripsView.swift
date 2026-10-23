@@ -52,6 +52,16 @@ struct TripsListView: View {
         .safeAreaInset(edge: .bottom) {
             FloatingActionBar(primaryTitle: "Create Trip", primaryAction: { router.activeSheet = .createTrip })
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    router.activeSheet = .joinTrip
+                } label: {
+                    Label("Join Trip", systemImage: "person.2.badge.plus")
+                }
+                .accessibilityHint("Join a friend's trip with an invite code")
+            }
+        }
         .confirmationDialog(
             "Delete this trip?",
             isPresented: Binding(
@@ -182,6 +192,7 @@ struct ActiveTripCard: View {
 struct TripFormView: View {
     @State private var viewModel: TripFormViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(ReminderService.self) private var reminders
 
     @State private var showDatePickers = false
     @State private var showAddCompanion = false
@@ -205,13 +216,37 @@ struct TripFormView: View {
                             TextField("Galle", text: $viewModel.destination)
                         }
                         FlowLayout {
-                            ForEach(viewModel.destinationSuggestions, id: \.self) { place in
-                                Button { viewModel.destination = place } label: {
-                                    Chip(place, isSelected: viewModel.destination == place)
+                            if viewModel.placeSuggestions.isEmpty {
+                                ForEach(viewModel.destinationSuggestions, id: \.self) { place in
+                                    Button { viewModel.destination = place } label: {
+                                        Chip(place, isSelected: viewModel.destination == place)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            } else {
+                                ForEach(viewModel.placeSuggestions) { place in
+                                    Button { viewModel.pick(place) } label: {
+                                        Chip("\(place.name), \(place.region)", icon: "mappin.and.ellipse")
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityHint("Sets the destination and its location for the weather")
+                                }
                             }
                         }
+                        if let picked = viewModel.pickedPlace {
+                            Label("\(picked.name), \(picked.region)", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    // Searches a moment after typing stops; a new keystroke cancels the previous search.
+                    .task(id: viewModel.destination) {
+                        do {
+                            try await Task.sleep(for: .milliseconds(400))
+                        } catch {
+                            return
+                        }
+                        await viewModel.searchPlaces()
                     }
 
                     coverSection
@@ -273,7 +308,13 @@ struct TripFormView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button(viewModel.saveTitle) {
-                    if viewModel.save() { dismiss() }
+                    if viewModel.save() {
+                        // The first trip with reminders on is when notification permission is asked for.
+                        if viewModel.remindersOn {
+                            Task { await reminders.requestPermissionIfNeeded() }
+                        }
+                        dismiss()
+                    }
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!viewModel.canSave || viewModel.isPreparingCover)
@@ -322,9 +363,10 @@ struct TripFormView: View {
                         }
                     }
                 VStack(alignment: .leading, spacing: 6) {
+                    // Worked out here: the picker's label closure may run off the main thread.
+                    let pickerTitle = viewModel.hasCustomCover ? "Change photo" : "Choose a photo"
                     PhotosPicker(selection: $pickedCover, matching: .images, preferredItemEncoding: .compatible) {
-                        Label(viewModel.hasCustomCover ? "Change photo" : "Choose a photo",
-                              systemImage: "photo.on.rectangle")
+                        Label(pickerTitle, systemImage: "photo.on.rectangle")
                             .font(.subheadline.weight(.semibold))
                     }
                     if viewModel.hasCustomCover {

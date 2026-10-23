@@ -69,13 +69,51 @@ final class FirebaseAuthService: AuthService {
         }
     }
 
+    func updateDisplayName(_ name: String) async throws -> AppUser {
+        guard let user = auth.currentUser else { throw AuthError.notConfigured }
+        let change = user.createProfileChangeRequest()
+        change.displayName = name
+        do {
+            try await change.commitChanges()
+        } catch {
+            throw Self.authError(from: error)
+        }
+        return AppUser(uid: user.uid, email: user.email ?? "", displayName: name)
+    }
+
+    func reauthenticate(password: String) async throws {
+        guard let user = auth.currentUser, let email = user.email else { throw AuthError.notConfigured }
+        do {
+            _ = try await user.reauthenticate(with: EmailAuthProvider.credential(withEmail: email, password: password))
+        } catch {
+            throw Self.authError(from: error)
+        }
+    }
+
+    func deleteAccount() async throws {
+        guard let user = auth.currentUser else { return }
+        do {
+            try await user.delete()
+        } catch {
+            throw Self.authError(from: error)
+        }
+    }
+
     /// Turns a Firebase error into a message the user can act on.
     static func authError(from error: Error) -> AuthError {
         let nsError = error as NSError
+        // The full error (including the server's reply) goes to Xcode's console for debugging.
+        print("Firebase Auth error:", nsError)
         guard nsError.domain == AuthErrors.domain, let code = AuthErrorCode(rawValue: nsError.code) else {
             return .other(error.localizedDescription)
         }
         switch code {
+        case .operationNotAllowed: return .signInMethodNotEnabled
+        case .requiresRecentLogin: return .needsRecentSignIn
+        // The server says CONFIGURATION_NOT_FOUND when Authentication was never set up in the console.
+        // The SDK reports that as a vague "internal error", so look inside it.
+        case .internalError where String(describing: nsError).contains("CONFIGURATION_NOT_FOUND"):
+            return .signInMethodNotEnabled
         case .invalidEmail: return .invalidEmail
         case .wrongPassword, .userNotFound, .invalidCredential: return .wrongCredentials
         case .emailAlreadyInUse: return .emailAlreadyInUse

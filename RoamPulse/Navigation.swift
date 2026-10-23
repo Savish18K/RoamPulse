@@ -31,6 +31,10 @@ enum AppSheet: Identifiable {
     case memory(UUID)
     case typeNote(UUID)
     case about
+    case shareTrip(UUID)
+    case joinTrip
+    case editProfile
+    case deleteAccount
 
     var id: String {
         switch self {
@@ -45,21 +49,34 @@ enum AppSheet: Identifiable {
         case .memory(let id): "memory-\(id)"
         case .typeNote(let id): "typeNote-\(id)"
         case .about: "about"
+        case .shareTrip(let id): "shareTrip-\(id)"
+        case .joinTrip: "joinTrip"
+        case .editProfile: "editProfile"
+        case .deleteAccount: "deleteAccount"
         }
     }
 }
 
-/// App-wide navigation state: selected tab, current sheet and app lock.
+/// App-wide navigation state: selected tab, current sheet, and the Trips tab's pushed screens.
 @Observable
 final class AppRouter {
     var selectedTab: AppTab = .home
     var activeSheet: AppSheet?
-    var isLocked = false
+    /// Screens pushed on the Trips tab, so a notification can open a trip.
+    var tripsPath: [AppRoute] = []
 
     /// Back to the Home tab with no sheet open, e.g. after signing out.
     func reset() {
         selectedTab = .home
         activeSheet = nil
+        tripsPath = []
+    }
+
+    /// Shows a trip's detail screen, e.g. after tapping one of its reminders.
+    func openTrip(_ id: UUID) {
+        activeSheet = nil
+        selectedTab = .trips
+        tripsPath = [.tripDetail(id)]
     }
 }
 
@@ -124,9 +141,9 @@ struct SheetContent: View {
 
         switch sheet {
         case .createTrip:
-            TripFormView(viewModel: TripFormViewModel(store: store, clock: clock))
+            TripFormView(viewModel: TripFormViewModel(store: store, clock: clock, weather: dependencies.weather))
         case .editTrip(let id):
-            TripFormView(viewModel: TripFormViewModel(tripID: id, store: store, clock: clock))
+            TripFormView(viewModel: TripFormViewModel(tripID: id, store: store, clock: clock, weather: dependencies.weather))
         case .addActivity(let tripID, let day):
             ActivityFormView(viewModel: ActivityFormViewModel(tripID: tripID, day: day, store: store, clock: clock))
         case .editActivity(let tripID, let activityID):
@@ -145,6 +162,14 @@ struct SheetContent: View {
             TypeNoteView(memoryID: id)
         case .about:
             AboutView()
+        case .shareTrip(let id):
+            ShareTripView(viewModel: ShareTripViewModel(tripID: id, store: store, sync: dependencies.sync))
+        case .joinTrip:
+            JoinTripView(viewModel: JoinTripViewModel(store: store, sync: dependencies.sync))
+        case .editProfile:
+            EditProfileView()
+        case .deleteAccount:
+            DeleteAccountView()
         }
     }
 }

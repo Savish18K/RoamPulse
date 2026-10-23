@@ -14,6 +14,22 @@ protocol SyncService: AnyObject {
     /// Called by `TripStore` after a change was saved on this iPhone.
     /// `old` is nil for a new trip and `new` is nil for a deleted one.
     func tripDidChange(from old: Trip?, to new: Trip?)
+
+    // MARK: Sharing (these need a connection)
+
+    /// Saves a new invite code for the trip and returns it.
+    func createInvite(for trip: Trip, ownerName: String) async throws -> TripInvite
+    /// Looks up a code a friend typed in.
+    func findInvite(code: String) async throws -> TripInvite
+    /// Adds this account to the invite's trip, as the existing member `memberID`,
+    /// or as a new member called `name` when `memberID` is nil.
+    func joinTrip(_ invite: TripInvite, as memberID: String?, name: String, initials: String) async throws
+    /// Removes this account from someone else's trip. Works offline (uploaded later).
+    func leaveTrip(_ trip: Trip)
+
+    /// Deletes the account's data from the cloud before the account itself is deleted:
+    /// its own trips become empty tombstones, shared trips are left, and its invites are removed.
+    func deleteCloudData(for trips: [Trip]) async throws
 }
 
 /// What the Profile screen shows about syncing.
@@ -69,4 +85,11 @@ final class NoSyncService: SyncService {
     func start(accountID: String, store: TripStore) {}
     func stop() {}
     func tripDidChange(from old: Trip?, to new: Trip?) {}
+    func createInvite(for trip: Trip, ownerName: String) async throws -> TripInvite { throw SharingError.unavailable }
+    func findInvite(code: String) async throws -> TripInvite { throw SharingError.unavailable }
+    func joinTrip(_ invite: TripInvite, as memberID: String?, name: String, initials: String) async throws {
+        throw SharingError.unavailable
+    }
+    func leaveTrip(_ trip: Trip) {}
+    func deleteCloudData(for trips: [Trip]) async throws {}
 }

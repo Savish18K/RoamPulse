@@ -20,7 +20,16 @@ struct ProfileView: View {
                     AvatarView(member: store.me, size: 110)
                         .padding(4)
                         .overlay(Circle().strokeBorder(Color.blue, lineWidth: 3))
-                    Text(store.profile.fullName).font(.title.bold())
+                    Button {
+                        router.activeSheet = .editProfile
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(store.profile.fullName).font(.title.bold())
+                            Image(systemName: "pencil").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Change your name")
                     Text(store.profile.email).foregroundStyle(.secondary)
                 }
                 .padding(.top, 24)
@@ -329,167 +338,6 @@ struct StatisticsView: View {
 #Preview {
     NavigationStack { StatisticsView() }
         .previewEnvironment(.preview())
-}
-
-// MARK: - SettingsView
-
-struct SettingsView: View {
-    @Environment(TripStore.self) private var store
-    @Environment(AppRouter.self) private var router
-    @Environment(\.openURL) private var openURL
-
-    @AppStorage("smartAdvisories") private var smartAdvisories = true
-    @AppStorage("appLockEnabled") private var appLockEnabled = false
-    @AppStorage("lockDelayMinutes") private var lockDelayMinutes = 0
-    @AppStorage("appTheme") private var appTheme: AppTheme = .dark
-    @AppStorage("hasOnboarded") private var hasOnboarded = true
-    @State private var confirmDelete = false
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionLabel("Notifications")
-                group {
-                    Toggle(isOn: $smartAdvisories) {
-                        Label("Enable smart advisories", systemImage: "bell")
-                    }
-                    .tint(.blue)
-                    .padding(16)
-                }
-
-                SectionLabel("Privacy").padding(.top, 10)
-                group {
-                    Toggle(isOn: $appLockEnabled) {
-                        Label("App lock with Face ID", systemImage: "faceid")
-                    }
-                    .tint(.green)
-                    .padding(16)
-                    Divider().padding(.leading, 56)
-                    HStack {
-                        Label("Require after", systemImage: "timer")
-                        Spacer()
-                        Picker("Require after", selection: $lockDelayMinutes) {
-                            Text("Immediately").tag(0)
-                            Text("After 1 minute").tag(1)
-                            Text("After 5 minutes").tag(5)
-                            Text("After 15 minutes").tag(15)
-                        }
-                        .labelsHidden()
-                        .tint(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .disabled(!appLockEnabled)
-                }
-                Text("Uses Face ID or Touch ID, with your passcode as a backup.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-
-                SectionLabel("System Permissions").padding(.top, 10)
-                group {
-                    permissionRow("mic", "Microphone", status: "Allowed")
-                    Divider().padding(.leading, 56)
-                    permissionRow("waveform", "Speech recognition", status: "Allowed")
-                    Divider().padding(.leading, 56)
-                    permissionRow("photo", "Photos", status: "Selected only")
-                    Divider().padding(.leading, 56)
-                    permissionRow("bell.badge", "Notifications", status: "Allowed")
-                }
-
-                SectionLabel("Appearance").padding(.top, 10)
-                group {
-                    HStack {
-                        Text("Theme")
-                        Spacer()
-                        SegmentedTabs(options: AppTheme.allCases.map(\.title), selection: themeIndex)
-                            .frame(maxWidth: 230)
-                    }
-                    .padding(12)
-                    .padding(.leading, 4)
-                }
-
-                SectionLabel("Data").padding(.top, 10)
-                group {
-                    Button {
-                        confirmDelete = true
-                    } label: {
-                        SettingsRow(icon: "trash", iconColor: .red, title: "Delete all data", titleColor: .red)
-                    }
-                    if store.trips.isEmpty {
-                        Divider().padding(.leading, 56)
-                        Button {
-                            store.loadSampleData()
-                        } label: {
-                            SettingsRow(icon: "tray.and.arrow.down", title: "Load sample trips")
-                        }
-                    }
-                    Divider().padding(.leading, 56)
-                    ShareLink(item: exportSummary) {
-                        SettingsRow(icon: "square.and.arrow.up", title: "Export local database")
-                    }
-                }
-
-                group {
-                    Button {
-                        router.activeSheet = .about
-                    } label: {
-                        SettingsRow(icon: "heart.text.square", title: "About RoamPulse dev team")
-                    }
-                }
-                .padding(.top, 14)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 24)
-        }
-        .background(Theme.background)
-        .navigationTitle("Settings")
-        .confirmationDialog("Delete all data?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete All Data", role: .destructive) {
-                store.deleteAllData()
-                appLockEnabled = false
-                router.selectedTab = .home
-                hasOnboarded = false
-            }
-        } message: {
-            Text("This removes every trip, expense, memory and photo from this iPhone, and deletes your trips from the cloud backup. It can't be undone.")
-        }
-    }
-
-    private var themeIndex: Binding<Int> {
-        Binding(
-            get: { AppTheme.allCases.firstIndex(of: appTheme) ?? 0 },
-            set: { appTheme = AppTheme.allCases[$0] }
-        )
-    }
-
-    private var exportSummary: String {
-        "RoamPulse export\nTrips: \(store.trips.count)\nMemories: \(store.memories.count)\nExpenses: \(store.trips.flatMap(\.expenses).count)"
-    }
-
-    private func group<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 0, content: content)
-            .buttonStyle(.plain)
-            .card(padding: 0)
-    }
-
-    private func permissionRow(_ icon: String, _ title: String, status: String) -> some View {
-        Button {
-            if let url = URL(string: UIApplication.openSettingsURLString) {
-                openURL(url)
-            }
-        } label: {
-            SettingsRow(icon: icon, title: title, showsChevron: false) {
-                HStack(spacing: 6) {
-                    Text(status)
-                    if status == "Allowed" {
-                        Image(systemName: "checkmark.circle")
-                    }
-                }
-                .foregroundStyle(.secondary)
-            }
-        }
-    }
 }
 
 /// "About RoamPulse dev team" sheet.

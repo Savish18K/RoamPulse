@@ -12,15 +12,21 @@ struct Member: Identifiable, Hashable {
     var initials: String
     /// Avatar colour as 0xRRGGBB, so it can be saved in Core Data.
     var colorHex: Int
+    /// True for the person signed in on this iPhone.
     var isMe: Bool
+    /// The account of this person, once they use the app and have joined the trip. Each phone
+    /// works out `isMe` by comparing this with its own signed-in account.
+    var userUID: String?
 
     /// `initials` defaults to the first two letters, e.g. "Nimal" → "NI".
-    init(id: UUID = UUID(), name: String, initials: String? = nil, colorHex: Int, isMe: Bool = false) {
+    init(id: UUID = UUID(), name: String, initials: String? = nil, colorHex: Int, isMe: Bool = false,
+         userUID: String? = nil) {
         self.id = id
         self.name = name
         self.initials = initials ?? String(name.prefix(2)).uppercased()
         self.colorHex = colorHex
         self.isMe = isMe
+        self.userUID = userUID
     }
 
     var color: Color { Color(hex: UInt32(colorHex)) }
@@ -61,11 +67,24 @@ struct Trip: Identifiable, Hashable {
     /// A photo the user picked for the cover, saved in Core Data (`StoredImageEntity`).
     /// nil means the sample photo in `cover` is shown. Only kept on this iPhone, never synced.
     var coverImageID: UUID?
+    /// The account that created the trip. Only the owner can delete it for everyone.
+    var ownerUID: String?
+    /// Accounts the trip is shared with (the owner included). Firestore's rules check this list.
+    var memberUIDs: [String] = []
+    /// Where the weather comes from. Set when the destination is picked from the search
+    /// suggestions, or looked up the first time the forecast is loaded.
+    var latitude: Double?
+    var longitude: Double?
 }
 
 // MARK: - Dates & status
 
 extension Trip {
+    /// True when someone else's account has joined the trip.
+    var isShared: Bool { memberUIDs.count > 1 }
+
+    var hasCoordinates: Bool { latitude != nil && longitude != nil }
+
     var dayCount: Int { max(Calendar.trip.days(from: startDate, to: endDate) + 1, 1) }
 
     func status(at now: Date) -> TripStatus {
@@ -377,3 +396,18 @@ enum BudgetStatus: Equatable {
         }
     }
 }
+
+// MARK: - Export
+
+// Encodable so Settings → Export my data can write everything as JSON.
+// (Synthesised conformance has to be declared in the same file as the type.)
+extension Member: Encodable {}
+extension Trip: Encodable {}
+extension Activity: Encodable {}
+extension Effort: Encodable {}
+extension PackingItem: Encodable {}
+extension ExpenseCategory: Encodable {}
+extension SplitMethod: Encodable {}
+extension ExpenseShare: Encodable {}
+extension Expense: Encodable {}
+extension Payment: Encodable {}

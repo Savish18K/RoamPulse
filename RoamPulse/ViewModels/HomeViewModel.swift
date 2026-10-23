@@ -62,6 +62,12 @@ final class HomeViewModel {
         Array(trip.expenses.sorted { $0.date > $1.date }.prefix(2))
     }
 
+    /// The next outdoor activity at risk on the active trip.
+    var advisory: WeatherAdvisory? {
+        guard let trip = activeTrip else { return nil }
+        return WeatherAdvisor.headline(for: trip, snapshot: weather, now: now)
+    }
+
     func loadWeather() async {
         guard let trip = activeTrip else {
             weather = nil

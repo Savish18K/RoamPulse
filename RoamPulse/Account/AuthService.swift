@@ -44,6 +44,13 @@ protocol AuthService: AnyObject {
     func signIn(email: String, password: String) async throws -> AppUser
     func sendPasswordReset(to email: String) async throws
     func signOut() throws
+
+    /// Changes the name saved on the account.
+    func updateDisplayName(_ name: String) async throws -> AppUser
+    /// Checks the password again. Firebase needs a recent sign-in before deleting an account.
+    func reauthenticate(password: String) async throws
+    /// Deletes the signed-in account for good.
+    func deleteAccount() async throws
 }
 
 // MARK: - AuthError
@@ -60,6 +67,10 @@ enum AuthError: LocalizedError, Equatable {
     case network
     case tooManyAttempts
     case accountDisabled
+    /// Email/Password sign-in isn't turned on in the Firebase console.
+    case signInMethodNotEnabled
+    /// Deleting an account needs a fresh sign-in.
+    case needsRecentSignIn
     case other(String)
 
     var errorDescription: String? {
@@ -73,6 +84,9 @@ enum AuthError: LocalizedError, Equatable {
         case .network: "Couldn't reach the server. Check your connection and try again."
         case .tooManyAttempts: "Too many attempts. Wait a few minutes and try again."
         case .accountDisabled: "This account has been disabled."
+        case .needsRecentSignIn: "For your security, enter your password again."
+        case .signInMethodNotEnabled:
+            "Email sign-in isn't turned on for this Firebase project. In the Firebase console, open Authentication → Get started → Sign-in method → Email/Password."
         case .other(let message): message
         }
     }
@@ -132,6 +146,9 @@ final class UnavailableAuthService: AuthService {
     }
 
     func signOut() throws {}
+    func updateDisplayName(_ name: String) async throws -> AppUser { throw AuthError.notConfigured }
+    func reauthenticate(password: String) async throws { throw AuthError.notConfigured }
+    func deleteAccount() async throws { throw AuthError.notConfigured }
 }
 
 // MARK: - PreviewAuthService
@@ -150,6 +167,9 @@ final class PreviewAuthService: AuthService {
     func signIn(email: String, password: String) async throws -> AppUser { try user() }
     func sendPasswordReset(to email: String) async throws {}
     func signOut() throws {}
+    func updateDisplayName(_ name: String) async throws -> AppUser { try user() }
+    func reauthenticate(password: String) async throws {}
+    func deleteAccount() async throws {}
 
     private func user() throws -> AppUser {
         guard let currentUser else { throw AuthError.notConfigured }

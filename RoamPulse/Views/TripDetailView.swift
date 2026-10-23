@@ -77,12 +77,12 @@ struct TripDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task { await viewModel.loadWeather() }
-        .confirmationDialog("Delete \(trip.name)?", isPresented: $viewModel.showDeleteConfirmation, titleVisibility: .visible) {
-            Button("Delete Trip", role: .destructive) {
+        .confirmationDialog("\(viewModel.deleteTitle)?", isPresented: $viewModel.showDeleteConfirmation, titleVisibility: .visible) {
+            Button(viewModel.deleteTitle, role: .destructive) {
                 if viewModel.deleteTrip() { dismiss() }
             }
         } message: {
-            Text("Its itinerary, packing list, expenses and memories will be removed from this iPhone.")
+            Text(viewModel.deleteMessage(for: trip))
         }
     }
 
@@ -93,10 +93,18 @@ struct TripDetailView: View {
             } label: {
                 Label("Edit Trip", systemImage: "pencil")
             }
+            if viewModel.canShare {
+                Button {
+                    router.activeSheet = .shareTrip(trip.id)
+                } label: {
+                    Label("Invite Friends", systemImage: "person.2.badge.plus")
+                }
+            }
             Button(role: .destructive) {
                 viewModel.showDeleteConfirmation = true
             } label: {
-                Label("Delete Trip", systemImage: "trash")
+                Label(viewModel.deleteTitle,
+                      systemImage: viewModel.canDeleteForEveryone ? "trash" : "rectangle.portrait.and.arrow.right")
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -225,7 +233,7 @@ struct TripDetailView: View {
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                     if let advisory = viewModel.advisory(for: activity) {
-                        Label(advisory, systemImage: "cloud.heavyrain")
+                        Label(advisory.message, systemImage: advisory.icon)
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }

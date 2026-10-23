@@ -25,18 +25,23 @@ final class AppSession {
     @ObservationIgnored private let store: TripStore
     @ObservationIgnored private let sync: SyncService
     @ObservationIgnored private let openRepository: (String) throws -> TripRepository
+    @ObservationIgnored private let deleteLocalData: (String) throws -> Void
     /// True while an account is being created, so the first time it is opened the sample trips are added.
     @ObservationIgnored private var isCreatingAccount = false
 
-    /// - Parameter openRepository: opens the database for an account id. The app opens a Core Data
-    ///   store per account; tests return an in-memory repository.
+    /// - Parameters:
+    ///   - openRepository: opens the database for an account id. The app opens a Core Data store per
+    ///     account; tests return an in-memory repository.
+    ///   - deleteLocalData: deletes an account's database from the iPhone (when the account is deleted).
     init(auth: AuthService, store: TripStore, sync: SyncService, isCloudAvailable: Bool,
-         openRepository: @escaping (String) throws -> TripRepository) {
+         openRepository: @escaping (String) throws -> TripRepository,
+         deleteLocalData: @escaping (String) throws -> Void = { _ in }) {
         self.auth = auth
         self.store = store
         self.sync = sync
         self.isCloudAvailable = isCloudAvailable
         self.openRepository = openRepository
+        self.deleteLocalData = deleteLocalData
     }
 
     var user: AppUser? {
@@ -78,6 +83,32 @@ final class AppSession {
             userDidChange(nil)
         } catch {
             store.errorMessage = "Couldn't sign out. \(error.localizedDescription)"
+        }
+    }
+
+    /// Settings → Name.
+    func updateName(_ name: String) async throws {
+        let user = try await auth.updateDisplayName(name)
+        store.updateAccount(user)
+        state = .signedIn(user)
+    }
+
+    /// Settings → Delete account. In this order, so nothing is left behind if a step fails:
+    /// 1. check the password (Firebase only deletes accounts that signed in recently);
+    /// 2. delete the account's trips from the cloud (needs a connection), leave shared trips;
+    /// 3. delete the Firebase account;
+    /// 4. delete the database on this iPhone (trips, journal memories and photos).
+    func deleteAccount(password: String) async throws {
+        guard let user else { return }
+        try await auth.reauthenticate(password: password)
+        try await sync.deleteCloudData(for: store.trips)
+        try await auth.deleteAccount()
+        closeAccount()
+        state = .signedOut
+        do {
+            try deleteLocalData(user.uid)
+        } catch {
+            store.errorMessage = "Your account was deleted, but some data couldn't be removed from this iPhone. \(error.localizedDescription)"
         }
     }
 

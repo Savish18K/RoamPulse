@@ -362,3 +362,6 @@ extension SamplePhoto {
         return covers.first { place.contains($0.keyword) }?.photo ?? .mistyHills
     }
 }
+
+// Encodable for Settings → Export my data (saved as its name).
+extension SamplePhoto: Encodable {}

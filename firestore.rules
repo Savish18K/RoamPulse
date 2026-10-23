@@ -3,11 +3,13 @@ rules_version = '2';
 // Security rules for RoamPulse's Cloud Firestore database.
 // Paste this into Firebase console → Firestore Database → Rules, then press Publish.
 //
-// Layout (see RoamPulse/Sync/SyncRecords.swift):
+// Layout (see RoamPulse/Sync/SyncRecords.swift and Sharing.swift):
 //   trips/{tripId}                  the trip, with ownerUID and memberUIDs
 //   trips/{tripId}/{list}/{itemId}  members, activities, packing, expenses, payments
+//   invites/{code}                  an invite code for one trip (expires after 7 days)
 //
-// Rule of thumb: only signed-in people listed in a trip's memberUIDs can read or change it.
+// Rule of thumb: only signed-in accounts listed in a trip's memberUIDs can read or change it.
+// Someone joins by adding themselves to memberUIDs, which is only allowed with a valid invite.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,19 +17,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // The trip document as it will be after this write. Used for items, so a new trip and
-    // its items can be uploaded together in one batch.
-    function tripAfter(tripId) {
-      return getAfter(/databases/$(database)/documents/trips/$(tripId));
+    function trip(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)).data;
     }
 
-    function isMemberAfterWrite(tripId) {
-      return signedIn() && request.auth.uid in tripAfter(tripId).data.memberUIDs;
+    // The trip as it will be after this write, so a new trip and its items can be uploaded in one batch.
+    function tripAfterWrite(tripId) {
+      return getAfter(/databases/$(database)/documents/trips/$(tripId)).data;
     }
 
-    function isMemberNow(tripId) {
-      return signedIn()
-        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUIDs;
+    function changedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys();
     }
 
     match /trips/{tripId} {
@@ -39,20 +39,60 @@ service cloud.firestore {
         && request.resource.data.ownerUID == request.auth.uid
         && request.auth.uid in request.resource.data.memberUIDs;
 
-      // Members can edit, but nobody can change who owns the trip.
-      allow update: if signedIn()
-        && request.auth.uid in resource.data.memberUIDs
-        && request.resource.data.ownerUID == resource.data.ownerUID;
+      // Normal edits by any member: the owner and the member list stay the same.
+      function isMemberEdit() {
+        return request.auth.uid in resource.data.memberUIDs
+          && !changedFields().hasAny(['ownerUID', 'memberUIDs']);
+      }
 
-      // Trips are never hard-deleted by the app: it sets isDeleted so other devices hear about it.
+      // The owner can change who is on the trip, but must stay on it.
+      function isOwnerChangingMembers() {
+        return resource.data.ownerUID == request.auth.uid
+          && request.resource.data.ownerUID == request.auth.uid
+          && request.auth.uid in request.resource.data.memberUIDs;
+      }
+
+      // Anyone else can only take themselves off the trip.
+      function isLeaving() {
+        return request.auth.uid in resource.data.memberUIDs
+          && changedFields().hasOnly(['memberUIDs', 'updatedAt'])
+          && request.resource.data.memberUIDs == resource.data.memberUIDs.removeAll([request.auth.uid]);
+      }
+
+      // Joining: add only yourself, naming an invite for this trip that hasn't expired.
+      function isJoining() {
+        let invite = get(/databases/$(database)/documents/invites/$(request.resource.data.joinCode)).data;
+        return !(request.auth.uid in resource.data.memberUIDs)
+          && changedFields().hasOnly(['memberUIDs', 'joinCode'])
+          && request.resource.data.memberUIDs == resource.data.memberUIDs.concat([request.auth.uid])
+          && invite.tripID == tripId
+          && invite.expiresAt > request.time;
+      }
+
+      allow update: if signedIn() && (isMemberEdit() || isOwnerChangingMembers() || isLeaving() || isJoining());
+
+      // Trips are never hard-deleted by the app: it leaves an empty tombstone (isDeleted)
+      // so other devices hear about the deletion.
       allow delete: if false;
 
       match /{list}/{itemId} {
         allow read: if list in ['members', 'activities', 'packing', 'expenses', 'payments']
-          && isMemberNow(tripId);
+          && signedIn() && request.auth.uid in trip(tripId).memberUIDs;
         allow write: if list in ['members', 'activities', 'packing', 'expenses', 'payments']
-          && isMemberAfterWrite(tripId);
+          && signedIn() && request.auth.uid in tripAfterWrite(tripId).memberUIDs;
       }
+    }
+
+    match /invites/{code} {
+      // Anyone signed in who knows the code can read it (codes can't be guessed).
+      allow get: if signedIn();
+      // Listing is only for your own invites (used when deleting your account).
+      allow list: if signedIn() && resource.data.createdBy == request.auth.uid;
+      // Members of a trip can invite people to it.
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.auth.uid in trip(request.resource.data.tripID).memberUIDs;
+      allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
   }
 }

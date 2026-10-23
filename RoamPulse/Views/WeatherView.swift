@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Weather and activity advisories for one trip.
-/// The forecast comes from `WeatherViewModel` (sample data until OpenWeatherMap is added in Increment 7).
+/// Weather and activity advisories for one trip, from OpenWeatherMap (or sample data without an API key).
 struct WeatherView: View {
     @State private var viewModel: WeatherViewModel
 
@@ -20,7 +19,7 @@ struct WeatherView: View {
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("Try Again") { Task { await viewModel.load() } }
+                        Button("Try Again") { Task { await viewModel.load(refresh: true) } }
                     }
                 } else {
                     ProgressView("Loading forecast…")
@@ -35,7 +34,7 @@ struct WeatherView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await viewModel.load() }
+                    Task { await viewModel.load(refresh: true) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
@@ -45,12 +44,20 @@ struct WeatherView: View {
                 .accessibilityLabel("Refresh forecast")
             }
         }
-        .refreshable { await viewModel.load() }
+        .refreshable { await viewModel.load(refresh: true) }
         .task { await viewModel.load() }
     }
 
     @ViewBuilder
     private func content(_ weather: WeatherSnapshot) -> some View {
+        if let offline = viewModel.offlineText {
+            Label(offline, systemImage: "wifi.slash")
+                .font(.subheadline)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+
         currentCard(weather)
 
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
@@ -60,7 +67,7 @@ struct WeatherView: View {
             metric("Sunset", weather.sunset)
         }
 
-        if let advisory = weather.advisory {
+        if let advisory = viewModel.advisory {
             advisoryCard(advisory)
         }
 
@@ -82,6 +89,26 @@ struct WeatherView: View {
                     .accessibilityElement(children: .combine)
                 }
             }
+        }
+
+        if viewModel.activityAdvisories.count > 1 {
+            SectionLabel("Plans at risk").padding(.top, 6)
+            VStack(spacing: 0) {
+                ForEach(viewModel.activityAdvisories, id: \.advisory.activityID) { item in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: item.advisory.icon).foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Day \(item.activity.day) • \(item.activity.timeText) \(item.activity.title)").font(.headline)
+                            Text(item.advisory.message).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .accessibilityElement(children: .combine)
+                    if item.advisory.activityID != viewModel.activityAdvisories.last?.advisory.activityID { Divider() }
+                }
+            }
+            .card(padding: 0)
         }
 
         SectionLabel("5-Day Forecast").padding(.top, 6)

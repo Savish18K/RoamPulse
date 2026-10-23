@@ -600,6 +600,8 @@ extension View {
         environment(dependencies)
             .environment(dependencies.store)
             .environment(dependencies.session)
+            .environment(dependencies.reminders)
+            .environment(dependencies.appLock)
             .environment(AppRouter())
             .preferredColorScheme(.dark)
     }

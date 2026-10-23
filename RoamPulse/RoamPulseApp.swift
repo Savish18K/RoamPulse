@@ -15,23 +15,39 @@ struct RoamPulseApp: App {
                 .environment(dependencies)
                 .environment(dependencies.store)
                 .environment(dependencies.session)
+                .environment(dependencies.reminders)
+                .environment(dependencies.appLock)
                 .environment(router)
+                .onAppear {
+                    // Tapping a reminder opens its trip.
+                    dependencies.notificationDelegate.openTrip = { [router] tripID in
+                        router.openTrip(tripID)
+                    }
+                }
         }
     }
 }
 
 // MARK: - RootView
 
-/// Decides between onboarding, signing in and the main app, shows the lock screen
-/// and presents every sheet in the app.
+/// Decides between onboarding, signing in and the main app, shows the lock screen,
+/// keeps reminders up to date and presents every sheet in the app.
 struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(TripStore.self) private var store
     @Environment(AppSession.self) private var session
+    @Environment(ReminderService.self) private var reminders
+    @Environment(AppLock.self) private var appLock
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasOnboarded") private var hasOnboarded = false
-    @AppStorage("appLockEnabled") private var appLockEnabled = false
     @AppStorage("appTheme") private var appTheme: AppTheme = .dark
+
+    /// Everything the scheduled reminders depend on. When any of it changes, they are rescheduled.
+    private struct ReminderInputs: Equatable {
+        var trips: [Trip]
+        var settings: ReminderSettings
+        var isSignedIn: Bool
+    }
 
     var body: some View {
         @Bindable var router = router
@@ -54,19 +70,48 @@ struct RootView: View {
                     MainTabView()
                         // A new account gets fresh screens, not the last person's scroll positions.
                         .id(user.uid)
-                        .blur(radius: router.isLocked ? 20 : 0)
-                        .allowsHitTesting(!router.isLocked)
+                        .blur(radius: appLock.isLocked ? 20 : 0)
+                        .allowsHitTesting(!appLock.isLocked)
                         .overlay {
-                            if router.isLocked {
+                            if appLock.isLocked {
                                 LockView().transition(.opacity)
                             }
                         }
                 }
             }
         }
+        // Hides trips and expenses in the app switcher when App Lock is on.
+        .overlay {
+            if appLock.isEnabled && session.user != nil && scenePhase != .active && !appLock.isLocked {
+                PrivacyCover()
+            }
+        }
         .animation(.default, value: session.state)
-        .onChange(of: session.user?.uid) {
+        .animation(.default, value: appLock.isLocked)
+        // Lock when the app opens with someone already signed in, but not right after signing in
+        // with a password.
+        .onAppear {
+            if session.user != nil { appLock.lockOnLaunch() }
+        }
+        .onChange(of: session.state) { old, new in
+            if old == .starting, case .signedIn = new { appLock.lockOnLaunch() }
+        }
+        .onChange(of: session.user?.uid) { _, uid in
             router.reset()
+            if uid == nil {
+                appLock.reset()
+                Task { await reminders.removeAll() }
+            }
+        }
+        .task(id: ReminderInputs(trips: store.trips, settings: reminders.settings, isSignedIn: session.user != nil)) {
+            guard session.user != nil else { return }
+            // Wait for a burst of edits (e.g. dragging activities) to finish before rescheduling.
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
+            await reminders.reschedule(trips: store.trips)
         }
         .sheet(item: $router.activeSheet) { sheet in
             SheetContent(sheet: sheet)
@@ -75,10 +120,12 @@ struct RootView: View {
         }
         .errorAlert(store, isEnabled: router.activeSheet == nil)
         .preferredColorScheme(appTheme.colorScheme)
-        .onAppear { router.isLocked = appLockEnabled }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background && appLockEnabled && session.user != nil {
-                router.isLocked = true
+            guard session.user != nil else { return }
+            switch phase {
+            case .background: appLock.didEnterBackground()
+            case .active: appLock.didBecomeActive()
+            default: break
             }
         }
     }
@@ -103,7 +150,7 @@ struct MainTabView: View {
             .tabItem { Label("Home", systemImage: "house") }
             .tag(AppTab.home)
 
-            NavigationStack {
+            NavigationStack(path: $router.tripsPath) {
                 TripsListView(viewModel: TripsListViewModel(store: dependencies.store, clock: dependencies.clock,
                                                             weather: dependencies.weather))
                     .appDestinations()
@@ -129,9 +176,6 @@ struct MainTabView: View {
 #Preview {
     let dependencies = AppDependencies.preview()
     MainTabView()
-        .environment(dependencies)
-        .environment(dependencies.store)
-        .environment(dependencies.session)
-        .environment(AppRouter())
+        .previewEnvironment(dependencies)
         .preferredColorScheme(.dark)
 }

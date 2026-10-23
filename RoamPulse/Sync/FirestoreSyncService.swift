@@ -111,8 +111,10 @@ final class FirestoreSyncService: SyncService {
 
     private func add(_ write: SyncWrite, to batch: WriteBatch) throws {
         switch write {
-        case .setTrip(let id, let record):
+        case .createTrip(let id, let record):
             try batch.setData(from: record, forDocument: tripDocument(id))
+        case .updateTrip(let id, let record):
+            try batch.setData(from: record, forDocument: tripDocument(id), mergeFields: TripRecord.contentFields)
         case .setItem(let tripID, let key, let item):
             let document = tripDocument(tripID).collection(key.collection.rawValue).document(key.id)
             switch item {
@@ -124,6 +126,130 @@ final class FirestoreSyncService: SyncService {
             }
         case .deleteItem(let tripID, let key):
             batch.deleteDocument(tripDocument(tripID).collection(key.collection.rawValue).document(key.id))
+        }
+    }
+
+    // MARK: - Sharing
+
+    private var invites: CollectionReference { db.collection("invites") }
+
+    func createInvite(for trip: Trip, ownerName: String) async throws -> TripInvite {
+        guard let accountID else { throw SharingError.notSignedIn }
+        let invite = InviteCode.makeInvite(for: trip, code: InviteCode.generate(), ownerName: ownerName,
+                                           accountID: accountID, now: clock.now)
+        let data = try Firestore.Encoder().encode(InviteRecord(invite))
+        let document = invites.document(invite.code)
+        try await withTimeout {
+            try await document.setData(data)
+        }
+        return invite
+    }
+
+    func findInvite(code: String) async throws -> TripInvite {
+        guard accountID != nil else { throw SharingError.notSignedIn }
+        guard let code = InviteCode.normalized(code) else { throw SharingError.inviteNotFound }
+        let document = invites.document(code)
+        // Straight from the server: a cached copy could be out of date.
+        let snapshot: DocumentSnapshot
+        do {
+            snapshot = try await withTimeout { try await document.getDocument(source: .server) }
+        } catch let error as SharingError {
+            throw error
+        } catch {
+            throw SharingError.offline
+        }
+        guard snapshot.exists, let invite = try? snapshot.data(as: InviteRecord.self).invite(code: code) else {
+            throw SharingError.inviteNotFound
+        }
+        guard !invite.isExpired(at: clock.now) else { throw SharingError.inviteExpired }
+        guard store?.trip(invite.tripID) == nil else { throw SharingError.alreadyMember }
+        return invite
+    }
+
+    func joinTrip(_ invite: TripInvite, as memberID: String?, name: String, initials: String) async throws {
+        guard let accountID else { throw SharingError.notSignedIn }
+        let trip = tripDocument(invite.tripID)
+
+        // 1. Add this account to the trip. The rules check the invite named in `joinCode`.
+        try await withTimeout {
+            try await trip.updateData([
+                "memberUIDs": FieldValue.arrayUnion([accountID]),
+                "joinCode": invite.code,
+            ])
+        }
+
+        // 2. Now a member, link the account to a person on the trip so the phone knows who "me" is.
+        let members = trip.collection(SyncCollection.members.rawValue)
+        if let memberID {
+            try await withTimeout {
+                try await members.document(memberID).updateData(["userUID": accountID])
+            }
+        } else {
+            let newMember = InviteCode.newMember(name: name, initials: initials, accountID: accountID,
+                                                 existingCount: invite.members.count)
+            let data = try Firestore.Encoder().encode(newMember.record)
+            try await withTimeout {
+                try await members.document(newMember.id.uuidString).setData(data)
+            }
+        }
+        // The trips listener now sees the trip and downloads it.
+    }
+
+    func leaveTrip(_ trip: Trip) {
+        guard let accountID else { return }
+        let document = tripDocument(trip.id)
+        // Two separate writes, in order: unlink "me" while still a member, then leave.
+        // Firestore sends queued writes in order, so this also works offline.
+        if let me = trip.members.first(where: { $0.userUID == accountID }) {
+            document.collection(SyncCollection.members.rawValue).document(me.id.uuidString)
+                .updateData(["userUID": FieldValue.delete()]) { [weak self] error in
+                    guard let error else { return }
+                    MainActor.assumeIsolated { self?.report(error) }
+                }
+        }
+        document.updateData([
+            "memberUIDs": FieldValue.arrayRemove([accountID]),
+            "updatedAt": clock.now,
+        ]) { [weak self] error in
+            guard let error else { return }
+            MainActor.assumeIsolated { self?.report(error) }
+        }
+        stopListening(to: trip.id)
+    }
+
+    // MARK: - Deleting the account's cloud data
+
+    func deleteCloudData(for trips: [Trip]) async throws {
+        guard let accountID else { throw SharingError.notSignedIn }
+
+        // Own trips: empty tombstone + delete every item. Shared trips: just leave.
+        var writes: [SyncWrite] = []
+        for trip in trips {
+            if trip.ownerUID == nil || trip.ownerUID == accountID {
+                writes += TripChangeSet.writes(from: trip, to: nil, accountID: accountID, now: clock.now)
+            } else {
+                leaveTrip(trip)
+            }
+        }
+        for start in stride(from: 0, to: writes.count, by: Self.batchLimit) {
+            let batch = db.batch()
+            for write in writes[start..<min(start + Self.batchLimit, writes.count)] {
+                try add(write, to: batch)
+            }
+            // Unlike normal edits, wait for the server: once the account is gone these writes would be refused.
+            try await withTimeout(seconds: 20) {
+                try await batch.commit()
+            }
+        }
+
+        let query = invites.whereField("createdBy", isEqualTo: accountID)
+        let myInvites = try await withTimeout {
+            try await query.getDocuments(source: .server)
+        }
+        for invite in myInvites.documents {
+            try await withTimeout {
+                try await invite.reference.delete()
+            }
         }
     }
 

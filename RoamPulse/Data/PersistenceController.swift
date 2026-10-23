@@ -28,11 +28,25 @@ final class PersistenceController {
 
     /// The database of one signed-in account: Application Support/Accounts/<uid>/RoamPulse.sqlite.
     convenience init(accountID: String) {
-        let folder = URL.applicationSupportDirectory
-            .appending(path: "Accounts", directoryHint: .isDirectory)
-            .appending(path: Self.folderName(for: accountID), directoryHint: .isDirectory)
+        let folder = Self.folder(for: accountID)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         self.init(storeURL: folder.appending(path: "RoamPulse.sqlite"))
+    }
+
+    static func folder(for accountID: String) -> URL {
+        URL.applicationSupportDirectory
+            .appending(path: "Accounts", directoryHint: .isDirectory)
+            .appending(path: folderName(for: accountID), directoryHint: .isDirectory)
+    }
+
+    /// Deletes an account's database, including photos Core Data stored as separate files.
+    /// Used when the account itself is deleted. The store must not be open.
+    static func deleteStore(accountID: String) throws {
+        let folder = folder(for: accountID)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
+        try coordinator.destroyPersistentStore(at: folder.appending(path: "RoamPulse.sqlite"), type: .sqlite)
+        try FileManager.default.removeItem(at: folder)
     }
 
     /// - Parameter storeURL: where the SQLite file lives. nil uses Core Data's default location.

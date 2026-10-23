@@ -1,4 +1,4 @@
-# RoamPulse architecture (Increments 1–6a)
+# RoamPulse architecture (Increments 1–10)
 
 ## Layers
 
@@ -127,6 +127,59 @@ trips/{tripId}/payments/{id}      PaymentRecord
   on-device intelligence; also Firestore documents are limited to 1 MB and Cloud Storage needs the paid plan).
 - **Increment 6b (sharing)** will add `ownerUID`/`memberUIDs` to `Trip`, so a member's uploads keep the owner.
 
+## Shared trips (`Sync/Sharing.swift`)
+
+1. **Invite:** `FirestoreSyncService.createInvite` saves `invites/{code}` (trip id, name, dates, members,
+   expires in 7 days). Codes are 8 characters from 29 that can't be misread (no O/0, I/1/L, S/5): ~500 billion.
+2. **Join:** the friend's app reads the invite (from the server, not the cache), the friend picks which member
+   they are, then (a) `memberUIDs` gets their uid with `arrayUnion`, naming the code in `joinCode`; (b) their
+   member document gets `userUID`. The rules only allow (a) with a valid, unexpired invite for that trip.
+3. **"Me" on each phone:** `Member.userUID` is the account behind each person; `isMe` is worked out on each
+   phone as `userUID == my uid`, so the same trip shows "you" correctly for everyone.
+4. **Edits never touch membership:** a trip update is written with `mergeFields` = content fields only, so a
+   phone that hasn't heard about a new member can't remove them by saving an old list.
+5. **Leave vs delete:** the owner deletes for everyone (tombstone); anyone else leaves (`arrayRemove` of
+   their uid, after unlinking their member) and the trip is removed from their phone only.
+6. Joining, inviting and deleting an account need a connection; `withTimeout` gives up after 15 s, because
+   an offline Firestore write never fails, it just waits.
+
+## Weather (`Services/Weather/`)
+
+- `OpenWeatherMapClient`: geocoding, current weather, 5-day/3-hour forecast; `HTTPClient` protocol so tests
+  return saved JSON. 401 → "key not working yet", connection errors → offline.
+- `OpenWeatherMapService`: reuses a forecast < 15 min old; otherwise looks up coordinates (once, preferring
+  Sri Lanka, saved on the trip) and downloads current + forecast together (`async let`). Saves the raw JSON in
+  `ForecastCacheEntity`; offline it shows that with a banner. Screens asking at once share one download.
+- `ForecastBuilder` (pure): JSON → `WeatherSnapshot` (drops ended steps, daily rows with trip day numbers,
+  SF Symbols from condition codes).
+- `WeatherAdvisor` (pure): each outdoor, unfinished activity is checked against its 3-hour step. Storm, ≥ 60%
+  rain or ≥ 3 mm → warning with the whole wet window (neighbouring wet steps joined) and the driest dry step
+  06:00–18:00 that day; high effort at ≥ 32°C → heat warning. Beyond the forecast → nothing yet.
+  Advisories are worked out from the current plan each time, so adding an activity updates them.
+- Without an API key, `MockWeatherService` gives sample data in the same shape (marked as sample).
+
+## Reminders (`Services/Reminders/`)
+
+- `ReminderPlanner` (pure): packing reminder at 19:00 (setting) the evening before; a reminder N minutes before
+  each unfinished activity; at most 60 (iOS allows 64). Ids are per trip/activity, so a change replaces.
+- `ReminderService`: `RootView` calls `reschedule` (debounced 1 s) whenever trips or settings change; it removes
+  pending ids that aren't planned any more (deleted activity/trip) and schedules the rest. Weather alerts are
+  sent immediately after a new forecast, once per activity and time window. Signing out removes them all.
+- Permission is only requested when a reminder is turned on (Settings toggle, or saving a trip with reminders).
+
+## App lock (`Account/AppLock.swift`)
+
+`.deviceOwnerAuthentication` = Face ID/Touch ID with passcode fallback. Locks on launch (not right after a
+password sign-in) and on returning from the background after the chosen delay. A blur covers the app in the
+app switcher. Turning it on or off needs authentication. `DeviceAuthenticating` is a protocol, so tests use a fake.
+
+## Deleting the account (`AppSession.deleteAccount`)
+
+Order matters: (1) re-enter password (Firebase requires a recent sign-in); (2) cloud data: own trips become
+empty tombstones and their items are deleted, shared trips are left, own invites deleted (waits for the server);
+(3) delete the Firebase account; (4) delete the account's folder on the iPhone
+(`PersistenceController.deleteStore`, including photo files). If (2) fails offline, the account is kept.
+
 ## Photos
 
 - **Sample photos** (`Assets.xcassets/Photos`, 1200 px, 130–550 KB) stay in the asset catalog. They are part of
@@ -173,7 +226,7 @@ Items already on the list are left out.
 
 ## Tests (`RoamPulseTests`, Swift Testing, ⌘U)
 
-101 tests in seven suites:
+155 tests in eleven suites:
 
 | Suite | Covers |
 |---|---|
@@ -183,7 +236,10 @@ Items already on the list are left out.
 | CoreDataRepositoryTests | round trip of a full trip and a memory, updates don't duplicate rows, cascade delete, memory without a trip |
 | AccountTests | email/password/name checks, sign in/up/out with a fake auth service, sample trips only for new accounts, separate databases per account, form messages, password reset |
 | SyncTests | Trip ↔ Firestore records round trip, cents, "me" per account, list order, missing members, minimal change sets, tombstones, mirror waits for all parts and pending writes, store ↔ sync wiring, no re-upload of cloud changes |
-| ImageTests | resizing (big, small, not a photo), cover saved/replaced/removed/deleted in Core Data, no orphan photos, the Create Trip form's photo |
+| ImageTests | resizing (big, small, not a photo), cover saved/replaced/removed/deleted in Core Data, no orphan photos, the Create Trip form's photo, forecast cache deleted with the trip |
+| SharingTests | invite codes (format, typing, expiry), "me" per account, edits never rewrite members, new trips owned by their maker, leave vs delete, invite/join screens, timeout |
+| WeatherTests | real JSON decoding, cache round trip, snapshot building, daily rows, symbols, per-activity rain/heat advice and windows, headline, service caching/refresh/offline/401/geocoding/shared download, destination search in the form |
+| ReminderTests + AppLockTests | packing/activity/weather reminders and their rules, limit, permission asked once, edits replace and deletes cancel; app lock on/off, delay, unlock, cancel |
 
 ## Questions you might be asked
 
@@ -207,6 +263,11 @@ Items already on the list are left out.
   can never leak between accounts, and signing out needs no clean-up.
 - **What if Firebase isn't configured?** `FirebaseBootstrap.configure()` returns false; `UnavailableAuthService`
   explains on the sign-in screen. Unit tests also run this way, so they never touch the network.
-- **What would you improve?** Run Core Data saves on a background context for big data sets; only write changed
-  attributes; replace `MockWeatherService` with OpenWeatherMap and `ForecastCacheEntity`; purge old tombstones;
-  App Check to stop other apps using the Firebase project.
+- **How can a stranger not join any trip?** Joining is only allowed by the rules with an invite for that trip
+  that hasn't expired, and codes can't be guessed. Reading a trip needs your uid in `memberUIDs`.
+- **Why per-activity weather instead of per-day?** A 3-hour forecast says the hike at 06:00 is fine even if the
+  afternoon is wet; the advice names the window and a drier time, which is the app's selling point.
+- **Why is the forecast cached as raw JSON?** The snapshot is rebuilt from it relative to *now*, so an old
+  cache still starts at the current hour and the trip-day numbers stay right.
+- **What would you improve?** Run Core Data saves on a background context for big data sets; purge old
+  tombstones and invites with a Cloud Function; App Check; push notifications (APNs) when a friend adds an expense.

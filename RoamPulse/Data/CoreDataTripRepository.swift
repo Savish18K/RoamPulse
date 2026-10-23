@@ -112,6 +112,26 @@ final class CoreDataTripRepository: TripRepository {
         try commit()
     }
 
+    // MARK: - Forecast cache
+
+    func saveForecast(_ forecast: CachedForecast, for tripID: UUID) throws {
+        guard let trip = try find(TripEntity.self, id: tripID) else { throw RepositoryError.tripNotFound }
+        let cache = trip.forecast ?? ForecastCacheEntity(context: context)
+        cache.payload = forecast.payload
+        cache.location = forecast.location
+        cache.fetchedAt = forecast.fetchedAt
+        trip.forecast = cache
+        try commit()
+    }
+
+    func cachedForecast(for tripID: UUID) throws -> CachedForecast? {
+        guard let cache = try find(TripEntity.self, id: tripID)?.forecast,
+              let payload = cache.payload, let location = cache.location, let fetchedAt = cache.fetchedAt else {
+            return nil
+        }
+        return CachedForecast(payload: payload, location: location, fetchedAt: fetchedAt)
+    }
+
     /// Points the trip at its cover photo. The old photo is deleted when it is replaced or removed.
     private func linkCoverImage(_ imageID: UUID?, to trip: TripEntity) throws {
         guard trip.coverImage?.id != imageID else { return }
@@ -196,6 +216,10 @@ private extension TripEntity {
         budget = trip.budget
         coverName = trip.cover.rawValue
         remindersOn = trip.remindersOn
+        ownerUID = trip.ownerUID
+        memberUIDs = trip.memberUIDs
+        latitude = trip.latitude.map { NSNumber(value: $0) }
+        longitude = trip.longitude.map { NSNumber(value: $0) }
 
         let memberRows = sync(trip.members, rows: members.rows(of: MemberEntity.self), id: \.id, context: context,
                               makeRow: { MemberEntity(context: context) },
@@ -237,6 +261,7 @@ private extension MemberEntity {
         initials = member.initials
         colorHex = Int64(member.colorHex)
         isMe = member.isMe
+        userUID = member.userUID
     }
 }
 
@@ -368,7 +393,11 @@ private extension Trip {
             packing: entity.packingItems.rows(of: PackingItemEntity.self).compactMap(PackingItem.init(entity:)),
             expenses: entity.expenses.rows(of: ExpenseEntity.self).compactMap { Expense(entity: $0, members: membersByID) },
             payments: entity.payments.rows(of: PaymentEntity.self).compactMap { Payment(entity: $0, members: membersByID) },
-            coverImageID: entity.coverImage?.id
+            coverImageID: entity.coverImage?.id,
+            ownerUID: entity.ownerUID,
+            memberUIDs: entity.memberUIDs ?? [],
+            latitude: entity.latitude?.doubleValue,
+            longitude: entity.longitude?.doubleValue
         )
     }
 }
@@ -376,7 +405,8 @@ private extension Trip {
 private extension Member {
     init?(entity: MemberEntity) {
         guard let id = entity.id, let name = entity.name else { return nil }
-        self.init(id: id, name: name, initials: entity.initials, colorHex: Int(entity.colorHex), isMe: entity.isMe)
+        self.init(id: id, name: name, initials: entity.initials, colorHex: Int(entity.colorHex), isMe: entity.isMe,
+                  userUID: entity.userUID)
     }
 }
 
