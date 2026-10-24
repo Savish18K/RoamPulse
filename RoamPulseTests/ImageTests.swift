@@ -94,7 +94,8 @@ struct ImageTests {
         let (store, _) = coreDataStore()
         let trip = trip()
         store.addTrip(trip)
-        store.setCoverPhoto(try #require(ImageProcessor.prepare(photo(width: 600, height: 400))), for: trip.id)
+        let image = try #require(ImageProcessor.prepare(photo(width: 600, height: 400)))
+        store.setCoverPhoto(image, for: trip.id)
 
         store.deleteTrip(trip.id)
         #expect(try imageCount() == 0)
@@ -130,7 +131,8 @@ struct ImageTests {
         let (store, _) = coreDataStore()
         let trip = trip()
         store.addTrip(trip)
-        store.setCoverPhoto(try #require(ImageProcessor.prepare(photo(width: 600, height: 400))), for: trip.id)
+        let image = try #require(ImageProcessor.prepare(photo(width: 600, height: 400)))
+        store.setCoverPhoto(image, for: trip.id)
 
         let form = TripFormViewModel(tripID: trip.id, store: store, clock: FixedClock(now: now))
         #expect(form.hasCustomCover)

@@ -1,4 +1,4 @@
-# RoamPulse architecture (Increments 1–13)
+# RoamPulse architecture (Increments 1–14)
 
 ## Layers
 
@@ -203,6 +203,32 @@ Before a trip, `readiness` lists packing, itinerary coverage, budget and compani
 - A linked activity is saved as its label ("Day 2 • 17:30 Nine Arch Bridge viewpoint"); "mark as visited"
   ticks it off in the itinerary.
 
+## Voice journal (`Services/Voice/`) — Component 3, advanced feature 1
+
+Everything runs on the iPhone; no audio, transcript or extracted text leaves it.
+
+1. **Capture (AVFoundation).** `AVAudioRecorderService` records AAC mono to a temporary `.m4a`, reading the level
+   20 times a second (`updateMeters` → `averagePower`, -50…0 dB scaled to 0…1) for the meter. Microphone
+   permission is asked the first time. On Save the file is moved to `Accounts/<uid>/Recordings/<memory id>.m4a`
+   (`RecordingFiles`); Core Data only stores the file name. Cancel or swipe-away deletes an unsaved take.
+2. **Transcribe (Speech).** `OnDeviceTranscriber`: iOS 26 `SpeechAnalyzer` + `SpeechTranscriber` when the language
+   is supported (the model is installed once through `AssetInventory`), otherwise `SFSpeechRecognizer` with
+   `requiresOnDeviceRecognition = true`. Never the server. (The Simulator has no `SpeechTranscriber`, so it uses
+   the second path.) Speech permission is asked the first time.
+3. **Analyse (Natural Language).** `JournalAnalyzer.analyse` uses `NLTagger` with `.nameType` (places, people,
+   organisations; `.joinNames` keeps "Nimal Perera" together) and `.sentimentScore` per paragraph (averaged).
+   `apply` links it to the trip: members named as whole words are added to People (never "me"), the trip's own
+   places named are added to the tags (the tagger misses names like "Nine Arch Bridge"), the mood is set from the
+   sentiment (> 0.2 positive, < -0.2 negative) unless picked by hand, and the activity that day whose title is
+   named, or at a named place nearest in time, is linked if none was.
+4. **Store.** `VoiceJournalService.transcribe` saves the transcript and analysis on the memory; search, timeline
+   and mood use it. Its `inProgress` set drives "Writing it down on your iPhone…".
+5. **Failures.** Refused permission or an unsupported language (e.g. Sinhala) → `transcriptUnavailable`, the
+   recording is kept, "Type it myself" is offered. A temporary failure → "Try Again". Recordings left untranscribed
+   (app closed) are processed after the next sign-in (`transcribePending`).
+6. **Editing** the text in the form runs the analysis again. A mood with no sentiment means the user picked it,
+   so analysis never overrides it. Deleting a memory or trip deletes its recording file.
+
 ## Insights and Statistics (`InsightsViewModels.swift`)
 
 - `MemorySearch` (pure): matching (title, text, place, people, tags, landmark — case-insensitive), the matching
@@ -260,7 +286,7 @@ Items already on the list are left out.
 
 ## Tests (`RoamPulseTests`, Swift Testing, ⌘U)
 
-176 tests in thirteen suites:
+193 tests in fourteen suites:
 
 | Suite | Covers |
 |---|---|
@@ -275,6 +301,7 @@ Items already on the list are left out.
 | WeatherTests | real JSON decoding, cache round trip, snapshot building, daily rows, symbols, per-activity rain/heat advice and windows, headline, service caching/refresh/offline/401/geocoding/shared download, destination search in the form |
 | JournalTests | defaults, validation, saving people/mood/linked activity (ticked off), day changes, date clamping, photos resized and saved, removing photos / deleting memories deletes images, 10-photo limit, mixed sample + picked photos, edits keep hidden fields, trip filter and delete |
 | InsightsTests | search fields, snippets, suggestions, router search, timeline, day moods, TravelStats (period, days so far, spending, landmarks, budget), Home states, readiness, weather error |
+| VoiceJournalTests | names and mood read from text, sentiment → mood thresholds, whole-word matching, linking to members/places/activity, keeping a hand-picked mood and an existing link, level meter scaling, transcription pipeline success / unsupported language / retry / pending, recording in the form (automatic title, kept file, background transcription, microphone refused, cancel, remove on save), edited text read again, files deleted with memory/trip |
 | ReminderTests + AppLockTests | packing/activity/weather reminders and their rules, limit, permission asked once, edits replace and deletes cancel; app lock on/off, delay, unlock, cancel |
 
 ## Questions you might be asked
@@ -301,6 +328,12 @@ Items already on the list are left out.
   explains on the sign-in screen. Unit tests also run this way, so they never touch the network.
 - **How can a stranger not join any trip?** Joining is only allowed by the rules with an invite for that trip
   that hasn't expired, and codes can't be guessed. Reading a trip needs your uid in `memberUIDs`.
+- **Why save the memory before transcribing?** So nothing is lost if the app closes or transcription fails;
+  the recording is already safe in the account's folder and Core Data.
+- **Why two speech engines?** `SpeechAnalyzer` (iOS 26) is the modern on-device engine but isn't available for
+  every language or in the Simulator; the older recogniser in on-device mode covers those. Both are on-device.
+- **Why also match names yourself if NLTagger finds names?** The tagger doesn't know local names like
+  "Nine Arch Bridge" or "Samee"; matching the trip's own members and places makes the links reliable.
 - **Why per-activity weather instead of per-day?** A 3-hour forecast says the hike at 06:00 is fine even if the
   afternoon is wet; the advice names the window and a drier time, which is the app's selling point.
 - **Why is the forecast cached as raw JSON?** The snapshot is rebuilt from it relative to *now*, so an old

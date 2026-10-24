@@ -57,6 +57,10 @@ final class MemoryFormViewModel {
     let memoryID: UUID?
     private let store: TripStore
     private let clock: Clock
+    /// Records voice memories. nil where recording isn't possible (e.g. some tests).
+    private let recorder: AudioRecording?
+    /// Writes new recordings down after saving.
+    private let voice: VoiceJournalService?
 
     var tripID: UUID? {
         didSet {
@@ -89,10 +93,20 @@ final class MemoryFormViewModel {
     private(set) var isPreparingPhotos = false
     private(set) var photoProblem: String?
 
-    init(memoryID: UUID? = nil, tripID: UUID? = nil, store: TripStore, clock: Clock) {
+    /// A recording made in this form, in the temporary folder until Save.
+    private(set) var newRecording: URL?
+    private(set) var newRecordingDuration = 0
+    /// The memory's saved recording will be deleted on Save.
+    private(set) var removesSavedRecording = false
+    private(set) var recordingProblem: String?
+
+    init(memoryID: UUID? = nil, tripID: UUID? = nil, store: TripStore, clock: Clock,
+         recorder: AudioRecording? = nil, voice: VoiceJournalService? = nil) {
         self.memoryID = memoryID
         self.store = store
         self.clock = clock
+        self.recorder = recorder
+        self.voice = voice
         date = clock.now
 
         if let memoryID, let memory = store.memory(memoryID) {
@@ -228,10 +242,84 @@ final class MemoryFormViewModel {
         newPhotos.remove(at: index)
     }
 
+    // Voice recording (AVFoundation). The recording is only kept if the memory is saved.
+
+    var canRecord: Bool { recorder != nil }
+    var isRecording: Bool { recorder?.isRecording ?? false }
+    var recordingElapsed: Int { Int(recorder?.elapsed ?? 0) }
+    var recordingLevels: [Double] { recorder?.levels ?? [] }
+
+    /// The memory already has a recording that is being kept.
+    var hasSavedRecording: Bool {
+        (existingMemory?.hasVoice ?? false) && !removesSavedRecording && newRecording == nil
+    }
+
+    var hasRecording: Bool { newRecording != nil || hasSavedRecording }
+
+    /// Length in seconds of the recording that will be saved.
+    var recordingDuration: Int { newRecording != nil ? newRecordingDuration : (existingMemory?.duration ?? 0) }
+
+    /// A new recording to play back before saving, or the saved one.
+    var recordingURL: URL? {
+        if let newRecording { return newRecording }
+        guard hasSavedRecording, let memory = existingMemory else { return nil }
+        return store.recordingURL(for: memory)
+    }
+
+    /// Asks for the microphone the first time, then records.
+    func startRecording() async {
+        guard let recorder, !recorder.isRecording else { return }
+        recordingProblem = nil
+        guard await recorder.requestPermission() else {
+            recordingProblem = RecordingError.microphoneDenied.errorDescription
+            return
+        }
+        do {
+            try recorder.start()
+        } catch {
+            recordingProblem = error.localizedDescription
+        }
+    }
+
+    func stopRecording() {
+        guard let recorder, recorder.isRecording else { return }
+        let seconds = Int(recorder.elapsed.rounded())
+        guard let file = recorder.stop() else { return }
+        // A new take replaces the one before it.
+        if let previous = newRecording {
+            try? FileManager.default.removeItem(at: previous)
+        }
+        newRecording = file
+        newRecordingDuration = max(seconds, 1)
+    }
+
+    /// Removes the recording: a new one is deleted now, a saved one on Save.
+    func removeRecording() {
+        if let newRecording {
+            try? FileManager.default.removeItem(at: newRecording)
+            self.newRecording = nil
+            newRecordingDuration = 0
+        } else if existingMemory?.hasVoice == true {
+            removesSavedRecording = true
+        }
+    }
+
+    /// Cancel: stops recording and throws away anything not saved.
+    func discardUnsavedRecording() {
+        recorder?.discard()
+        if let newRecording {
+            try? FileManager.default.removeItem(at: newRecording)
+        }
+        newRecording = nil
+    }
+
     var isEditing: Bool { memoryID != nil }
     var formTitle: String { isEditing ? "Edit Memory" : "New Memory" }
 
     private var existingMemory: Memory? { memoryID.flatMap(store.memory) }
+
+    /// Used when a voice memory is saved without a title, e.g. "Voice memory • 17:52".
+    var automaticTitle: String { "Voice memory • \(date.text("HH:mm"))" }
 
     /// A memory needs a trip, a title and something in it: text, a photo or a recording.
     var canSave: Bool { problem == nil && !isPreparingPhotos }
@@ -239,39 +327,86 @@ final class MemoryFormViewModel {
     /// Why Save is disabled, shown under the form.
     var problem: String? {
         if trip == nil { return "Create a trip first. Memories belong to a trip." }
-        if title.trimmed.isEmpty { return "Give the memory a title." }
-        let hasVoice = existingMemory?.hasVoice ?? false
-        if text.trimmed.isEmpty && photoCount == 0 && !hasVoice { return "Write something or add a photo." }
+        let hasRecording = hasRecording || isRecording
+        if title.trimmed.isEmpty && !hasRecording { return "Give the memory a title." }
+        if text.trimmed.isEmpty && photoCount == 0 && !hasRecording { return "Write something, record or add a photo." }
         return nil
     }
 
-    /// Saves the memory and its new photos. Returns false if it couldn't be saved.
+    /// Saves the memory with its new photos and recording. Returns false if it couldn't be saved.
+    /// A new recording is then written down on the iPhone in the background.
     func save() -> Bool {
+        if isRecording {
+            stopRecording()
+        }
         guard canSave, let trip else { return false }
-        var memory = existingMemory ?? Memory(tripID: trip.id, title: "", date: date, day: day, place: "",
-                                              transcript: "", duration: 0, people: [])
-        // A mood picked by hand replaces one read from a recording.
-        if memory.mood != mood {
-            memory.sentiment = nil
-        }
+        let existing = existingMemory
+        var memory = existing ?? Memory(tripID: trip.id, title: "", date: date, day: day, place: "",
+                                        transcript: "", duration: 0, people: [])
+        let previousText = existing?.transcript ?? ""
+
         memory.tripID = trip.id
-        memory.title = title.trimmed
-        memory.transcript = text.trimmed
-        if memory.transcriptUnavailable && !text.trimmed.isEmpty {
-            memory.transcriptUnavailable = false
-        }
+        memory.title = title.trimmed.isEmpty ? automaticTitle : title.trimmed
         memory.place = place.trimmed.isEmpty ? trip.mainPlace : place.trimmed
         memory.date = date
         memory.day = day
-        memory.mood = mood
         memory.people = trip.members.filter { peopleIDs.contains($0.id) }
         memory.photos = existingPhotos
         memory.linkedActivity = linkedActivity.map(Self.label)
         memory.isVisited = linkedActivity != nil && markVisited
+        memory.transcript = text.trimmed
+        if memory.transcriptUnavailable && !text.trimmed.isEmpty {
+            memory.transcriptUnavailable = false
+        }
 
-        guard store.saveMemory(memory, newPhotos: newPhotos) else { return false }
+        // A mood picked (or cleared) here is the user's choice, so no sentiment goes with it.
+        if mood != existing?.mood {
+            memory.mood = mood
+            memory.sentiment = nil
+        }
+
+        // The recording: a new take is moved next to the account's other recordings.
+        var keptFile: String?
+        if let newRecording {
+            do {
+                keptFile = try store.keepRecording(newRecording, for: memory.id)
+            } catch {
+                recordingProblem = "The recording couldn't be saved. \(error.localizedDescription)"
+                return false
+            }
+            self.newRecording = nil
+            memory.audioFileName = keptFile
+            memory.duration = newRecordingDuration
+            memory.transcriptUnavailable = false
+            // The old transcript belongs to the old recording, unless it was edited here.
+            if existing?.hasVoice == true && text.trimmed == previousText {
+                memory.transcript = ""
+            }
+        }
+        // A removed recording's file is deleted only once the memory has been saved without it.
+        var removedFile: String?
+        if keptFile == nil && removesSavedRecording {
+            removedFile = memory.audioFileName
+            memory.audioFileName = nil
+            memory.duration = 0
+        }
+
+        // Written or edited text is read again: places, people, mood (unless picked) and the activity.
+        if memory.hasText && memory.transcript != previousText {
+            JournalAnalyzer.apply(JournalAnalyzer.analyse(memory.transcript), text: memory.transcript, to: &memory, trip: trip)
+        }
+
+        guard store.saveMemory(memory, newPhotos: newPhotos) else {
+            if existing == nil { store.deleteRecording(named: keptFile) }
+            return false
+        }
+        store.deleteRecording(named: removedFile)
         if let activity = linkedActivity, markVisited {
             store.markVisited(activity.id, in: trip.id)
+        }
+        if keptFile != nil && !memory.hasText, let voice {
+            let id = memory.id
+            Task { await voice.transcribe(id) }
         }
         return true
     }

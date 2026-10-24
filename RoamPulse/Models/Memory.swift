@@ -75,6 +75,9 @@ struct Memory: Identifiable, Hashable {
     var isVisited = false
     /// True when on-device speech recognition doesn't support the language.
     var transcriptUnavailable = false
+    /// The recording's file in the account's Recordings folder (see `RecordingFiles`).
+    /// Sample memories have a length but no file.
+    var audioFileName: String?
 
     var hasVoice: Bool { duration > 0 }
 

@@ -588,6 +588,7 @@ extension View {
             .environment(dependencies.session)
             .environment(dependencies.reminders)
             .environment(dependencies.appLock)
+            .environment(dependencies.voice)
             .environment(AppRouter())
             .preferredColorScheme(.dark)
     }

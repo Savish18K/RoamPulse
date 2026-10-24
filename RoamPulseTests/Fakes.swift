@@ -251,11 +251,10 @@ final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
     private(set) var requestedPaths: [String] = []
 
     func data(from url: URL) async throws -> (Data, URLResponse) {
-        lock.lock()
-        requestedPaths.append(url.path())
-        let error = error
-        let response = responses[url.path()]
-        lock.unlock()
+        let (error, response) = lock.withLock {
+            requestedPaths.append(url.path())
+            return (self.error, responses[url.path()])
+        }
         if let error { throw error }
         let (status, body) = response ?? (404, Data())
         let http = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
@@ -266,5 +265,50 @@ final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return requestedPaths.filter { $0 == path }.count
+    }
+}
+
+/// Pretends to record: "stopping" writes a small file, like a finished recording.
+@MainActor
+final class FakeRecorder: AudioRecording {
+    var allowsMicrophone = true
+    private(set) var isRecording = false
+    var elapsed: TimeInterval = 0
+    var levels: [Double] = [0.2, 0.5]
+    private(set) var discardCount = 0
+
+    func requestPermission() async -> Bool { allowsMicrophone }
+
+    func start() throws {
+        isRecording = true
+        elapsed = 0
+    }
+
+    func stop() -> URL? {
+        guard isRecording else { return nil }
+        isRecording = false
+        let file = FileManager.default.temporaryDirectory.appending(path: "fake-recording-\(UUID().uuidString).m4a")
+        try? Data("fake audio".utf8).write(to: file)
+        return file
+    }
+
+    func discard() {
+        isRecording = false
+        discardCount += 1
+    }
+}
+
+/// Answers with a fixed text, or fails with a fixed error, instead of listening to the file.
+final class FakeTranscriber: SpeechTranscribing, @unchecked Sendable {
+    var result: Result<String, TranscriptionError>
+    private(set) var calls = 0
+
+    init(_ result: Result<String, TranscriptionError>) {
+        self.result = result
+    }
+
+    func transcribe(_ recording: URL, locale: Locale) async throws -> String {
+        calls += 1
+        return try result.get()
     }
 }

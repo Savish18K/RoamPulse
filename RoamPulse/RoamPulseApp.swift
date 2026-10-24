@@ -15,6 +15,7 @@ struct RoamPulseApp: App {
                 .environment(dependencies.session)
                 .environment(dependencies.reminders)
                 .environment(dependencies.appLock)
+                .environment(dependencies.voice)
                 .environment(router)
                 .onAppear {
                     // Tapping a reminder opens its trip.
@@ -34,6 +35,7 @@ struct RootView: View {
     @Environment(AppSession.self) private var session
     @Environment(ReminderService.self) private var reminders
     @Environment(AppLock.self) private var appLock
+    @Environment(VoiceJournalService.self) private var voice
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasOnboarded") private var hasOnboarded = false
     @AppStorage("appTheme") private var appTheme: AppTheme = .dark
@@ -98,6 +100,13 @@ struct RootView: View {
                 appLock.reset()
                 Task { await reminders.removeAll() }
             }
+        }
+        // Recordings saved just before the app was closed are written down now.
+        .task(id: session.user?.uid) {
+            guard session.user != nil else { return }
+            async let languageData: Void = voice.prepareLanguageData()
+            await voice.transcribePending()
+            await languageData
         }
         .task(id: ReminderInputs(trips: store.trips, settings: reminders.settings, isSignedIn: session.user != nil)) {
             guard session.user != nil else { return }

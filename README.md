@@ -65,7 +65,9 @@ RoamPulse/
 │   ├── ExpenseCalculator.swift Splits, balances, settle-up algorithm, 90% budget warning
 │   ├── ImageProcessor.swift   Shrinks picked photos to 2048 px + a 400 px thumbnail (ImageIO)
 │   ├── Weather/               OpenWeatherMap client, ForecastBuilder, OpenWeatherMapService (cache + offline)
-│   └── Reminders/             ReminderPlanner (which notifications) and ReminderService (UserNotifications)
+│   ├── Reminders/             ReminderPlanner (which notifications) and ReminderService (UserNotifications)
+│   └── Voice/                 AudioRecorder (AVFoundation), Transcriber (Speech), JournalAnalyzer (Natural Language),
+│                              VoiceJournalService (the pipeline), RecordingFiles (where audio is kept)
 ├── Data/
 │   ├── RoamPulse.xcdatamodeld Core Data model (11 entities)
 │   ├── PersistenceController.swift Core Data stack: one database per account, or in memory for tests
@@ -89,7 +91,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the layers fit together.
 
 ## Current state
 
-Increments 1–13 are done:
+Increments 1–14 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -121,12 +123,20 @@ Increments 1–13 are done:
 - **Statistics:** trips, days, places, memories, landmarks, spending by category (donut chart) and by trip
   (stacked bar chart), for this year or all time.
 
-Voice recording, landmark recognition and the map are still to come (Increments 14–16; the
-photo-recognition prototype screens are kept in `PhotosView.swift`).
+- **Voice journal (AVFoundation + Speech + Natural Language, all on the iPhone):** Record Memory starts
+  recording with a live level meter; the memory is saved at once, then written down on the device and read
+  for places, people and mood, and linked to the activity it's about. Unsupported languages or refused
+  permissions keep the recording and offer Try Again / Type It Myself. Recordings play back in the memory.
+
+Landmark recognition and the map are still to come (Increments 15–16; the photo-recognition prototype
+screens are kept in `PhotosView.swift`).
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator
 
+- **Voice journal:** allow the Simulator to use your Mac's microphone (macOS asks once), tap Record Memory,
+  speak, Stop, Save. Allow speech recognition when asked. In the Simulator the older on-device recogniser is
+  used (`SpeechAnalyzer` needs a real iPhone); both run on the device.
 - **Face ID:** *Features → Face ID → Enrolled*, then *Matching Face* / *Non-matching Face* when the app asks.
 - **Notifications:** add an activity a few minutes ahead with *Before activities* set to 15 min, then press ⌘⇧H.
 - **Offline:** turn off the Mac's Wi-Fi; the Weather screen shows the saved forecast with an offline banner.

@@ -114,8 +114,8 @@ struct ProfileView: View {
                 FloatingActionBar(
                     primaryTitle: "Add Expense",
                     primaryAction: { router.activeSheet = .addExpense(tripID: trip.id) },
-                    secondaryTitle: "New Memory",
-                    secondaryAction: { router.activeSheet = .newMemory(tripID: trip.id, withPhotos: false) }
+                    secondaryTitle: "Record Memory",
+                    secondaryAction: { router.activeSheet = .newMemory(tripID: trip.id, start: .recording) }
                 )
             }
         }

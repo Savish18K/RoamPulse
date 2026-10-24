@@ -369,6 +369,7 @@ private extension MemoryEntity {
         linkedActivity = memory.linkedActivity
         isVisited = memory.isVisited
         transcriptUnavailable = memory.transcriptUnavailable
+        audioFileName = memory.audioFileName
 
         // People on a memory are members of the same trip.
         let tripMembers = trip.members.rows(of: MemberEntity.self)
@@ -501,7 +502,8 @@ private extension Memory {
             },
             linkedActivity: entity.linkedActivity,
             isVisited: entity.isVisited,
-            transcriptUnavailable: entity.transcriptUnavailable
+            transcriptUnavailable: entity.transcriptUnavailable,
+            audioFileName: entity.audioFileName
         )
     }
 }

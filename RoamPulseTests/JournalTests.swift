@@ -64,7 +64,7 @@ struct JournalTests {
         let form = form(makeStore())
         #expect(!form.canSave)
         form.title = "Waterfall"
-        #expect(form.problem == "Write something or add a photo.")
+        #expect(form.problem == "Write something, record or add a photo.")
         form.text = "   "
         #expect(!form.canSave, "spaces don't count")
         form.text = "Soaked but worth it."

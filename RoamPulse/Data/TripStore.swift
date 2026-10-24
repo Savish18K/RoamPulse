@@ -31,6 +31,8 @@ final class TripStore {
 
     let clock: Clock
     private var repository: TripRepository
+    /// Where this account's voice recordings are kept.
+    private(set) var recordings = RecordingFiles.temporary
 
     init(repository: TripRepository, clock: Clock) {
         self.repository = repository
@@ -41,6 +43,7 @@ final class TripStore {
     /// Switches to the signed-in person's own database and shows their trips.
     func open(repository: TripRepository, user: AppUser) {
         self.repository = repository
+        recordings = .forAccount(user.uid)
         updateAccount(user)
         reload()
     }
@@ -62,6 +65,7 @@ final class TripStore {
         profile = SampleData.profile
         me = SampleData.me
         accountID = nil
+        recordings = .temporary
     }
 
     func reload() {
@@ -143,7 +147,7 @@ final class TripStore {
         do {
             try repository.deleteTrip(id: id)
             trips.removeAll { $0.id == id }
-            memories.removeAll { $0.tripID == id }
+            removeMemories { $0.tripID == id }
             if let old {
                 uploadRemoval(of: old)
             }
@@ -253,7 +257,7 @@ final class TripStore {
         do {
             try repository.deleteTrip(id: id)
             trips.removeAll { $0.id == id }
-            memories.removeAll { $0.tripID == id }
+            removeMemories { $0.tripID == id }
         } catch {
             report(error, failedTo: "remove a trip deleted on another device")
         }
@@ -302,17 +306,41 @@ final class TripStore {
         return saved
     }
 
-    /// Deletes a journal memory and the photos picked for it.
+    /// Deletes a journal memory, the photos picked for it and its recording.
     @discardableResult
     func deleteMemory(_ id: UUID) -> Bool {
         do {
             try repository.deleteMemory(id: id)
-            memories.removeAll { $0.id == id }
+            removeMemories { $0.id == id }
             return true
         } catch {
             report(error, failedTo: "delete the memory")
             return false
         }
+    }
+
+    // Recordings are files, not Core Data rows, so they are deleted here when their memory goes.
+
+    /// The recording's file, if the memory has one and it is still on this iPhone.
+    func recordingURL(for memory: Memory) -> URL? {
+        guard let fileName = memory.audioFileName, recordings.exists(fileName) else { return nil }
+        return recordings.url(for: fileName)
+    }
+
+    /// Moves a finished recording into the account's folder for this memory and returns its file name.
+    func keepRecording(_ file: URL, for memoryID: UUID) throws -> String {
+        try recordings.keep(file, for: memoryID)
+    }
+
+    func deleteRecording(named fileName: String?) {
+        recordings.delete(fileName)
+    }
+
+    private func removeMemories(where shouldRemove: (Memory) -> Bool) {
+        for memory in memories where shouldRemove(memory) {
+            recordings.delete(memory.audioFileName)
+        }
+        memories.removeAll(where: shouldRemove)
     }
 
     func updateTranscript(_ text: String, for memoryID: UUID) {
@@ -365,7 +393,7 @@ final class TripStore {
         do {
             try repository.deleteEverything()
             trips = []
-            memories = []
+            removeMemories { _ in true }
             for trip in deleted {
                 uploadRemoval(of: trip)
             }

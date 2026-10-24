@@ -26,8 +26,8 @@ enum AppSheet: Identifiable {
     case editActivity(tripID: UUID, activityID: UUID)
     case addExpense(tripID: UUID)
     case editExpense(tripID: UUID, expenseID: UUID)
-    /// "Add Photos" opens the form with the photo picker showing.
-    case newMemory(tripID: UUID?, withPhotos: Bool)
+    /// The memory form, starting by writing, recording or picking photos.
+    case newMemory(tripID: UUID?, start: MemoryFormStart)
     case editMemory(UUID)
     case memory(UUID)
     case typeNote(UUID)
@@ -45,7 +45,7 @@ enum AppSheet: Identifiable {
         case .editActivity(_, let activityID): "editActivity-\(activityID)"
         case .addExpense(let tripID): "addExpense-\(tripID)"
         case .editExpense(_, let expenseID): "editExpense-\(expenseID)"
-        case .newMemory(let tripID, let withPhotos): "newMemory-\(tripID?.uuidString ?? "current")-\(withPhotos)"
+        case .newMemory(let tripID, let start): "newMemory-\(tripID?.uuidString ?? "current")-\(start)"
         case .editMemory(let id): "editMemory-\(id)"
         case .memory(let id): "memory-\(id)"
         case .typeNote(let id): "typeNote-\(id)"
@@ -56,6 +56,12 @@ enum AppSheet: Identifiable {
         case .deleteAccount: "deleteAccount"
         }
     }
+}
+
+/// How the New Memory form starts: Record Memory starts recording straight away, Add Photos opens
+/// the photo picker, New Memory starts with the text.
+enum MemoryFormStart: Hashable {
+    case writing, recording, photos
 }
 
 /// App-wide navigation state: selected tab, current sheet, and the Trips tab's pushed screens.
@@ -160,11 +166,13 @@ struct SheetContent: View {
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, store: store, clock: clock))
         case .editExpense(let tripID, let expenseID):
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, expenseID: expenseID, store: store, clock: clock))
-        case .newMemory(let tripID, let withPhotos):
-            MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, store: store, clock: clock),
-                           opensPhotoPicker: withPhotos)
+        case .newMemory(let tripID, let start):
+            MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, store: store, clock: clock,
+                                                          recorder: dependencies.recorder, voice: dependencies.voice),
+                           start: start)
         case .editMemory(let id):
-            MemoryFormView(viewModel: MemoryFormViewModel(memoryID: id, store: store, clock: clock))
+            MemoryFormView(viewModel: MemoryFormViewModel(memoryID: id, store: store, clock: clock,
+                                                          recorder: dependencies.recorder, voice: dependencies.voice))
         case .memory(let id):
             MemoryDetailView(memoryID: id)
         case .typeNote(let id):

@@ -230,7 +230,7 @@ struct LandmarkDetailView: View {
             .ignoresSafeArea(edges: .top)
             .safeAreaInset(edge: .bottom) {
                 BackActionBar(actionTitle: "+ Add Photo") {
-                    router.activeSheet = .newMemory(tripID: nil, withPhotos: true)
+                    router.activeSheet = .newMemory(tripID: nil, start: .photos)
                 }
             }
         }

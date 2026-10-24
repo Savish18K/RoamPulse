@@ -43,8 +43,8 @@ struct HomeView: View {
                 FloatingActionBar(
                     primaryTitle: "Add Expense",
                     primaryAction: { router.activeSheet = .addExpense(tripID: trip.id) },
-                    secondaryTitle: "New Memory",
-                    secondaryAction: { router.activeSheet = .newMemory(tripID: trip.id, withPhotos: false) }
+                    secondaryTitle: "Record Memory",
+                    secondaryAction: { router.activeSheet = .newMemory(tripID: trip.id, start: .recording) }
                 )
             }
         }
@@ -164,7 +164,7 @@ struct HomeView: View {
             emptyCard(icon: "book", tint: .purple, title: "No memories yet",
                       text: "Write down today's highlight or add a few photos.",
                       action: "New Memory") {
-                router.activeSheet = .newMemory(tripID: trip.id, withPhotos: false)
+                router.activeSheet = .newMemory(tripID: trip.id, start: .writing)
             }
         }
 
@@ -410,13 +410,13 @@ struct HomeView: View {
                 Button { router.activeSheet = .addExpense(tripID: trip.id) } label: {
                     QuickActionTile(icon: "creditcard", tint: .blue, title: "Add Expense")
                 }
-                Button { router.activeSheet = .newMemory(tripID: trip.id, withPhotos: false) } label: {
-                    QuickActionTile(icon: "square.and.pencil", tint: .purple, title: "New Memory")
+                Button { router.activeSheet = .newMemory(tripID: trip.id, start: .recording) } label: {
+                    QuickActionTile(icon: "mic", tint: .purple, title: "Record Memory")
                 }
                 NavigationLink(value: AppRoute.tripDetail(trip.id, day: trip.dayNumber(at: viewModel.now))) {
                     QuickActionTile(icon: "list.bullet.rectangle", tint: .primary, title: "Today's Plan")
                 }
-                Button { router.activeSheet = .newMemory(tripID: trip.id, withPhotos: true) } label: {
+                Button { router.activeSheet = .newMemory(tripID: trip.id, start: .photos) } label: {
                     QuickActionTile(icon: "photo.badge.plus", tint: .cyan, title: "Add Photos")
                 }
             }

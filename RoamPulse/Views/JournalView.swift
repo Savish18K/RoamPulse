@@ -53,10 +53,10 @@ struct JournalView: View {
         .safeAreaInset(edge: .bottom) {
             if viewModel.canWriteMemory {
                 FloatingActionBar(
-                    primaryTitle: "New Memory",
-                    primaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: false) },
-                    secondaryTitle: "Add Photos",
-                    secondaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: true) }
+                    primaryTitle: "Record Memory",
+                    primaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, start: .recording) },
+                    secondaryTitle: "Write",
+                    secondaryAction: { router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, start: .writing) }
                 )
             }
         }
@@ -100,7 +100,7 @@ struct JournalView: View {
                 Text("Write down what happened, add photos and tag who was there. They stay on this iPhone.")
             } actions: {
                 Button("Write a Memory") {
-                    router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, withPhotos: false)
+                    router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, start: .writing)
                 }
                 .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
             }
@@ -132,6 +132,7 @@ struct MemoryCard: View {
     var tripName: String?
     var isFeatured = false
     @Environment(AppRouter.self) private var router
+    @Environment(VoiceJournalService.self) private var voice
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -169,6 +170,10 @@ struct MemoryCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+            } else if voice.isTranscribing(memory.id) {
+                Label("Writing it down on your iPhone…", systemImage: "waveform")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             if !memory.photos.isEmpty {
@@ -277,9 +282,9 @@ struct MemoryDetailView: View {
 
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(VoiceJournalService.self) private var voice
     @Environment(\.dismiss) private var dismiss
-    @State private var isPlaying = false
-    @State private var progress: Double = 0
+    @State private var playback = AudioPlayback()
     @State private var photoIndex = 0
     @State private var confirmDelete = false
 
@@ -351,15 +356,25 @@ struct MemoryDetailView: View {
 
                 if memory.hasVoice {
                     VStack(spacing: 6) {
-                        ProgressView(value: progress).tint(.purple)
+                        ProgressView(value: playback.progress).tint(.purple)
                         HStack {
-                            Text(Int(progress * Double(memory.duration)).timerText)
+                            Text(Int(playback.currentTime).timerText)
                             Spacer()
                             Text(memory.duration.timerText)
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        if store.recordingURL(for: memory) == nil {
+                            Text("Sample memory: there's no recording to play.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let error = playback.errorMessage {
+                            Text(error).font(.caption).foregroundStyle(.red)
+                        }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Recording, \(memory.duration) seconds")
                 }
 
                 FlowLayout {
@@ -397,10 +412,25 @@ struct MemoryDetailView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(memory.hasVoice ? "Full Transcript" : "What happened")
-                    if memory.transcriptUnavailable {
-                        Text("This language can't be written down on this device yet.")
+                    if voice.isTranscribing(memory.id) {
+                        Label("Writing it down on your iPhone…", systemImage: "waveform")
                             .foregroundStyle(.secondary)
-                        Button("Type it myself") { router.activeSheet = .typeNote(memory.id) }
+                            .symbolEffect(.variableColor.iterative)
+                    } else if memory.transcriptUnavailable || voice.problem(for: memory.id) != nil {
+                        Text(voice.problem(for: memory.id)?.errorDescription
+                             ?? "This language can't be written down on this device yet.")
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 18) {
+                            if !(voice.problem(for: memory.id)?.isPermanent ?? memory.transcriptUnavailable),
+                               store.recordingURL(for: memory) != nil {
+                                Button("Try Again") { Task { await voice.transcribe(memory.id) } }
+                            }
+                            Button("Type it myself") { router.activeSheet = .typeNote(memory.id) }
+                        }
+                        .font(.subheadline.bold())
+                    } else if !memory.hasText && memory.hasVoice && store.recordingURL(for: memory) != nil {
+                        Text("Not written down yet.").foregroundStyle(.secondary)
+                        Button("Write It Down") { Task { await voice.transcribe(memory.id) } }
                             .font(.subheadline.bold())
                     } else if !memory.hasText {
                         Text(memory.photos.isEmpty ? "No text yet." : "Photo memory, no text.")
@@ -435,34 +465,25 @@ struct MemoryDetailView: View {
             .padding(20)
         }
         .safeAreaInset(edge: .bottom) {
-            if memory.hasVoice {
+            if let recording = store.recordingURL(for: memory) {
                 Button {
-                    isPlaying.toggle()
+                    playback.toggle(recording)
                 } label: {
-                    Label(isPlaying ? "Pause" : "Play Recording", systemImage: isPlaying ? "pause.circle" : "play.circle")
+                    Label(playback.isPlaying ? "Pause" : "Play Recording",
+                          systemImage: playback.isPlaying ? "pause.circle" : "play.circle")
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
             }
         }
-        // Sample memories have a length but no audio yet; real playback comes with recording (Increment 14).
-        .task(id: isPlaying) {
-            while isPlaying, !Task.isCancelled, progress < 1 {
-                try? await Task.sleep(for: .milliseconds(100))
-                progress = min(progress + 0.1 / Double(max(memory.duration, 1)), 1)
-            }
-            if progress >= 1 {
-                isPlaying = false
-                progress = 0
-            }
-        }
+        .onDisappear { playback.stop() }
         .confirmationDialog("Delete this memory?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete Memory", role: .destructive) {
                 if store.deleteMemory(memory.id) { dismiss() }
             }
         } message: {
-            Text("Its text and photos will be removed from this iPhone. It can't be undone.")
+            Text("Its text, photos and recording will be removed from this iPhone. It can't be undone.")
         }
     }
 
@@ -523,26 +544,34 @@ struct MemoryFormView: View {
     @State private var viewModel: MemoryFormViewModel
     @State private var pickedPhotos: [PhotosPickerItem] = []
     @State private var showsPhotoPicker: Bool
+    @State private var playback = AudioPlayback()
+    @State private var didSave = false
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?
+    private let start: MemoryFormStart
 
     private enum Field {
         case title, text, place
     }
 
-    /// - Parameter opensPhotoPicker: true for "Add Photos", which starts with the photo picker open.
-    init(viewModel: MemoryFormViewModel, opensPhotoPicker: Bool = false) {
+    /// - Parameter start: Record Memory starts recording straight away; Add Photos opens the photo picker.
+    init(viewModel: MemoryFormViewModel, start: MemoryFormStart = .writing) {
         _viewModel = State(initialValue: viewModel)
-        _showsPhotoPicker = State(initialValue: opensPhotoPicker)
+        _showsPhotoPicker = State(initialValue: start == .photos)
+        self.start = start
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    if viewModel.canRecord {
+                        voiceSection
+                    }
                     tripAndTime
-                    FormField(label: "Title") {
-                        TextField("Blue train at Nine Arch Bridge", text: $viewModel.title)
+                    FormField(label: viewModel.hasRecording ? "Title (optional)" : "Title") {
+                        TextField(viewModel.hasRecording ? viewModel.automaticTitle : "Blue train at Nine Arch Bridge",
+                                  text: $viewModel.title)
                             .focused($focusedField, equals: .title)
                             .submitLabel(.next)
                             .onSubmit { focusedField = .text }
@@ -587,11 +616,19 @@ struct MemoryFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        playback.stop()
+                        viewModel.discardUnsavedRecording()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if viewModel.save() { dismiss() }
+                        playback.stop()
+                        if viewModel.save() {
+                            didSave = true
+                            dismiss()
+                        }
                     }
                     .disabled(!viewModel.canSave)
                 }
@@ -604,12 +641,109 @@ struct MemoryFormView: View {
                 pickedPhotos = []
                 Task { await loadPhotos(items) }
             }
-            .onAppear {
-                if !showsPhotoPicker && !viewModel.isEditing { focusedField = .title }
+            .task {
+                switch start {
+                case .recording: await viewModel.startRecording()
+                case .writing: if !viewModel.isEditing { focusedField = .title }
+                case .photos: break
+                }
+            }
+            // Swiping the sheet away is the same as Cancel.
+            .onDisappear {
+                playback.stop()
+                if !didSave { viewModel.discardUnsavedRecording() }
             }
         }
         .presentationDragIndicator(.visible)
         .presentationBackground(Theme.card)
+    }
+
+    /// Record, stop, listen back, or remove. While recording, the bars follow the microphone level.
+    private var voiceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Voice")
+            VStack(spacing: 14) {
+                if viewModel.isRecording {
+                    LevelMeterView(levels: viewModel.recordingLevels)
+                        .frame(height: 70)
+                    Text(viewModel.recordingElapsed.timerText)
+                        .font(.system(size: 40, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .accessibilityLabel("Recording, \(viewModel.recordingElapsed) seconds")
+                    Button {
+                        withAnimation { viewModel.stopRecording() }
+                    } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
+                } else if viewModel.hasRecording {
+                    HStack(spacing: 14) {
+                        Button {
+                            if let url = viewModel.recordingURL { playback.toggle(url) }
+                        } label: {
+                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                                .frame(width: 48, height: 48)
+                                .background(Theme.purple, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(viewModel.recordingURL == nil)
+                        .accessibilityLabel(playback.isPlaying ? "Pause" : "Play recording")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Recording • \(viewModel.recordingDuration.timerText)").font(.headline)
+                            ProgressView(value: playback.progress).tint(.purple)
+                        }
+                        Menu {
+                            Button {
+                                playback.stop()
+                                Task { await viewModel.startRecording() }
+                            } label: {
+                                Label("Record Again", systemImage: "mic")
+                            }
+                            Button(role: .destructive) {
+                                playback.stop()
+                                withAnimation { viewModel.removeRecording() }
+                            } label: {
+                                Label("Remove Recording", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle").font(.title2)
+                        }
+                        .accessibilityLabel("Recording options")
+                    }
+                    Text("It's written down on this iPhone after you save.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        Task { await viewModel.startRecording() }
+                    } label: {
+                        Image(systemName: "mic.fill")
+                            .font(.title)
+                            .foregroundStyle(.white)
+                            .frame(width: 72, height: 72)
+                            .background(Theme.purple, in: Circle())
+                            .padding(8)
+                            .background(Theme.purple.opacity(0.25), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Start recording")
+                    Text("Tap to record. Recordings and transcripts stay on this iPhone.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                if let problem = viewModel.recordingProblem {
+                    Text(problem).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(16)
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .sensoryFeedback(.start, trigger: viewModel.isRecording)
+        }
     }
 
     private func loadPhotos(_ items: [PhotosPickerItem]) async {
@@ -842,27 +976,20 @@ struct MemoryFormView: View {
         .previewEnvironment(dependencies)
 }
 
-/// Animated purple bars shown while recording (used by voice recording in Increment 14).
-struct WaveformView: View {
-    var isAnimating: Bool
-    var barCount = 26
+/// Bars showing the microphone level over the last moments, newest on the right.
+struct LevelMeterView: View {
+    let levels: [Double]
 
     var body: some View {
-        TimelineView(.animation(paused: !isAnimating)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 5) {
-                ForEach(0..<barCount, id: \.self) { index in
-                    let phase = Double(index) * 0.55
-                    let level = isAnimating
-                        ? 0.2 + 0.8 * abs(sin(time * 3 + phase) * cos(time * 1.3 + phase * 0.5))
-                        : 0.15 + 0.1 * abs(sin(phase))
-                    Capsule()
-                        .fill(Color.purple)
-                        .frame(width: 4, height: max(6, 96 * level))
-                }
+        HStack(spacing: 4) {
+            ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
+                Capsule()
+                    .fill(Color.purple)
+                    .frame(width: 4, height: max(6, 70 * level))
             }
-            .frame(maxHeight: .infinity)
         }
+        .frame(maxHeight: .infinity)
+        .animation(.linear(duration: 0.05), value: levels)
         .accessibilityHidden(true)
     }
 }

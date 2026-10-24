@@ -17,6 +17,10 @@ final class AppDependencies {
     let session: AppSession
     let reminders: ReminderService
     let appLock: AppLock
+    /// Records voice memories (AVFoundation).
+    let recorder: AudioRecording
+    /// Writes recordings down and reads them (Speech + Natural Language), on the iPhone.
+    let voice: VoiceJournalService
     /// Shows reminders while the app is open and opens the trip when one is tapped.
     let notificationDelegate = NotificationDelegate()
 
@@ -27,6 +31,7 @@ final class AppDependencies {
          makeWeather: (TripStore) -> WeatherService,
          notifications: NotificationScheduling,
          authenticator: DeviceAuthenticating,
+         transcriber: SpeechTranscribing = OnDeviceTranscriber(),
          defaults: UserDefaults = .standard) {
         self.clock = clock
         self.auth = auth
@@ -39,6 +44,8 @@ final class AppDependencies {
                                   openRepository: openRepository, deleteLocalData: deleteLocalData)
         self.reminders = ReminderService(scheduler: notifications, defaults: defaults, clock: clock)
         self.appLock = AppLock(authenticator: authenticator, clock: clock, defaults: defaults)
+        self.recorder = AVAudioRecorderService()
+        self.voice = VoiceJournalService(store: store, transcriber: transcriber)
     }
 
     /// The real app: Firebase sign-in and sync, a Core Data database per account, OpenWeatherMap
