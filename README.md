@@ -135,8 +135,9 @@ Journal memories, voice notes and photos are never uploaded.
 ## Testing on the Simulator
 
 - **Voice journal:** allow the Simulator to use your Mac's microphone (macOS asks once), tap Record Memory,
-  speak, Stop, Save. Allow speech recognition when asked. In the Simulator the older on-device recogniser is
-  used (`SpeechAnalyzer` needs a real iPhone); both run on the device.
+  speak, Stop, Save. Allow speech recognition when asked. Writing the recording down needs a real iPhone:
+  the Simulator has no speech service, so it says so and offers Type It Myself (the typed text is still
+  analysed for places, people and mood).
 - **Face ID:** *Features → Face ID → Enrolled*, then *Matching Face* / *Non-matching Face* when the app asks.
 - **Notifications:** add an activity a few minutes ahead with *Before activities* set to 15 min, then press ⌘⇧H.
 - **Offline:** turn off the Mac's Wi-Fi; the Weather screen shows the saved forecast with an offline banner.

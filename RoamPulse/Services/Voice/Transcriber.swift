@@ -6,6 +6,8 @@ enum TranscriptionError: LocalizedError, Equatable {
     case permissionDenied
     /// On-device transcription isn't available for this language (or on this device).
     case languageNotSupported(String)
+    /// The Simulator has no speech recognition service; it works on a real iPhone.
+    case notInSimulator
     case nothingHeard
     case failed(String)
 
@@ -15,6 +17,8 @@ enum TranscriptionError: LocalizedError, Equatable {
             "Speech recognition is turned off for RoamPulse. The recording is saved. Turn it on in Settings, or type the note yourself."
         case .languageNotSupported(let language):
             "\(language) can't be written down on this device yet. The recording is saved."
+        case .notInSimulator:
+            "The Simulator can't write recordings down; this works on a real iPhone. The recording is saved."
         case .nothingHeard:
             "No speech was heard in the recording."
         case .failed(let reason):
@@ -25,7 +29,7 @@ enum TranscriptionError: LocalizedError, Equatable {
     /// Trying again won't help: the user has to type the note or change a setting.
     var isPermanent: Bool {
         switch self {
-        case .permissionDenied, .languageNotSupported: true
+        case .permissionDenied, .languageNotSupported, .notInSimulator: true
         case .nothingHeard, .failed: false
         }
     }
@@ -95,7 +99,7 @@ struct OnDeviceTranscriber: SpeechTranscribing {
     private func transcribeWithRecognizer(_ recording: URL, locale: Locale) async throws -> String {
         let language = locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "")
             ?? locale.identifier
-        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.supportsOnDeviceRecognition else {
+        guard let recognizer = Self.recognizer(for: locale) else {
             throw TranscriptionError.languageNotSupported(language)
         }
         let request = SFSpeechURLRecognitionRequest(url: recording)
@@ -107,12 +111,38 @@ struct OnDeviceTranscriber: SpeechTranscribing {
             let resumed = ResumeFlag()
             recognizer.recognitionTask(with: request) { result, error in
                 if let error {
-                    if resumed.claim() { continuation.resume(throwing: TranscriptionError.failed(error.localizedDescription)) }
+                    let problem: TranscriptionError = Self.isMissingSpeechService(error)
+                        ? .notInSimulator : .failed(error.localizedDescription)
+                    if resumed.claim() { continuation.resume(throwing: problem) }
                 } else if let result, result.isFinal {
                     if resumed.claim() { continuation.resume(returning: result.bestTranscription.formattedString) }
                 }
             }
         }
+    }
+
+    /// A recogniser for the phone's language, or US English for English variants it doesn't know (e.g. en-LK).
+    private static func recognizer(for locale: Locale) -> SFSpeechRecognizer? {
+        let supported = Set(SFSpeechRecognizer.supportedLocales().map { $0.identifier(.bcp47) })
+        var candidates = [Locale(languageCode: locale.language.languageCode, languageRegion: locale.region)]
+        if locale.language.languageCode == .english {
+            candidates.append(Locale(identifier: "en-US"))
+        }
+        return candidates
+            .filter { supported.contains($0.identifier(.bcp47)) }
+            .lazy
+            .compactMap { SFSpeechRecognizer(locale: $0) }
+            .first { $0.supportsOnDeviceRecognition }
+    }
+
+    /// The Simulator has no speech service: every request fails with this error (kAFAssistantErrorDomain 1101).
+    private static func isMissingSpeechService(_ error: Error) -> Bool {
+        #if targetEnvironment(simulator)
+        let error = error as NSError
+        return error.domain == "kAFAssistantErrorDomain" && error.code == 1101
+        #else
+        return false
+        #endif
     }
 
     /// Speech recognition permission, asked the first time a recording is transcribed.

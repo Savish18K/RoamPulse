@@ -171,6 +171,20 @@ struct VoiceJournalTests {
         store.deleteMemory(memory.id)
     }
 
+    @Test func anUnsupportedLanguageIsTriedAgainOnTheNextLaunch() async throws {
+        let (store, memory) = try storeWithRecording()
+        let transcriber = FakeTranscriber(.failure(.languageNotSupported("English")))
+        let voice = VoiceJournalService(store: store, transcriber: transcriber)
+        await voice.transcribe(memory.id)
+        #expect(store.memory(memory.id)?.transcriptUnavailable == true)
+
+        transcriber.result = .success("The language was installed later.")
+        await voice.transcribePending()
+        #expect(store.memory(memory.id)?.transcript == "The language was installed later.")
+        #expect(store.memory(memory.id)?.transcriptUnavailable == false)
+        store.deleteMemory(memory.id)
+    }
+
     private func makeForm(_ store: TripStore, recorder: FakeRecorder, memoryID: UUID? = nil,
                           voice: VoiceJournalService? = nil) -> MemoryFormViewModel {
         MemoryFormViewModel(memoryID: memoryID, tripID: trip.id, store: store, clock: FixedClock(now: now),

@@ -72,7 +72,7 @@ final class VoiceJournalService {
     /// Recordings saved earlier but never written down (e.g. the app was closed while transcribing).
     func transcribePending() async {
         let pending = store.memories.filter { memory in
-            memory.hasVoice && !memory.hasText && !memory.transcriptUnavailable && store.recordingURL(for: memory) != nil
+            memory.hasVoice && !memory.hasText && store.recordingURL(for: memory) != nil
         }
         for memory in pending {
             await transcribe(memory.id)
