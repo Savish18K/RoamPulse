@@ -47,21 +47,21 @@ enum SampleData {
             cover: .hillTrain
         )
         trip.activities = [
-            activity(1, 7, 0, "Drive from Colombo to Kandy", "Kandy", .low, done: true),
-            activity(1, 11, 30, "Temple of the Tooth", "Kandy", .low, done: true),
-            activity(1, 13, 0, "Lunch in Peradeniya", "Peradeniya", .low, done: true),
-            activity(1, 14, 30, "Peradeniya Botanical Gardens", "Peradeniya", .moderate, outdoor: true, done: true),
-            activity(1, 18, 0, "Evening walk at Kandy Lake", "Kandy", .low, outdoor: true, done: true),
-            activity(2, 7, 30, "Breakfast at hotel", "Kandy", .low, done: true),
-            activity(2, 8, 45, "Scenic train ride through hills", "Kandy to Ella", .low, done: true),
-            activity(2, 16, 0, "Check in Ella homestay", "Ella", .low, done: true),
-            activity(2, 17, 30, "Nine Arch Bridge viewpoint", "Nine Arch Bridge", .moderate, outdoor: true),
-            activity(3, 6, 0, "Little Adam's Peak sunrise hike", "Little Adam's Peak", .high, outdoor: true),
-            activity(3, 11, 0, "Ella spice garden", "Ella", .low),
-            activity(3, 15, 0, "Ravana Falls", "Ravana Falls", .moderate, outdoor: true),
-            activity(3, 19, 30, "Dinner in Ella town", "Ella", .low),
-            activity(4, 9, 0, "Tea factory tour", "Halpewatte", .low),
-            activity(4, 13, 0, "Train back to Kandy", "Ella to Kandy", .low),
+            activity(1, 7, 0, "Drive from Colombo to Kandy", "Kandy", .low, done: true, at: (7.2906, 80.6337)),
+            activity(1, 11, 30, "Temple of the Tooth", "Kandy", .low, done: true, at: (7.2936, 80.6413)),
+            activity(1, 13, 0, "Lunch in Peradeniya", "Peradeniya", .low, done: true, at: (7.2643, 80.5967)),
+            activity(1, 14, 30, "Peradeniya Botanical Gardens", "Peradeniya", .moderate, outdoor: true, done: true, at: (7.2689, 80.5966)),
+            activity(1, 18, 0, "Evening walk at Kandy Lake", "Kandy", .low, outdoor: true, done: true, at: (7.2914, 80.6448)),
+            activity(2, 7, 30, "Breakfast at hotel", "Kandy", .low, done: true, at: (7.2937, 80.6383)),
+            activity(2, 8, 45, "Scenic train ride through hills", "Kandy to Ella", .low, done: true, at: (7.2895, 80.6323)),
+            activity(2, 16, 0, "Check in Ella homestay", "Ella", .low, done: true, at: (6.8721, 81.0489)),
+            activity(2, 17, 30, "Nine Arch Bridge viewpoint", "Nine Arch Bridge", .moderate, outdoor: true, at: (6.8768, 81.0608)),
+            activity(3, 6, 0, "Little Adam's Peak sunrise hike", "Little Adam's Peak", .high, outdoor: true, at: (6.8656, 81.061)),
+            activity(3, 11, 0, "Ella spice garden", "Ella", .low, at: (6.8693, 81.0441)),
+            activity(3, 15, 0, "Ravana Falls", "Ravana Falls", .moderate, outdoor: true, at: (6.8406, 81.0536)),
+            activity(3, 19, 30, "Dinner in Ella town", "Ella", .low, at: (6.8676, 81.0463)),
+            activity(4, 9, 0, "Tea factory tour", "Halpewatte", .low, at: (6.881, 81.029)),
+            activity(4, 13, 0, "Train back to Kandy", "Ella to Kandy", .low, at: (6.8758, 81.0463)),
         ]
         trip.packing = template(packed: true)
         trip.expenses = [
@@ -134,12 +134,12 @@ enum SampleData {
             cover: .jaffnaKovil
         )
         trip.activities = [
-            activity(1, 9, 0, "Nallur Kandaswamy Kovil", "Jaffna", .low, outdoor: true),
-            activity(1, 14, 0, "Jaffna Fort", "Jaffna", .moderate, outdoor: true),
-            activity(2, 8, 0, "Casuarina Beach", "Karainagar", .low, outdoor: true),
-            activity(3, 10, 0, "Jaffna Public Library", "Jaffna", .low),
-            activity(4, 7, 0, "Delft Island ferry", "Delft", .moderate, outdoor: true),
-            activity(5, 10, 0, "Point Pedro lighthouse", "Point Pedro", .low, outdoor: true),
+            activity(1, 9, 0, "Nallur Kandaswamy Kovil", "Jaffna", .low, outdoor: true, at: (9.6747, 80.0295)),
+            activity(1, 14, 0, "Jaffna Fort", "Jaffna", .moderate, outdoor: true, at: (9.6617, 80.0085)),
+            activity(2, 8, 0, "Casuarina Beach", "Karainagar", .low, outdoor: true, at: (9.759, 79.887)),
+            activity(3, 10, 0, "Jaffna Public Library", "Jaffna", .low, at: (9.661, 80.0115)),
+            activity(4, 7, 0, "Delft Island ferry", "Delft", .moderate, outdoor: true, at: (9.56, 79.85)),
+            activity(5, 10, 0, "Point Pedro lighthouse", "Point Pedro", .low, outdoor: true, at: (9.827, 80.241)),
         ]
         trip.packing = template(packed: false)
         return trip
@@ -158,9 +158,9 @@ enum SampleData {
             cover: .colomboSkyline
         )
         trip.activities = [
-            activity(1, 10, 0, "Galle Face Green", "Colombo", .low, outdoor: true, done: true),
-            activity(1, 17, 30, "Lotus Tower", "Colombo", .low, done: true),
-            activity(2, 9, 0, "Gangaramaya Temple", "Colombo", .low, done: true),
+            activity(1, 10, 0, "Galle Face Green", "Colombo", .low, outdoor: true, done: true, at: (6.9271, 79.845)),
+            activity(1, 17, 30, "Lotus Tower", "Colombo", .low, done: true, at: (6.9271, 79.8582)),
+            activity(2, 9, 0, "Gangaramaya Temple", "Colombo", .low, done: true, at: (6.9167, 79.8562)),
         ]
         trip.packing = template(packed: true)
         trip.expenses = [
@@ -187,9 +187,9 @@ enum SampleData {
             cover: .sigiriya
         )
         trip.activities = [
-            activity(1, 6, 30, "Sigiriya Rock Fortress", "Sigiriya", .high, outdoor: true, done: true),
-            activity(2, 9, 0, "Dambulla Cave Temple", "Dambulla", .moderate, done: true),
-            activity(3, 7, 0, "Minneriya safari", "Minneriya", .low, outdoor: true, done: true),
+            activity(1, 6, 30, "Sigiriya Rock Fortress", "Sigiriya", .high, outdoor: true, done: true, at: (7.957, 80.7603)),
+            activity(2, 9, 0, "Dambulla Cave Temple", "Dambulla", .moderate, done: true, at: (7.8567, 80.6492)),
+            activity(3, 7, 0, "Minneriya safari", "Minneriya", .low, outdoor: true, done: true, at: (8.0336, 80.8436)),
         ]
         trip.packing = template(packed: true)
         trip.expenses = [
@@ -198,6 +198,36 @@ enum SampleData {
             expense("Meals", 14_000, .food, paidBy: crew.suu, splitWith: three, days.at(-115, 13, 0)),
             expense("Entry tickets and safari", 18_000, .activities, paidBy: crew.savishka, splitWith: three, days.at(-114, 7, 0)),
         ]
+        return trip
+    }
+
+    // A one day trip around NIBM Colombo 7 for testing the map and arrival alerts.
+    // It's always today, and the places are where MapKit puts them
+    static let nibmTripName = "NIBM Campus Day"
+
+    static func nibmTrip(now: Date) -> Trip {
+        let today = Calendar.trip.startOfDay(for: now)
+        let crew = Crew()
+        var trip = Trip(
+            name: nibmTripName,
+            destination: "NIBM, Colombo 7",
+            startDate: today,
+            endDate: today,
+            budget: 10_000,
+            members: [crew.savishka, crew.samee],
+            cover: .nibmColombo
+        )
+        trip.latitude = 6.9064
+        trip.longitude = 79.8708
+        trip.activities = [
+            activity(1, 8, 30, "Lectures at NIBM", "NIBM Colombo 7", .low, at: (6.90639, 79.87083)),
+            activity(1, 12, 30, "Lunch walk to Independence Square", "Independence Memorial Hall", .moderate,
+                     outdoor: true, at: (6.90412, 79.86760)),
+            activity(1, 15, 30, "Colombo National Museum", "Colombo National Museum", .low, at: (6.90998, 79.86089)),
+            activity(1, 17, 30, "Evening at Viharamahadevi Park", "Viharamahadevi Park", .low,
+                     outdoor: true, at: (6.91343, 79.86155)),
+        ]
+        trip.packing = template(packed: false)
         return trip
     }
 
@@ -210,9 +240,10 @@ enum SampleData {
     }
 
     private static func activity(_ day: Int, _ hour: Int, _ minute: Int, _ title: String, _ place: String,
-                                 _ effort: Effort, outdoor: Bool = false, done: Bool = false) -> Activity {
+                                 _ effort: Effort, outdoor: Bool = false, done: Bool = false,
+                                 at coordinate: (latitude: Double, longitude: Double)? = nil) -> Activity {
         Activity(day: day, title: title, minutes: hour * 60 + minute, place: place, effort: effort,
-                 isOutdoor: outdoor, isDone: done)
+                 isOutdoor: outdoor, isDone: done, latitude: coordinate?.latitude, longitude: coordinate?.longitude)
     }
 
     private static func expense(_ title: String, _ amount: Double, _ category: ExpenseCategory,
@@ -246,6 +277,7 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
     case nineArchBridge, blueTrainBridge, trainWindow, hillTrain, teaEstate, mistyHills
     case sigiriya, colomboSkyline, galleFort, jaffnaKovil
     case templeOfTooth, dambulla, ruwanwelisaya, sriPada, coconutTreeHill
+    case nibmColombo
 
     var id: String { rawValue }
 
@@ -266,6 +298,7 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         case .ruwanwelisaya: [Color(hex: 0x4F7AA5), Color(hex: 0xB5C4D4), Color(hex: 0xE8E4DA)]
         case .sriPada: [Color(hex: 0x2A3550), Color(hex: 0x5A6A8A), Color(hex: 0xE6A86A)]
         case .coconutTreeHill: [Color(hex: 0x1E6B6B), Color(hex: 0x3FA7A0), Color(hex: 0xF2D49B)]
+        case .nibmColombo: [Color(hex: 0x1B2F6B), Color(hex: 0x2F5BB7), Color(hex: 0xDDE6F2)]
         }
     }
 
@@ -279,6 +312,7 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         case .colomboSkyline: "building.2.fill"
         case .galleFort, .coconutTreeHill: "beach.umbrella.fill"
         case .jaffnaKovil, .templeOfTooth, .dambulla, .ruwanwelisaya: "building.columns.fill"
+        case .nibmColombo: "graduationcap.fill"
         }
     }
 
@@ -332,7 +366,7 @@ extension SamplePhoto {
             ("ella", .nineArchBridge), ("kandy", .templeOfTooth), ("galle", .galleFort),
             ("unawatuna", .galleFort), ("hikkaduwa", .galleFort), ("mirissa", .coconutTreeHill),
             ("jaffna", .jaffnaKovil), ("sigiriya", .sigiriya), ("dambulla", .dambulla),
-            ("colombo", .colomboSkyline), ("anuradhapura", .ruwanwelisaya), ("adam", .sriPada),
+            ("nibm", .nibmColombo), ("colombo", .colomboSkyline), ("anuradhapura", .ruwanwelisaya), ("adam", .sriPada),
             ("nuwara", .teaEstate), ("haputale", .teaEstate),
         ]
         return covers.first { place.contains($0.keyword) }?.photo ?? .mistyHills

@@ -370,6 +370,16 @@ final class TripStore {
         }
     }
 
+    // Adds today's NIBM test trip, or returns the one already added today
+    @discardableResult
+    func addNIBMTrip() -> UUID? {
+        if let existing = trips.first(where: { $0.name == SampleData.nibmTripName && $0.dayNumber(at: now) != nil }) {
+            return existing.id
+        }
+        let trip = SampleData.nibmTrip(now: now)
+        return addTrip(trip) ? trip.id : nil
+    }
+
     func loadSampleData() {
         let sample = SampleData.make(now: now)
         for trip in sample.trips { addTrip(trip) }

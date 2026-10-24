@@ -20,6 +20,7 @@ Stored in `RoamPulse/Assets.xcassets/Photos`, resized to 1200 px wide. Used unde
 | `dambulla` | [Dambulla Cave 1.jpg](https://commons.wikimedia.org/wiki/File:Dambulla_Cave_1.jpg) | Philip Nalangan | CC BY 4.0 |
 | `ruwanwelisaya` | [SL Anuradhapura asv2020-01 img11 Ruwanwelisaya Stupa.jpg](https://commons.wikimedia.org/wiki/File:SL_Anuradhapura_asv2020-01_img11_Ruwanwelisaya_Stupa.jpg) | A.Savin | FAL |
 | `sriPada` | [Sri Pada(Addams Peak)View from Fishing hut2.jpg](https://commons.wikimedia.org/wiki/File:Sri_Pada(Addams_Peak)View_from_Fishing_hut2.jpg) | Harshamc00 | CC BY-SA 4.0 |
+| `nibmColombo` | [NIBM COL.jpg](https://commons.wikimedia.org/wiki/File:NIBM_COL.jpg) | ErandiRathnayaka | CC BY-SA 4.0 |
 | `coconutTreeHill` | [Beauty of Coconut Tree Hills.jpg](https://commons.wikimedia.org/wiki/File:Beauty_of_Coconut_Tree_Hills.jpg) | Amila Jayasinghe | CC BY-SA 4.0 |
 
 ## Avatars — RoamPulse prototype

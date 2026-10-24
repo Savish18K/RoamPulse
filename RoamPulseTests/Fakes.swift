@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 @testable import RoamPulse
 
@@ -300,5 +301,45 @@ final class FakeTranscriber: SpeechTranscribing, @unchecked Sendable {
     func transcribe(_ recording: URL, locale: Locale) async throws -> String {
         calls += 1
         return try result.get()
+    }
+}
+
+// Pretends to be CLMonitor, arrive(at:) acts like walking into a region
+final class FakeRegionMonitor: RegionMonitoring, @unchecked Sendable {
+    private(set) var regions: [String: Geofence] = [:]
+    private(set) var addCount = 0
+    private var continuation: AsyncStream<String>.Continuation?
+
+    func monitoredIDs() async -> [String] { Array(regions.keys) }
+
+    func add(_ fence: Geofence) async {
+        regions[fence.id] = fence
+        addCount += 1
+    }
+
+    func remove(_ id: String) async { regions[id] = nil }
+
+    func arrivals() async -> AsyncStream<String> {
+        AsyncStream { continuation = $0 }
+    }
+
+    func arrive(at id: String) {
+        continuation?.yield(id)
+    }
+}
+
+@MainActor
+final class FakeLocationPermission: LocationAuthorizing {
+    var canMonitorRegions = true
+}
+
+// Returns saved results per query instead of searching MapKit
+final class FakePlaceSearch: PlaceSearching, @unchecked Sendable {
+    var results: [String: [MapPlace]] = [:]
+    private(set) var queries: [String] = []
+
+    func search(_ query: String, near center: CLLocationCoordinate2D?) async throws -> [MapPlace] {
+        queries.append(query)
+        return results[query] ?? []
     }
 }

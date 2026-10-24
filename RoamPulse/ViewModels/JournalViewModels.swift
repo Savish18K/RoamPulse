@@ -91,7 +91,7 @@ final class MemoryFormViewModel {
     private(set) var removesSavedRecording = false
     private(set) var recordingProblem: String?
 
-    init(memoryID: UUID? = nil, tripID: UUID? = nil, store: TripStore, clock: Clock,
+    init(memoryID: UUID? = nil, tripID: UUID? = nil, activityID: UUID? = nil, store: TripStore, clock: Clock,
          recorder: AudioRecording? = nil, voice: VoiceJournalService? = nil) {
         self.memoryID = memoryID
         self.store = store
@@ -117,6 +117,14 @@ final class MemoryFormViewModel {
             if let trip {
                 place = trip.mainPlace
                 date = Self.clamped(clock.now, to: trip)
+            }
+            // Opened from an arrival alert or the map: link the activity straight away
+            if let trip, let activity = trip.activities.first(where: { $0.id == activityID }) {
+                if activity.day != day {
+                    date = WeatherAdvisor.startDate(of: activity, in: trip)
+                }
+                linkedActivityID = activity.id
+                place = activity.place.isEmpty ? trip.mainPlace : activity.place
             }
         }
     }

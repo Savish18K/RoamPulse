@@ -204,8 +204,12 @@ struct Activity: Identifiable, Hashable {
     var effort: Effort
     var isOutdoor = false
     var isDone = false
+    // Pinned on the map, nil until the place is found
+    var latitude: Double?
+    var longitude: Double?
 
     var timeText: String { minutes.clockText }
+    var hasCoordinates: Bool { latitude != nil && longitude != nil }
 }
 
 enum DayIntensity {

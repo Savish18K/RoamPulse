@@ -16,6 +16,9 @@ final class AppDependencies {
     let appLock: AppLock
     let recorder: AudioRecording
     let voice: VoiceJournalService
+    let location: LocationService
+    let geofences: GeofenceService
+    let places: PlaceSearching
     let notificationDelegate = NotificationDelegate()
 
     init(clock: Clock, auth: AuthService, sync: SyncService, isCloudAvailable: Bool,
@@ -25,6 +28,8 @@ final class AppDependencies {
          notifications: NotificationScheduling,
          authenticator: DeviceAuthenticating,
          transcriber: SpeechTranscribing = OnDeviceTranscriber(),
+         regionMonitor: RegionMonitoring = NoRegionMonitor(),
+         places: PlaceSearching = NoPlaceSearch(),
          defaults: UserDefaults = .standard) {
         self.clock = clock
         self.auth = auth
@@ -39,6 +44,10 @@ final class AppDependencies {
         self.appLock = AppLock(authenticator: authenticator, clock: clock, defaults: defaults)
         self.recorder = AVAudioRecorderService()
         self.voice = VoiceJournalService(store: store, transcriber: transcriber)
+        self.location = LocationService()
+        self.geofences = GeofenceService(monitor: regionMonitor, location: location, reminders: reminders,
+                                         defaults: defaults, clock: clock)
+        self.places = places
     }
 
     // Real services used by the app
@@ -60,8 +69,23 @@ final class AppDependencies {
                 return service
             },
             notifications: UserNotificationScheduler(),
-            authenticator: LocalDeviceAuthenticator()
+            authenticator: LocalDeviceAuthenticator(),
+            regionMonitor: CoreLocationRegionMonitor(),
+            places: MapKitPlaceSearch()
         )
+
+        // Arrivals can come in while the app is closed, so listen from launch
+        let geofences = dependencies.geofences
+        let store = dependencies.store
+        if !FirebaseBootstrap.isRunningTests {
+            geofences.start()
+        }
+        dependencies.location.onAuthorizationChange = {
+            Task { await geofences.update(trips: store.trips) }
+        }
+        dependencies.location.onLocationUpdate = { location in
+            Task { await geofences.checkArrival(at: location) }
+        }
 
         // Send a weather alert when a new forecast puts an activity at risk
         if let liveWeather = dependencies.weather as? OpenWeatherMapService {

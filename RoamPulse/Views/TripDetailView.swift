@@ -129,6 +129,9 @@ struct TripDetailView: View {
             } label: {
                 StatTile(icon: "waveform", tint: .purple, title: "Journal", value: viewModel.memoriesText(for: trip))
             }
+            NavigationLink(value: AppRoute.map(trip.id)) {
+                StatTile(icon: "map", tint: .orange, title: "Map", value: viewModel.mapText(for: trip))
+            }
         }
         .buttonStyle(.plain)
     }
@@ -207,7 +210,7 @@ struct TripDetailView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(activity.isDone ? "Mark as not done" : "Mark as done")
 
-            NavigationLink(value: AppRoute.offlineMap(trip.id, activityID: activity.id)) {
+            NavigationLink(value: AppRoute.map(trip.id, activityID: activity.id)) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(viewModel.statusText(for: activity))
@@ -333,8 +336,20 @@ struct ActivityFormView: View {
                         TextField("Dinner in Ella town", text: $viewModel.title)
                     }
 
-                    FormField(label: "Place") {
-                        TextField(viewModel.placeHint, text: $viewModel.place)
+                    VStack(alignment: .leading, spacing: 8) {
+                        FormField(label: "Place") {
+                            TextField(viewModel.placeHint, text: $viewModel.place)
+                        }
+                        placeSearchResults
+                    }
+                    // Search after typing stops, a new key press cancels the old one
+                    .task(id: viewModel.place) {
+                        do {
+                            try await Task.sleep(for: .milliseconds(400))
+                        } catch {
+                            return
+                        }
+                        await viewModel.searchPlaces()
                     }
 
                     HStack(alignment: .top, spacing: 12) {
@@ -419,6 +434,39 @@ struct ActivityFormView: View {
         }
         .presentationDragIndicator(.visible)
         .presentationBackground(Theme.card)
+    }
+
+    // MapKit results for the place, picking one pins the activity on the trip map
+    @ViewBuilder
+    private var placeSearchResults: some View {
+        if let pinned = viewModel.pinnedPlace {
+            HStack {
+                Label("Pinned on the map", systemImage: "mappin.circle.fill")
+                    .foregroundStyle(.green)
+                if !pinned.address.isEmpty {
+                    Text(pinned.address)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button("Remove") { viewModel.removePin() }
+            }
+            .font(.caption)
+        } else if !viewModel.placeResults.isEmpty {
+            FlowLayout {
+                ForEach(viewModel.placeResults) { place in
+                    Button { viewModel.pin(place) } label: {
+                        Chip(place.address.isEmpty ? place.name : "\(place.name), \(place.address)", icon: "mappin.and.ellipse")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Pins this activity on the trip map")
+                }
+            }
+        } else if viewModel.canSearchPlaces && !viewModel.place.trimmed.isEmpty && !viewModel.isSearching {
+            Text("Not pinned on the map yet. Pick a result to pin it.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

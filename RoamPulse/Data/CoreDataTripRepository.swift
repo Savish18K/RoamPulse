@@ -285,6 +285,8 @@ private extension ActivityEntity {
         effort = activity.effort.rawValue
         isOutdoor = activity.isOutdoor
         isDone = activity.isDone
+        latitude = activity.latitude.map { NSNumber(value: $0) }
+        longitude = activity.longitude.map { NSNumber(value: $0) }
     }
 }
 
@@ -416,7 +418,9 @@ private extension Activity {
             place: entity.place ?? "",
             effort: Effort(rawValue: entity.effort ?? "") ?? .low,
             isOutdoor: entity.isOutdoor,
-            isDone: entity.isDone
+            isDone: entity.isDone,
+            latitude: entity.latitude?.doubleValue,
+            longitude: entity.longitude?.doubleValue
         )
     }
 }

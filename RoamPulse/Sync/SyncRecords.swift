@@ -63,6 +63,8 @@ struct ActivityRecord: Codable, Equatable, PositionedRecord {
     var effort: String
     var isOutdoor: Bool
     var isDone: Bool
+    var latitude: Double? = nil
+    var longitude: Double? = nil
 }
 
 struct PackingRecord: Codable, Equatable, PositionedRecord {
@@ -155,7 +157,7 @@ enum TripRecords {
             add(.activities, activity.id, .activity(ActivityRecord(
                 position: position, day: activity.day, title: activity.title, minutes: activity.minutes,
                 place: activity.place, effort: activity.effort.rawValue, isOutdoor: activity.isOutdoor,
-                isDone: activity.isDone)))
+                isDone: activity.isDone, latitude: activity.latitude, longitude: activity.longitude)))
         }
         for (position, item) in trip.packing.enumerated() {
             add(.packing, item.id, .packing(PackingRecord(
@@ -189,7 +191,8 @@ enum TripRecords {
 
         let activities = sorted(lists[.activities], \.activity).map { id, record in
             Activity(id: id, day: record.day, title: record.title, minutes: record.minutes, place: record.place,
-                     effort: Effort(rawValue: record.effort) ?? .low, isOutdoor: record.isOutdoor, isDone: record.isDone)
+                     effort: Effort(rawValue: record.effort) ?? .low, isOutdoor: record.isOutdoor, isDone: record.isDone,
+                     latitude: record.latitude, longitude: record.longitude)
         }
         let packing = sorted(lists[.packing], \.packing).map { id, record in
             PackingItem(id: id, name: record.name, category: record.category, isPacked: record.isPacked)

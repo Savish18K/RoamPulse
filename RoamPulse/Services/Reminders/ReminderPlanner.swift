@@ -7,6 +7,8 @@ struct ReminderSettings: Equatable {
     // Minutes since midnight (19:00)
     var packingTime = 19 * 60
     var weatherAlerts = true
+    // Off by default because it needs location access
+    var arrivalAlerts = false
 
     static let minutesBeforeChoices = [15, 30, 60, 120]
 
@@ -15,6 +17,7 @@ struct ReminderSettings: Equatable {
         static let minutesBefore = "reminders.minutesBefore"
         static let packingTime = "reminders.packingTime"
         static let weatherAlerts = "smartAdvisories"
+        static let arrivalAlerts = "reminders.arrival"
     }
 
     init() {}
@@ -24,6 +27,7 @@ struct ReminderSettings: Equatable {
         if defaults.object(forKey: Key.minutesBefore) != nil { minutesBefore = defaults.integer(forKey: Key.minutesBefore) }
         if defaults.object(forKey: Key.packingTime) != nil { packingTime = defaults.integer(forKey: Key.packingTime) }
         if defaults.object(forKey: Key.weatherAlerts) != nil { weatherAlerts = defaults.bool(forKey: Key.weatherAlerts) }
+        arrivalAlerts = defaults.bool(forKey: Key.arrivalAlerts)
     }
 
     func save(to defaults: UserDefaults) {
@@ -31,6 +35,7 @@ struct ReminderSettings: Equatable {
         defaults.set(minutesBefore, forKey: Key.minutesBefore)
         defaults.set(packingTime, forKey: Key.packingTime)
         defaults.set(weatherAlerts, forKey: Key.weatherAlerts)
+        defaults.set(arrivalAlerts, forKey: Key.arrivalAlerts)
     }
 }
 
@@ -41,6 +46,8 @@ struct PlannedReminder: Hashable, Identifiable {
     var body: String
     var fireDate: Date
     var tripID: UUID
+    // Set for arrival alerts, tapping one opens a memory for this activity
+    var activityID: UUID? = nil
 }
 
 // Pure function so the rules can be unit tested

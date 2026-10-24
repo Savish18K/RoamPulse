@@ -53,7 +53,11 @@ final class UserNotificationScheduler: NotificationScheduling {
         content.body = reminder.body
         content.sound = .default
         content.threadIdentifier = reminder.tripID.uuidString
-        content.userInfo = ["tripID": reminder.tripID.uuidString]
+        var info = ["tripID": reminder.tripID.uuidString]
+        if let activityID = reminder.activityID {
+            info["activityID"] = activityID.uuidString
+        }
+        content.userInfo = info
 
         let trigger: UNNotificationTrigger?
         if immediately {
@@ -83,6 +87,7 @@ final class ReminderService {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let clock: Clock
     private static let sentAlertsKey = "reminders.sentWeatherAlerts"
+    private static let sentArrivalsKey = "reminders.sentArrivals"
 
     init(scheduler: NotificationScheduling, defaults: UserDefaults = .standard, clock: Clock) {
         self.scheduler = scheduler
@@ -140,11 +145,25 @@ final class ReminderService {
         // Only keep the last 200 ids
         defaults.set(Array(sent.sorted().suffix(200)), forKey: Self.sentAlertsKey)
     }
+
+    func sendArrivalAlert(for fence: Geofence) async {
+        guard settings.arrivalAlerts else { return }
+        await refreshPermission()
+        guard permission == .allowed else { return }
+
+        var sent = Set(defaults.stringArray(forKey: Self.sentArrivalsKey) ?? [])
+        guard let alert = GeofencePlanner.arrivalAlert(for: fence, now: clock.now, alreadySent: sent) else { return }
+        try? await scheduler.schedule(alert, immediately: true)
+        sent.insert(alert.id)
+        defaults.set(Array(sent.sorted().suffix(200)), forKey: Self.sentArrivalsKey)
+    }
 }
 
 // Show reminders in the foreground and open the trip on tap
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     var openTrip: ((UUID) -> Void)?
+    // Arrival alerts open a new memory linked to the activity
+    var openMemory: ((UUID, UUID) -> Void)?
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
@@ -153,10 +172,15 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        let tripID = (response.notification.request.content.userInfo["tripID"] as? String).flatMap(UUID.init(uuidString:))
+        let info = response.notification.request.content.userInfo
+        let tripID = (info["tripID"] as? String).flatMap(UUID.init(uuidString:))
+        let activityID = (info["activityID"] as? String).flatMap(UUID.init(uuidString:))
         let open = openTrip
+        let openMemory = openMemory
         Task { @MainActor in
-            if let tripID {
+            if let tripID, let activityID {
+                openMemory?(tripID, activityID)
+            } else if let tripID {
                 open?(tripID)
             }
             completionHandler()

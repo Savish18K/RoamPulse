@@ -11,7 +11,7 @@ enum AppRoute: Hashable {
     case expenses(UUID)
     case analytics(UUID)
     case weather(UUID)
-    case offlineMap(UUID, activityID: UUID? = nil)
+    case map(UUID, activityID: UUID? = nil)
     case landmark(UUID)
     case statistics
     case settings
@@ -24,7 +24,7 @@ enum AppSheet: Identifiable {
     case editActivity(tripID: UUID, activityID: UUID)
     case addExpense(tripID: UUID)
     case editExpense(tripID: UUID, expenseID: UUID)
-    case newMemory(tripID: UUID?, start: MemoryFormStart)
+    case newMemory(tripID: UUID?, start: MemoryFormStart, activityID: UUID? = nil)
     case editMemory(UUID)
     case memory(UUID)
     case typeNote(UUID)
@@ -42,7 +42,8 @@ enum AppSheet: Identifiable {
         case .editActivity(_, let activityID): "editActivity-\(activityID)"
         case .addExpense(let tripID): "addExpense-\(tripID)"
         case .editExpense(_, let expenseID): "editExpense-\(expenseID)"
-        case .newMemory(let tripID, let start): "newMemory-\(tripID?.uuidString ?? "current")-\(start)"
+        case .newMemory(let tripID, let start, let activityID):
+            "newMemory-\(tripID?.uuidString ?? "current")-\(start)-\(activityID?.uuidString ?? "")"
         case .editMemory(let id): "editMemory-\(id)"
         case .memory(let id): "memory-\(id)"
         case .typeNote(let id): "typeNote-\(id)"
@@ -85,6 +86,10 @@ final class AppRouter {
         selectedTab = .trips
         tripsPath = [.tripDetail(id)]
     }
+
+    func recordMemory(tripID: UUID, activityID: UUID) {
+        activeSheet = .newMemory(tripID: tripID, start: .writing, activityID: activityID)
+    }
 }
 
 // All pushed screens and sheets are created here
@@ -121,8 +126,9 @@ private struct AppDestinations: ViewModifier {
             ExpenseAnalyticsView(viewModel: ExpenseAnalyticsViewModel(tripID: id, store: store, clock: clock))
         case .weather(let id):
             WeatherView(viewModel: WeatherViewModel(tripID: id, store: store, weather: weather))
-        case .offlineMap(let id, let activityID):
-            OfflineMapView(tripID: id, activityID: activityID)
+        case .map(let id, let activityID):
+            TripMapView(viewModel: TripMapViewModel(tripID: id, activityID: activityID, store: store, clock: clock,
+                                                    places: dependencies.places))
         case .landmark(let id):
             LandmarkDetailView(landmarkID: id)
         case .statistics:
@@ -147,15 +153,17 @@ struct SheetContent: View {
         case .editTrip(let id):
             TripFormView(viewModel: TripFormViewModel(tripID: id, store: store, clock: clock, weather: dependencies.weather))
         case .addActivity(let tripID, let day):
-            ActivityFormView(viewModel: ActivityFormViewModel(tripID: tripID, day: day, store: store, clock: clock))
+            ActivityFormView(viewModel: ActivityFormViewModel(tripID: tripID, day: day, store: store, clock: clock,
+                                                              places: dependencies.places))
         case .editActivity(let tripID, let activityID):
-            ActivityFormView(viewModel: ActivityFormViewModel(tripID: tripID, day: 1, activityID: activityID, store: store, clock: clock))
+            ActivityFormView(viewModel: ActivityFormViewModel(tripID: tripID, day: 1, activityID: activityID, store: store,
+                                                              clock: clock, places: dependencies.places))
         case .addExpense(let tripID):
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, store: store, clock: clock))
         case .editExpense(let tripID, let expenseID):
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, expenseID: expenseID, store: store, clock: clock))
-        case .newMemory(let tripID, let start):
-            MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, store: store, clock: clock,
+        case .newMemory(let tripID, let start, let activityID):
+            MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, activityID: activityID, store: store, clock: clock,
                                                           recorder: dependencies.recorder, voice: dependencies.voice),
                            start: start)
         case .editMemory(let id):

@@ -66,6 +66,8 @@ RoamPulse/
 │   ├── ImageProcessor.swift   Shrinks picked photos to 2048 px + a 400 px thumbnail (ImageIO)
 │   ├── Weather/               OpenWeatherMap client, ForecastBuilder, OpenWeatherMapService (cache + offline)
 │   ├── Reminders/             ReminderPlanner (which notifications) and ReminderService (UserNotifications)
+│   ├── Location/              LocationService (Core Location), GeofencePlanner + GeofenceService (CLMonitor),
+│   │                          PlaceSearch (MapKit search for activity places)
 │   └── Voice/                 AudioRecorder (AVFoundation), Transcriber (Speech), JournalAnalyzer (Natural Language),
 │                              VoiceJournalService (the pipeline), RecordingFiles (where audio is kept)
 ├── Data/
@@ -87,11 +89,10 @@ firestore.rules                Firestore security rules (paste into the console)
 ```
 
 The project uses Xcode folder-synced groups, so any file added to these folders is picked up automatically.
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the layers fit together.
 
 ## Current state
 
-Increments 1–14 are done:
+Increments 1–14 and 16 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -127,9 +128,17 @@ Increments 1–14 are done:
   recording with a live level meter; the memory is saved at once, then written down on the device and read
   for places, people and mood, and linked to the activity it's about. Unsupported languages or refused
   permissions keep the recording and offer Try Again / Type It Myself. Recordings play back in the memory.
+- **Trip map (MapKit + Core Location):** *Trip → Map* (or tap an activity) shows the plan as numbered pins,
+  one day or the whole trip, with a dashed line through the day's stops and where you are. Tapping a pin shows
+  how far it is and the walking or driving time, with Directions (Apple Maps), Record a memory and Mark visited.
+  Activities get their place from a MapKit search in the activity form; *Find them* pins the rest automatically.
+- **Arrival alerts (geofencing with CLMonitor):** when turned on, the places on today's and tomorrow's plan are
+  watched (up to 20, 150 m around each). Getting to one sends a notification, even with the app closed, and
+  tapping it opens a new memory already linked to that activity. While the app is open, each location update
+  is also checked against the same circles. Location never leaves the iPhone.
 
-Landmark recognition and the map are still to come (Increments 15–16; the photo-recognition prototype
-screens are kept in `PhotosView.swift`).
+Landmark recognition is still to come (Increment 15; the photo-recognition prototype screens are kept in
+`PhotosView.swift`).
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator
@@ -142,6 +151,15 @@ Journal memories, voice notes and photos are never uploaded.
 - **Notifications:** add an activity a few minutes ahead with *Before activities* set to 15 min, then press ⌘⇧H.
 - **Offline:** turn off the Mac's Wi-Fi; the Weather screen shows the saved forecast with an offline banner.
 - **Sharing:** sign in with two accounts on two simulators (e.g. iPhone 17 and iPhone Air).
+- **Map and arrival alerts:** *Settings → Add NIBM test trip* adds a one-day trip for today around NIBM,
+  Colombo 7 (lectures at NIBM, Independence Square, the National Museum, Viharamahadevi Park) and opens its map.
+  Turn on *Settings → Notifications → Arrival alerts* and allow location (*Always*). Then move the Simulator:
+  *Features → Location → Custom Location…* with latitude `6.90639`, longitude `79.87083`, or in Terminal:
+  `xcrun simctl location booted set 6.90639,79.87083` (NIBM, Vidya Mawatha). "You're at NIBM Colombo 7" appears.
+  Other trips made before the map have no pins: use *Find them* on their map.
+  The alert only fires for activities planned for today that aren't ticked off yet. In the Simulator it only
+  works with the app open: CLMonitor reports circles as unsupported there, so only the in-app check fires.
+  On a real iPhone it also works with the app closed.
 
 Photos and avatars live in `Assets.xcassets` (`Photos/` and `Avatars/`). Each `SamplePhoto` case loads the image set
 with the same name, and avatars load `avatar_<name>`. Image sources and licences are listed in [CREDITS.md](CREDITS.md).

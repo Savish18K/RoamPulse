@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(ReminderService.self) private var reminders
     @Environment(AppLock.self) private var appLock
+    @Environment(LocationService.self) private var location
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
@@ -159,6 +160,35 @@ struct SettingsView: View {
                 }
                 .tint(.blue)
                 .padding(16)
+                Divider().padding(.leading, 56)
+                Toggle(isOn: arrivalAlerts(reminders)) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Arrival alerts")
+                            Text("When you reach a place on today's plan, even with the app closed")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "location.circle")
+                    }
+                }
+                .tint(.blue)
+                .padding(16)
+            }
+            if reminders.settings.arrivalAlerts && location.isDenied {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label("Arrival alerts need location. Tap to allow it in Settings.", systemImage: "location.slash")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+                .padding(.horizontal, 4)
+            } else if reminders.settings.arrivalAlerts && location.authorization == .authorizedWhenInUse {
+                Text("Location is only allowed while using the app, so alerts only come while it's open. Choose Always in Settings to get them any time.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
             }
             if reminders.permission == .denied {
                 Button {
@@ -182,6 +212,21 @@ struct SettingsView: View {
                 setting.wrappedValue = isOn
                 if isOn {
                     Task { await reminders.requestPermissionIfNeeded() }
+                }
+            }
+        )
+    }
+
+    // Turning it on asks for notifications and then location
+    private func arrivalAlerts(_ reminders: ReminderService) -> Binding<Bool> {
+        Binding(
+            get: { reminders.settings.arrivalAlerts },
+            set: { isOn in
+                reminders.settings.arrivalAlerts = isOn
+                guard isOn else { return }
+                Task {
+                    await reminders.requestPermissionIfNeeded()
+                    location.requestAlways()
                 }
             }
         )
@@ -248,6 +293,8 @@ struct SettingsView: View {
                 Divider().padding(.leading, 56)
                 permissionRow("waveform", "Speech recognition", status: SystemPermissions.speech.title,
                               isAllowed: SystemPermissions.speech == .allowed)
+                Divider().padding(.leading, 56)
+                permissionRow("location", "Location", status: location.statusText, isAllowed: location.isAllowed)
                 Divider().padding(.leading, 56)
                 // PhotosPicker doesn't need permission
                 permissionRow("photo", "Photos", status: "Only photos you pick", isAllowed: true)
@@ -323,6 +370,16 @@ struct SettingsView: View {
                     }
                     Divider().padding(.leading, 56)
                 }
+                Button {
+                    // Straight to its map, ready to move the Simulator to NIBM
+                    if let id = store.addNIBMTrip() {
+                        router.openTrip(id)
+                        router.tripsPath.append(.map(id))
+                    }
+                } label: {
+                    SettingsRow(icon: "mappin.and.ellipse", title: "Add NIBM test trip (map & arrivals)")
+                }
+                Divider().padding(.leading, 56)
                 Button {
                     confirmDeleteData = true
                 } label: {

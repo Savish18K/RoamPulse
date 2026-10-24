@@ -33,6 +33,11 @@ final class TripDetailViewModel {
         "\(trip.destination) • \(trip.dateRangeText) \(trip.endDate.text("yyyy"))"
     }
 
+    func mapText(for trip: Trip) -> String {
+        let pinned = trip.activities.filter(\.hasCoordinates).count
+        return "\(pinned) of \(trip.activities.count) places"
+    }
+
     func packingText(for trip: Trip) -> String { "\(trip.packedCount) / \(trip.packing.count) items" }
 
     func budgetText(for trip: Trip) -> String {
@@ -195,18 +200,32 @@ final class ActivityFormViewModel {
     // nil when adding
     let activityID: UUID?
     private let store: TripStore
+    private let places: PlaceSearching?
 
     var title = ""
-    var place = ""
+    // Typing a new place drops the old pin
+    var place = "" {
+        didSet {
+            if place.trimmed != pinnedPlace?.name {
+                pinnedPlace = nil
+            }
+        }
+    }
     var day: Int
     var time: Date
     var effort: Effort = .moderate
     var isOutdoor = false
+    // Where the activity is on the map
+    private(set) var pinnedPlace: MapPlace?
+    private(set) var placeResults: [MapPlace] = []
+    private(set) var isSearching = false
 
-    init(tripID: UUID, day: Int, activityID: UUID? = nil, store: TripStore, clock: Clock) {
+    init(tripID: UUID, day: Int, activityID: UUID? = nil, store: TripStore, clock: Clock,
+         places: PlaceSearching? = nil) {
         self.tripID = tripID
         self.activityID = activityID
         self.store = store
+        self.places = places
         self.day = day
         let today = Calendar.trip.startOfDay(for: clock.now)
         time = Calendar.trip.date(today, atMinutes: 9 * 60)
@@ -218,7 +237,36 @@ final class ActivityFormViewModel {
             time = Calendar.trip.date(today, atMinutes: activity.minutes)
             effort = activity.effort
             isOutdoor = activity.isOutdoor
+            if let latitude = activity.latitude, let longitude = activity.longitude {
+                pinnedPlace = MapPlace(name: activity.place, address: "", latitude: latitude, longitude: longitude)
+            }
         }
+    }
+
+    var canSearchPlaces: Bool { places != nil }
+
+    // The view calls this a moment after typing stops
+    func searchPlaces() async {
+        let query = place.trimmed
+        guard let places, query.count >= 3, pinnedPlace == nil else {
+            placeResults = []
+            return
+        }
+        isSearching = true
+        defer { isSearching = false }
+        let results = (try? await places.search(query, near: store.trip(tripID)?.searchCenter)) ?? []
+        guard !Task.isCancelled else { return }
+        placeResults = Array(results.prefix(5))
+    }
+
+    func pin(_ result: MapPlace) {
+        place = result.name
+        pinnedPlace = result
+        placeResults = []
+    }
+
+    func removePin() {
+        pinnedPlace = nil
     }
 
     var isEditing: Bool { activityID != nil }
@@ -255,7 +303,8 @@ final class ActivityFormViewModel {
 
         guard let activityID else {
             let activity = Activity(day: finalDay, title: title.trimmed, minutes: minutes, place: finalPlace,
-                                    effort: effort, isOutdoor: isOutdoor)
+                                    effort: effort, isOutdoor: isOutdoor, latitude: pinnedPlace?.latitude,
+                                    longitude: pinnedPlace?.longitude)
             return store.updateTrip(tripID) { $0.activities.append(activity) }
         }
 
@@ -267,6 +316,8 @@ final class ActivityFormViewModel {
             trip.activities[index].minutes = minutes
             trip.activities[index].effort = effort
             trip.activities[index].isOutdoor = isOutdoor
+            trip.activities[index].latitude = pinnedPlace?.latitude
+            trip.activities[index].longitude = pinnedPlace?.longitude
         }
     }
 

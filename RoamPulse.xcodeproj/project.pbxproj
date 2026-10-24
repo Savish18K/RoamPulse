@@ -342,6 +342,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "RoamPulse uses Face ID to keep your memories, photos and expenses private.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on this iPhone.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on this iPhone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RoamPulse records short voice memories for your travel journal.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on this iPhone.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -373,6 +375,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "RoamPulse uses Face ID to keep your memories, photos and expenses private.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on this iPhone.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on this iPhone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RoamPulse records short voice memories for your travel journal.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on this iPhone.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

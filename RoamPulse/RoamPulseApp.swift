@@ -15,10 +15,15 @@ struct RoamPulseApp: App {
                 .environment(dependencies.reminders)
                 .environment(dependencies.appLock)
                 .environment(dependencies.voice)
+                .environment(dependencies.location)
+                .environment(dependencies.geofences)
                 .environment(router)
                 .onAppear {
                     dependencies.notificationDelegate.openTrip = { [router] tripID in
                         router.openTrip(tripID)
+                    }
+                    dependencies.notificationDelegate.openMemory = { [router] tripID, activityID in
+                        router.recordMemory(tripID: tripID, activityID: activityID)
                     }
                 }
         }
@@ -33,6 +38,8 @@ struct RootView: View {
     @Environment(ReminderService.self) private var reminders
     @Environment(AppLock.self) private var appLock
     @Environment(VoiceJournalService.self) private var voice
+    @Environment(LocationService.self) private var location
+    @Environment(GeofenceService.self) private var geofences
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasOnboarded") private var hasOnboarded = false
     @AppStorage("appTheme") private var appTheme: AppTheme = .dark
@@ -42,6 +49,7 @@ struct RootView: View {
         var trips: [Trip]
         var settings: ReminderSettings
         var isSignedIn: Bool
+        var canUseLocation: Bool
     }
 
     var body: some View {
@@ -94,7 +102,10 @@ struct RootView: View {
             router.reset()
             if uid == nil {
                 appLock.reset()
-                Task { await reminders.removeAll() }
+                Task {
+                    await reminders.removeAll()
+                    await geofences.removeAll()
+                }
             }
         }
         // Transcribe recordings left from last time
@@ -104,7 +115,8 @@ struct RootView: View {
             await voice.transcribePending()
             await languageData
         }
-        .task(id: ReminderInputs(trips: store.trips, settings: reminders.settings, isSignedIn: session.user != nil)) {
+        .task(id: ReminderInputs(trips: store.trips, settings: reminders.settings, isSignedIn: session.user != nil,
+                                 canUseLocation: location.isAllowed)) {
             guard session.user != nil else { return }
             // Wait for edits to settle before rescheduling
             do {
@@ -113,6 +125,15 @@ struct RootView: View {
                 return
             }
             await reminders.reschedule(trips: store.trips)
+            await geofences.update(trips: store.trips)
+        }
+        // Arrivals are also checked from live updates while the app is open
+        .task(id: geofences.isOn && scenePhase == .active && session.user != nil) {
+            if geofences.isOn && scenePhase == .active && session.user != nil {
+                location.startUpdating(for: "arrivals")
+            } else {
+                location.stopUpdating(for: "arrivals")
+            }
         }
         .sheet(item: $router.activeSheet) { sheet in
             SheetContent(sheet: sheet)
@@ -124,7 +145,10 @@ struct RootView: View {
             guard session.user != nil else { return }
             switch phase {
             case .background: appLock.didEnterBackground()
-            case .active: appLock.didBecomeActive()
+            case .active:
+                appLock.didBecomeActive()
+                // The plan moves on to a new day overnight
+                Task { await geofences.update(trips: store.trips) }
             default: break
             }
         }
