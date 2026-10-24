@@ -91,8 +91,7 @@ struct OnboardingView: View {
         .preferredColorScheme(.dark)
 }
 
-/// Shown over the blurred app when App Lock is on. Asks for Face ID / Touch ID straight away;
-/// if that fails, the system offers the passcode.
+// Asks for Face ID straight away, the system falls back to the passcode
 struct LockView: View {
     @Environment(AppLock.self) private var appLock
 
@@ -147,7 +146,7 @@ struct LockView: View {
     }
 }
 
-/// Covers the app in the app switcher when App Lock is on, so trips and expenses can't be seen there.
+// Hides the app in the app switcher when App Lock is on
 struct PrivacyCover: View {
     var body: some View {
         ZStack {

@@ -2,8 +2,7 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// A photo made ready for saving: a full-size JPEG no bigger than 2048 px on its long side,
-/// and a small thumbnail for lists and cards.
+// Full size JPEG (max 2048 px) and a thumbnail
 struct PreparedImage: Equatable {
     var data: Data
     var thumbnail: Data
@@ -11,19 +10,13 @@ struct PreparedImage: Equatable {
     var pixelHeight: Int
 }
 
-/// Shrinks photos picked from the library before they are saved in Core Data.
-///
-/// An iPhone photo is 12–48 megapixels (3–10 MB as HEIC, ~190 MB once decoded). Nothing in the
-/// app is shown larger than a full-screen header, so keeping the original would waste storage and
-/// memory. ImageIO makes the smaller versions straight from the file without ever decoding the full
-/// image, and writing a new JPEG also drops the photo's metadata (such as its GPS location).
+// Shrinks photos before saving, also strips metadata like GPS
 enum ImageProcessor {
     static let maxPixelSize = 2048
     static let thumbnailPixelSize = 400
     static let jpegQuality = 0.8
 
-    /// Returns nil if `data` isn't an image. Works with HEIC, JPEG and PNG.
-    /// Slow for big photos (tens of milliseconds), so call it off the main thread.
+    // nil if it's not an image. Slow for big photos so call it off the main thread
     static func prepare(_ data: Data) -> PreparedImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let full = downsample(source, maxPixelSize: maxPixelSize),
@@ -33,11 +26,11 @@ enum ImageProcessor {
         return PreparedImage(data: fullData, thumbnail: smallData, pixelWidth: full.width, pixelHeight: full.height)
     }
 
-    /// The image scaled so its longest side is at most `maxPixelSize`. Smaller images are not enlarged.
+    // Doesn't upscale small images
     private static func downsample(_ source: CGImageSource, maxPixelSize: Int) -> CGImage? {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            // Applies the EXIF orientation, so portrait photos aren't saved sideways.
+            // Fix the EXIF orientation
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,

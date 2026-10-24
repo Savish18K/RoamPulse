@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-/// The sign-in / create-account form.
 @MainActor
 @Observable
 final class AuthViewModel {
@@ -29,11 +28,10 @@ final class AuthViewModel {
     var password = ""
 
     private(set) var isWorking = false
-    /// Shown in red under the form, e.g. "The email or password is incorrect."
     private(set) var errorMessage: String?
-    /// Shown in green, e.g. after sending a password reset email.
+    // e.g. after sending a reset email
     private(set) var infoMessage: String?
-    /// Field problems only appear after the first try, so the form doesn't open covered in red.
+    // Don't show errors until the first submit
     private(set) var showsProblems = false
 
     private let session: AppSession
@@ -65,7 +63,6 @@ final class AuthViewModel {
             && AuthValidator.passwordProblem(password, isNewAccount: isNewAccount) == nil
     }
 
-    /// Signs in or creates the account. When it works, `AppSession` switches to the main app.
     func submit() async {
         showsProblems = true
         errorMessage = nil
@@ -87,7 +84,6 @@ final class AuthViewModel {
         }
     }
 
-    /// "Forgot password?" sends Firebase's reset email to the address typed in the form.
     func sendPasswordReset() async {
         errorMessage = nil
         infoMessage = nil

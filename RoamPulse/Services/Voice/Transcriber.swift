@@ -4,9 +4,7 @@ import Speech
 
 enum TranscriptionError: LocalizedError, Equatable {
     case permissionDenied
-    /// On-device transcription isn't available for this language (or on this device).
     case languageNotSupported(String)
-    /// The Simulator has no speech recognition service; it works on a real iPhone.
     case notInSimulator
     case nothingHeard
     case failed(String)
@@ -26,7 +24,7 @@ enum TranscriptionError: LocalizedError, Equatable {
         }
     }
 
-    /// Trying again won't help: the user has to type the note or change a setting.
+    // User has to type it or change a setting
     var isPermanent: Bool {
         switch self {
         case .permissionDenied, .languageNotSupported, .notInSimulator: true
@@ -35,16 +33,11 @@ enum TranscriptionError: LocalizedError, Equatable {
     }
 }
 
-/// Turns a recording into text. Behind a protocol so the journal pipeline is tested without audio.
 protocol SpeechTranscribing {
     func transcribe(_ recording: URL, locale: Locale) async throws -> String
 }
 
-/// Speech-to-text that runs entirely on the iPhone: nothing is sent to a server.
-///
-/// iOS 26's `SpeechAnalyzer` with a `SpeechTranscriber` module is used when it supports the language
-/// (its language model is downloaded once by the system, then works offline). Otherwise the older
-/// `SFSpeechRecognizer` is used, but only in on-device mode. If neither can, the language isn't supported.
+// Uses SpeechAnalyzer if it supports the language, otherwise SFSpeechRecognizer on device only
 struct OnDeviceTranscriber: SpeechTranscribing {
     func transcribe(_ recording: URL, locale: Locale) async throws -> String {
         guard await Self.requestPermission() else { throw TranscriptionError.permissionDenied }
@@ -60,7 +53,7 @@ struct OnDeviceTranscriber: SpeechTranscribing {
         return trimmed
     }
 
-    /// The phone's language, or US English for other English variants (e.g. en-LK) when needed.
+    // Falls back to en-US for other English regions like en-LK
     private static func supportedLocale(for locale: Locale) async -> Locale? {
         if let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) {
             return supported
@@ -72,14 +65,13 @@ struct OnDeviceTranscriber: SpeechTranscribing {
     private func transcribeWithAnalyzer(_ recording: URL, locale: Locale) async throws -> String {
         let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
         do {
-            // The language model is part of the system; this downloads it the first time only.
+            // Only downloads the first time
             if let installation = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
                 try await installation.downloadAndInstall()
             }
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             let audio = try AVAudioFile(forReading: recording)
 
-            // Results arrive while the file is analysed; collect them until the analyzer finishes.
             async let text = transcriber.results.reduce(into: "") { text, result in
                 text += String(result.text.characters)
             }
@@ -121,7 +113,7 @@ struct OnDeviceTranscriber: SpeechTranscribing {
         }
     }
 
-    /// A recogniser for the phone's language, or US English for English variants it doesn't know (e.g. en-LK).
+    // Falls back to en-US for English regions it doesn't support (e.g. en-LK)
     private static func recognizer(for locale: Locale) -> SFSpeechRecognizer? {
         let supported = Set(SFSpeechRecognizer.supportedLocales().map { $0.identifier(.bcp47) })
         var candidates = [Locale(languageCode: locale.language.languageCode, languageRegion: locale.region)]
@@ -135,7 +127,7 @@ struct OnDeviceTranscriber: SpeechTranscribing {
             .first { $0.supportsOnDeviceRecognition }
     }
 
-    /// The Simulator has no speech service: every request fails with this error (kAFAssistantErrorDomain 1101).
+    // kAFAssistantErrorDomain 1101 in the Simulator
     private static func isMissingSpeechService(_ error: Error) -> Bool {
         #if targetEnvironment(simulator)
         let error = error as NSError
@@ -145,7 +137,6 @@ struct OnDeviceTranscriber: SpeechTranscribing {
         #endif
     }
 
-    /// Speech recognition permission, asked the first time a recording is transcribed.
     private static func requestPermission() async -> Bool {
         switch SFSpeechRecognizer.authorizationStatus() {
         case .authorized: return true
@@ -160,7 +151,7 @@ struct OnDeviceTranscriber: SpeechTranscribing {
     }
 }
 
-/// Makes sure a continuation is resumed only once (the recogniser can call back more than once).
+// Recogniser can call back more than once
 private final class ResumeFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false

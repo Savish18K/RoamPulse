@@ -1,11 +1,9 @@
 import Foundation
 
-// The OpenWeatherMap REST API (free plan): geocoding, current weather and the 5 day / 3 hour forecast.
-// https://openweathermap.org/api
+// OpenWeatherMap free API: geocoding, current weather and 5 day forecast
 
 enum OpenWeatherMapConfig {
-    /// The API key from OpenWeatherMap.plist (key `API_KEY`), or nil if it hasn't been filled in.
-    /// Without a key the app shows sample weather instead.
+    // nil if the key hasn't been added, sample weather is used then
     static var apiKey: String? {
         guard let url = Bundle.main.url(forResource: "OpenWeatherMap", withExtension: "plist"),
               let values = NSDictionary(contentsOf: url),
@@ -16,7 +14,6 @@ enum OpenWeatherMapConfig {
 }
 
 enum WeatherError: LocalizedError, Equatable {
-    /// No connection, and no saved forecast to show instead.
     case offline
     case invalidAPIKey
     case tooManyRequests
@@ -35,7 +32,6 @@ enum WeatherError: LocalizedError, Equatable {
         }
     }
 
-    /// Network errors that mean "no connection" rather than a real failure.
     static func isConnectionProblem(_ error: Error) -> Bool {
         guard let error = error as? URLError else { return false }
         return [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost,
@@ -43,7 +39,7 @@ enum WeatherError: LocalizedError, Equatable {
     }
 }
 
-/// The one network call the client makes, behind a protocol so tests can return saved JSON.
+// Protocol so tests can return saved JSON
 protocol HTTPClient {
     func data(from url: URL) async throws -> (Data, URLResponse)
 }
@@ -56,18 +52,18 @@ struct URLSessionHTTPClient: HTTPClient {
     }
 }
 
-// Only the fields the app uses. Snake-case JSON keys (temp_min) are converted to camelCase.
+// Only the fields we use
 
 struct OWMCondition: Codable, Hashable {
-    /// e.g. 500 (light rain). See https://openweathermap.org/weather-conditions
+    // e.g. 500 = light rain
     var id: Int
     var main: String
     var description: String
-    /// e.g. "10d" (day) or "10n" (night).
+    // "10d" or "10n"
     var icon: String
 }
 
-/// `GET /data/2.5/weather`
+// GET /data/2.5/weather
 struct OWMCurrent: Codable, Hashable {
     struct Main: Codable, Hashable {
         var temp: Double
@@ -77,7 +73,7 @@ struct OWMCurrent: Codable, Hashable {
     }
 
     struct Wind: Codable, Hashable {
-        /// Metres per second.
+        // m/s
         var speed: Double
     }
 
@@ -94,7 +90,7 @@ struct OWMCurrent: Codable, Hashable {
     var dt: TimeInterval
 }
 
-/// `GET /data/2.5/forecast`: 40 steps of 3 hours.
+// GET /data/2.5/forecast (40 x 3 hours)
 struct OWMForecast: Codable, Hashable {
     struct Item: Codable, Hashable {
         struct Main: Codable, Hashable {
@@ -102,7 +98,7 @@ struct OWMForecast: Codable, Hashable {
             var humidity: Int
         }
 
-        /// Rain or snow in the last 3 hours, in mm. The JSON key is "3h".
+        // JSON key is "3h"
         struct Volume: Codable, Hashable {
             var threeHours: Double?
 
@@ -114,7 +110,7 @@ struct OWMForecast: Codable, Hashable {
         var dt: TimeInterval
         var main: Main
         var weather: [OWMCondition]
-        /// Probability of precipitation, 0…1.
+        // 0 to 1
         var pop: Double?
         var rain: Volume?
         var snow: Volume?
@@ -128,7 +124,7 @@ struct OWMForecast: Codable, Hashable {
     var city: City
 }
 
-/// `GET /geo/1.0/direct`: places matching a name.
+// GET /geo/1.0/direct
 struct OWMPlace: Codable, Hashable {
     var name: String
     var lat: Double
@@ -137,7 +133,7 @@ struct OWMPlace: Codable, Hashable {
     var state: String?
 }
 
-/// Both downloads for a trip, saved together in the forecast cache.
+// Saved together in the cache
 struct OpenWeatherMapBundle: Codable, Hashable {
     var placeName: String
     var current: OWMCurrent

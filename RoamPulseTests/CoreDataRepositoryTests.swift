@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Saving and loading with Core Data, using an in-memory store so nothing touches the real database.
+// In-memory store so the real database isn't touched
 @MainActor
 struct CoreDataRepositoryTests {
     let persistence = PersistenceController(inMemory: true)
@@ -13,7 +13,7 @@ struct CoreDataRepositoryTests {
     let me = Member(name: "Savishka", initials: "SK", colorHex: 0xD9738F, isMe: true)
     let samee = Member(name: "Samee", initials: "SM", colorHex: 0x5B8FD6)
 
-    /// A trip that uses every kind of child row: members, activities, packing, both kinds of split and a payment.
+    // Uses every kind of child row
     private func sampleTrip() -> Trip {
         let start = Calendar.trip.date(2026, 12, 12)
         var trip = Trip(name: "Hill Country Explorer", destination: "Kandy to Ella",
@@ -46,7 +46,7 @@ struct CoreDataRepositoryTests {
         let trip = sampleTrip()
         try repository.save(trip)
 
-        // A brand-new repository on the same store, like reopening the app.
+        // New repository on the same store, like reopening the app
         let loaded = try CoreDataTripRepository(context: context).loadTrips()
         #expect(loaded == [trip])
     }

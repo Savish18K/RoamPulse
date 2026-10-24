@@ -2,11 +2,9 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Trip status and sorting, the store, and the view models, using an in-memory repository
-/// and a fixed clock instead of Core Data and the real time.
 @MainActor
 struct TripStoreTests {
-    /// Sunday 13 December 2026, 16:40, like the prototype.
+    // Sun 13 Dec 2026, 16:40
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let me = Member(name: "Savishka", colorHex: 0, isMe: true)
     let samee = Member(name: "Samee", colorHex: 0)
@@ -67,7 +65,7 @@ struct TripStoreTests {
         let store = makeStore(repository: repository)
         store.addTrip(trip("Galle", startsIn: 7, days: 3))
 
-        // A new store reading the same repository is like reopening the app.
+        // Like reopening the app
         let reopened = makeStore(repository: repository)
         #expect(reopened.trips.map(\.name) == ["Galle"])
     }

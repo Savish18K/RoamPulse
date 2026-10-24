@@ -1,17 +1,7 @@
 import Foundation
 
-// Sharing a trip with friends (Increment 6b).
-//
-// 1. A member taps Invite Friends. The app saves `invites/{code}` in Firestore with the trip's id,
-//    name, dates and members, and shows the code to send (Messages, WhatsApp…).
-// 2. The friend taps Join Trip and enters the code. The app reads the invite and asks which member
-//    they are (or adds them as a new one).
-// 3. The friend's app adds their account to the trip's `memberUIDs`. The security rules only allow
-//    that with a valid, unexpired invite for that trip. The trip then appears on the friend's phone
-//    through the normal sync listener, and both phones see each other's changes.
-// Nothing in this file imports Firebase, so it is unit tested.
+// Trip sharing with invite codes. The friend enters the code and gets added to memberUIDs (checked by the rules)
 
-/// An invitation to join one trip.
 struct TripInvite: Equatable, Identifiable {
     var code: String
     var tripID: UUID
@@ -20,32 +10,29 @@ struct TripInvite: Equatable, Identifiable {
     var startDate: Date
     var endDate: Date
     var ownerName: String
-    /// The account that made the invite.
     var createdBy: String
     var expiresAt: Date
-    /// The trip's members when the invite was made, so the friend can say which one they are.
+    // So the friend can pick who they are
     var members: [InviteMember]
 
     var id: String { code }
 
-    /// Members who aren't linked to an account yet.
     var availableMembers: [InviteMember] { members.filter { !$0.isTaken } }
 
     func isExpired(at now: Date) -> Bool { expiresAt <= now }
 }
 
-/// A trip member as listed in an invite.
 struct InviteMember: Codable, Equatable, Identifiable {
-    /// The member's UUID string, the same id as their Firestore document.
+    // Same id as the Firestore doc
     var id: String
     var name: String
     var initials: String
     var colorHex: Int
-    /// Already linked to someone's account.
+    // Already linked to an account
     var isTaken: Bool
 }
 
-/// The invite as stored in Firestore at `invites/{code}`.
+// Stored at invites/{code}
 struct InviteRecord: Codable, Equatable {
     var tripID: String
     var tripName: String
@@ -78,13 +65,13 @@ struct InviteRecord: Codable, Equatable {
 }
 
 enum InviteCode {
-    /// No 0/O, 1/I/L or 5/S, so a code read out loud or typed from a screenshot isn't misread.
+    // No 0/O, 1/I/L or 5/S so codes aren't misread
     static let alphabet = Array("ABCDEFGHJKMNPQRTUVWXYZ2346789")
     static let length = 8
-    /// How long a code works.
+    // 7 days
     static let lifetime: TimeInterval = 7 * 24 * 60 * 60
 
-    /// A random code, e.g. "K7QM-2XHA" without the dash. 29⁸ ≈ 500 billion codes, so they can't be guessed.
+    // 8 characters, too many combinations to guess
     static func generate() -> String {
         var generator = SystemRandomNumberGenerator()
         return generate(using: &generator)
@@ -94,20 +81,19 @@ enum InviteCode {
         String((0..<length).map { _ in alphabet.randomElement(using: &generator) ?? "A" })
     }
 
-    /// Cleans up what the friend typed ("k7qm-2xha " → "K7QM2XHA"). nil if it can't be a code.
+    // e.g. "k7qm-2xha " -> "K7QM2XHA", nil if invalid
     static func normalized(_ input: String) -> String? {
         let code = input.uppercased().filter { !$0.isWhitespace && $0 != "-" }
         guard code.count == length, code.allSatisfy(alphabet.contains) else { return nil }
         return code
     }
 
-    /// "K7QM2XHA" → "K7QM-2XHA", easier to read.
+    // "K7QM2XHA" -> "K7QM-2XHA"
     static func formatted(_ code: String) -> String {
         guard code.count == length else { return code }
         return "\(code.prefix(4))-\(code.suffix(4))"
     }
 
-    /// The invite for a trip, as the person sharing it sees it.
     static func makeInvite(for trip: Trip, code: String, ownerName: String, accountID: String, now: Date) -> TripInvite {
         TripInvite(
             code: code,
@@ -126,13 +112,12 @@ enum InviteCode {
         )
     }
 
-    /// The text sent with the share sheet.
     static func shareMessage(for invite: TripInvite) -> String {
         "Join my trip “\(invite.tripName)” on RoamPulse! Open Trips → Join Trip and enter the code "
             + "\(formatted(invite.code)). It works until \(invite.expiresAt.text("d MMM"))."
     }
 
-    /// The document for someone joining as a new member (they weren't on the trip's list).
+    // For someone not already on the members list
     static func newMember(name: String, initials: String, accountID: String, existingCount: Int) -> (id: UUID, record: MemberRecord) {
         let record = MemberRecord(position: existingCount, name: name, initials: initials,
                                   colorHex: Member.palette[existingCount % Member.palette.count], userUID: accountID)
@@ -142,7 +127,7 @@ enum InviteCode {
 
 enum SharingError: LocalizedError, Equatable {
     case notSignedIn
-    /// The server didn't answer in time. Sharing needs a connection, unlike normal editing.
+    // Sharing needs a connection
     case offline
     case inviteNotFound
     case inviteExpired
@@ -161,11 +146,8 @@ enum SharingError: LocalizedError, Equatable {
     }
 }
 
-/// Runs `operation`, but gives up with `SharingError.offline` after `seconds`.
-///
-/// Offline, a Firestore write never fails: it waits in the cache until the phone reconnects. That is
-/// right for normal edits, but joining a trip or deleting an account must finish now, so they use this.
-/// (A task group can't be used: it would wait for the stuck write before returning.)
+// Offline Firestore writes just wait forever, so joining/deleting need a timeout
+// (a task group would still wait for the stuck write)
 func withTimeout<T>(seconds: Double = 15, _ operation: @escaping () async throws -> T) async throws -> T {
     try await withCheckedThrowingContinuation { continuation in
         let gate = ResumeOnce()
@@ -184,7 +166,7 @@ func withTimeout<T>(seconds: Double = 15, _ operation: @escaping () async throws
     }
 }
 
-/// Makes sure a continuation is resumed only once, whichever task finishes first.
+// Only resume once, whichever finishes first
 private final class ResumeOnce: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false

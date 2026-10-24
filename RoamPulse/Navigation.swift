@@ -5,7 +5,6 @@ enum AppTab: Hashable {
     case home, trips, journal, insights, profile
 }
 
-/// Screens that are pushed onto a tab's NavigationStack.
 enum AppRoute: Hashable {
     case tripDetail(UUID, day: Int? = nil)
     case packing(UUID)
@@ -18,7 +17,6 @@ enum AppRoute: Hashable {
     case settings
 }
 
-/// Screens that are presented as sheets from anywhere in the app.
 enum AppSheet: Identifiable {
     case createTrip
     case editTrip(UUID)
@@ -26,7 +24,6 @@ enum AppSheet: Identifiable {
     case editActivity(tripID: UUID, activityID: UUID)
     case addExpense(tripID: UUID)
     case editExpense(tripID: UUID, expenseID: UUID)
-    /// The memory form, starting by writing, recording or picking photos.
     case newMemory(tripID: UUID?, start: MemoryFormStart)
     case editMemory(UUID)
     case memory(UUID)
@@ -58,37 +55,31 @@ enum AppSheet: Identifiable {
     }
 }
 
-/// How the New Memory form starts: Record Memory starts recording straight away, Add Photos opens
-/// the photo picker, New Memory starts with the text.
 enum MemoryFormStart: Hashable {
     case writing, recording, photos
 }
 
-/// App-wide navigation state: selected tab, current sheet, and the Trips tab's pushed screens.
 @Observable
 final class AppRouter {
     var selectedTab: AppTab = .home
     var activeSheet: AppSheet?
-    /// Screens pushed on the Trips tab, so a notification can open a trip.
+    // Kept here so a notification can open a trip
     var tripsPath: [AppRoute] = []
-    /// Set to open Insights searching for this text (e.g. a place or person tapped on a memory).
+    // Opens Insights with this search
     var insightsSearch: String?
 
-    /// Back to the Home tab with no sheet open, e.g. after signing out.
     func reset() {
         selectedTab = .home
         activeSheet = nil
         tripsPath = []
     }
 
-    /// Opens Insights → Search for every memory mentioning `text`.
     func searchInsights(for text: String) {
         activeSheet = nil
         insightsSearch = text
         selectedTab = .insights
     }
 
-    /// Shows a trip's detail screen, e.g. after tapping one of its reminders.
     func openTrip(_ id: UUID) {
         activeSheet = nil
         selectedTab = .trips
@@ -96,11 +87,9 @@ final class AppRouter {
     }
 }
 
-// `AppDestinations` and `SheetContent` are the only places pushed screens and sheets are created.
-// Each screen gets a view model built with the shared services from `AppDependencies`.
+// All pushed screens and sheets are created here
 
 extension View {
-    /// Registers every pushed screen. Added once at the root of each tab's NavigationStack.
     func appDestinations() -> some View {
         modifier(AppDestinations())
     }
@@ -144,7 +133,6 @@ private struct AppDestinations: ViewModifier {
     }
 }
 
-/// Builds the screen for a sheet. Used by RootView's `.sheet(item:)`.
 struct SheetContent: View {
     let sheet: AppSheet
     @Environment(AppDependencies.self) private var dependencies

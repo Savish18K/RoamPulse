@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// "Offline Topo Canvas" from the prototype: a drawn topographic map with the
-/// group's route to the next stop. Everything here is static mock data.
+// Static mock map from the prototype
 struct OfflineMapView: View {
     let tripID: UUID
     var activityID: UUID?
@@ -226,14 +225,14 @@ struct OfflineMapView: View {
     }
 }
 
-/// Contour lines, railway and route drawn with Canvas, plus labels and member pins.
+// Drawn with Canvas
 private struct TopoMap: View {
     let showsContours: Bool
     let targetName: String
     let members: [Member]
     let timeText: String
 
-    // Positions as fractions of the map size.
+    // Fractions of the map size
     private let you = CGPoint(x: 0.26, y: 0.80)
     private let routeStops = [CGPoint(x: 0.26, y: 0.80), CGPoint(x: 0.34, y: 0.70), CGPoint(x: 0.45, y: 0.58), CGPoint(x: 0.64, y: 0.40)]
 
@@ -354,7 +353,6 @@ private struct TopoMap: View {
     }
 }
 
-/// Small elevation curve from the current position to the target.
 private struct ElevationProfile: View {
     var body: some View {
         GeometryReader { proxy in

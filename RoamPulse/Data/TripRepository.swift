@@ -1,15 +1,10 @@
 import Foundation
 
-/// Loads and saves trips and journal memories.
-///
-/// Everything above this layer works with plain structs and never touches Core Data directly.
-/// The app uses `CoreDataTripRepository`; tests and previews use `InMemoryTripRepository`.
+// Plain structs in and out, Core Data in the app and an in-memory version for tests
 protocol TripRepository {
     func loadTrips() throws -> [Trip]
-    /// Inserts the trip, or updates it if one with the same id is already saved.
-    /// Its members, activities, packing items, expenses and payments are saved with it.
+    // Insert or update, saves all the trip's child items too
     func save(_ trip: Trip) throws
-    /// Also deletes the trip's memories.
     func deleteTrip(id: UUID) throws
 
     func loadMemories() throws -> [Memory]
@@ -18,24 +13,19 @@ protocol TripRepository {
 
     func deleteEverything() throws
 
-    /// Saves a photo that isn't linked to anything yet and returns its id.
-    /// It is linked by setting `trip.coverImageID` to that id and saving the trip.
+    // Saved first and then linked through trip.coverImageID
     func saveImage(_ image: PreparedImage) throws -> UUID
-    /// The full-size JPEG, or the small thumbnail. nil if there is no image with that id.
     func imageData(id: UUID, thumbnail: Bool) throws -> Data?
     func deleteImage(id: UUID) throws
 
-    /// Keeps the last forecast downloaded for a trip, so the weather still shows offline.
-    /// Deleted with the trip.
+    // Last forecast is kept for offline use
     func saveForecast(_ forecast: CachedForecast, for tripID: UUID) throws
     func cachedForecast(for tripID: UUID) throws -> CachedForecast?
 }
 
-/// The raw weather download for a trip and when it was fetched.
 struct CachedForecast: Equatable {
-    /// The OpenWeatherMap responses as JSON (`OpenWeatherMapBundle`).
     var payload: Data
-    /// Which coordinates it is for, e.g. "6.8667,81.0466". A new destination means a new download.
+    // e.g. "6.8667,81.0466"
     var location: String
     var fetchedAt: Date
 }
@@ -52,14 +42,14 @@ enum RepositoryError: LocalizedError {
     }
 }
 
-/// Keeps everything in dictionaries; nothing is written to disk. Used by tests and previews.
+// In-memory version for tests and previews
 final class InMemoryTripRepository: TripRepository {
     private var trips: [UUID: Trip] = [:]
     private var memories: [UUID: Memory] = [:]
     private(set) var images: [UUID: PreparedImage] = [:]
     private(set) var forecasts: [UUID: CachedForecast] = [:]
 
-    /// Set to true in a test to make saving fail, to check how errors are handled.
+    // Tests set this to check error handling
     var failSaves = false
 
     init(trips: [Trip] = [], memories: [Memory] = []) {
@@ -73,7 +63,7 @@ final class InMemoryTripRepository: TripRepository {
 
     func save(_ trip: Trip) throws {
         try checkFailure()
-        // Like Core Data, a replaced or removed cover photo is deleted.
+        // Same as Core Data, old cover is removed
         if let oldCover = trips[trip.id]?.coverImageID, oldCover != trip.coverImageID {
             images[oldCover] = nil
         }
@@ -100,7 +90,7 @@ final class InMemoryTripRepository: TripRepository {
     func save(_ memory: Memory) throws {
         try checkFailure()
         guard trips[memory.tripID] != nil else { throw RepositoryError.tripNotFound }
-        // Like Core Data, photos removed from the memory are deleted.
+        // Same as Core Data, removed photos are deleted
         let removed = Set(memories[memory.id]?.storedImageIDs ?? []).subtracting(memory.storedImageIDs)
         removed.forEach { images[$0] = nil }
         memories[memory.id] = memory

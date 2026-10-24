@@ -139,7 +139,7 @@ struct ProfileView: View {
     }
 }
 
-/// Icon + title + optional trailing content + chevron. Used on Profile and Settings.
+// Used on Profile and Settings
 struct SettingsRow<Trailing: View>: View {
     let icon: String
     var iconColor: Color = .primary
@@ -182,7 +182,6 @@ extension SettingsRow where Trailing == EmptyView {
         .previewEnvironment(.preview())
 }
 
-/// "About RoamPulse dev team" sheet.
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
 

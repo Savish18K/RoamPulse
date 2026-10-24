@@ -1,37 +1,26 @@
 import Foundation
 import Observation
 
-/// The app's data in memory, shared by every screen.
-///
-/// It loads trips and memories from a `TripRepository` (Core Data in the app) and saves every
-/// change straight back. A change only appears on screen after it has been saved, so what you
-/// see is always what is stored. View models decide *what* to change; the store applies and saves it.
-///
-/// After signing in, `AppSession` opens the account's own database with `open(repository:user:)`
-/// and connects `sync`, which uploads every saved trip change and sends back changes from the cloud
-/// through `applyRemote`.
+// Shared app data, every change is saved to the repository straight away and then synced
 @MainActor
 @Observable
 final class TripStore {
     private(set) var trips: [Trip] = []
     private(set) var memories: [Memory] = []
-    /// The landmarks the Core ML model will know. Sample data until Increment 15.
+    // Sample data until the Core ML model is added
     var landmarks: [Landmark] = SampleData.landmarks
-    /// The signed-in person. Sample values until an account is opened (tests and previews).
     private(set) var profile = SampleData.profile
-    /// The signed-in person as a trip member, used when creating a trip.
     private(set) var me = SampleData.me
-    /// The signed-in account. nil while signed out, and in tests that don't need one.
+    // nil when signed out
     private(set) var accountID: String?
-    /// Set when loading or saving fails. RootView shows it as an alert.
+    // Shown as an alert in RootView
     var errorMessage: String?
 
-    /// Uploads changes made on this iPhone. nil while signed out, and in tests that don't need it.
+    // nil when signed out
     var sync: SyncService?
 
     let clock: Clock
     private var repository: TripRepository
-    /// Where this account's voice recordings are kept.
     private(set) var recordings = RecordingFiles.temporary
 
     init(repository: TripRepository, clock: Clock) {
@@ -40,7 +29,6 @@ final class TripStore {
         reload()
     }
 
-    /// Switches to the signed-in person's own database and shows their trips.
     func open(repository: TripRepository, user: AppUser) {
         self.repository = repository
         recordings = .forAccount(user.uid)
@@ -48,7 +36,6 @@ final class TripStore {
         reload()
     }
 
-    /// Updates the name shown on Profile, e.g. once a new account's name has been saved.
     func updateAccount(_ user: AppUser) {
         accountID = user.uid
         profile = UserProfile(fullName: user.name, email: user.email)
@@ -56,7 +43,7 @@ final class TripStore {
                     userUID: user.uid)
     }
 
-    /// Signed out: forgets the data in memory. The account's database stays on the iPhone for next time.
+    // Database stays on the phone for next time
     func close() {
         sync = nil
         repository = InMemoryTripRepository()
@@ -79,7 +66,6 @@ final class TripStore {
 
     var now: Date { clock.now }
 
-    /// Trips split into Active, Upcoming and Completed.
     var sections: TripSections { trips.sections(at: now) }
 
     var activeTrip: Trip? { sections.active.first }
@@ -88,7 +74,7 @@ final class TripStore {
 
     var completedTrips: [Trip] { sections.completed }
 
-    /// The trip the quick actions (Add Expense, Record Memory…) apply to.
+    // Trip used for the quick actions
     var currentTrip: Trip? { activeTrip ?? upcomingTrips.first ?? completedTrips.first }
 
     var sortedMemories: [Memory] { memories.sorted { $0.date > $1.date } }
@@ -97,13 +83,11 @@ final class TripStore {
 
     func trip(_ id: UUID) -> Trip? { trips.first { $0.id == id } }
 
-    /// Trips that have started (active or completed).
     var travelledTrips: [Trip] { trips.filter { $0.status(at: now) != .upcoming } }
 
-    /// Different places where at least one activity was done.
     var placesVisited: Int { Self.placesVisited(in: trips) }
 
-    /// Pure, so it can be used outside the main actor (e.g. by `TravelStats`).
+    // Static so it can be used off the main actor
     nonisolated static func placesVisited(in trips: [Trip]) -> Int {
         Set(trips.flatMap(\.activities).filter(\.isDone).map { $0.place.lowercased() }).count
     }
@@ -112,7 +96,7 @@ final class TripStore {
 
     func memories(inTrip tripID: UUID) -> [Memory] { sortedMemories.filter { $0.tripID == tripID } }
 
-    // Each change returns false if it couldn't be saved, so a form can stay open.
+    // These return false if saving failed so the form can stay open
 
     @discardableResult
     func addTrip(_ trip: Trip) -> Bool {
@@ -123,8 +107,7 @@ final class TripStore {
         return true
     }
 
-    /// Changes one trip and saves it, e.g. `store.updateTrip(id) { $0.name = "Ella weekend" }`.
-    /// If saving fails, the change is dropped and an error is shown.
+    // e.g. store.updateTrip(id) { $0.name = "Ella weekend" }
     @discardableResult
     func updateTrip(_ id: UUID, _ change: (inout Trip) -> Void) -> Bool {
         guard let index = trips.firstIndex(where: { $0.id == id }) else { return false }
@@ -138,9 +121,7 @@ final class TripStore {
         return true
     }
 
-    /// Deletes the trip and everything in it, including its journal memories.
-    /// For a trip someone else shared, this means leaving it: it is removed from this iPhone
-    /// but stays for everyone else.
+    // For a shared trip this just leaves it, others keep it
     @discardableResult
     func deleteTrip(_ id: UUID) -> Bool {
         let old = trip(id)
@@ -158,7 +139,6 @@ final class TripStore {
         }
     }
 
-    /// Ticks off the activity a photo was linked to.
     func markVisited(_ activityID: UUID, in tripID: UUID) {
         updateTrip(tripID) { trip in
             guard let index = trip.activities.firstIndex(where: { $0.id == activityID }) else { return }
@@ -166,13 +146,11 @@ final class TripStore {
         }
     }
 
-    /// True when this account created the trip, or it was made before trips had owners,
-    /// or nobody is signed in (no sharing without an account).
+    // Old trips without an owner, or no one signed in, count as owner too
     func isOwner(of trip: Trip) -> Bool {
         trip.ownerUID == nil || accountID == nil || trip.ownerUID == accountID
     }
 
-    /// A new trip belongs to the signed-in account, and "me" on it is linked to that account.
     private func claimed(_ trip: Trip) -> Trip {
         guard let accountID else { return trip }
         var trip = trip
@@ -188,7 +166,7 @@ final class TripStore {
         return trip
     }
 
-    /// The owner deletes the trip for everyone; anyone else just leaves it.
+    // Owner deletes it for everyone, others just leave
     private func uploadRemoval(of trip: Trip) {
         if isOwner(of: trip) {
             sync?.tripDidChange(from: trip, to: nil)
@@ -201,12 +179,12 @@ final class TripStore {
         try? repository.cachedForecast(for: tripID)
     }
 
-    /// Not being able to cache the forecast isn't worth an alert: it is only used offline.
+    // Only needed offline, so no alert if it fails
     func saveForecast(_ forecast: CachedForecast, for tripID: UUID) {
         try? repository.saveForecast(forecast, for: tripID)
     }
 
-    /// Saves a photo picked for the trip's cover (replacing and deleting the old one), or removes it with nil.
+    // Pass nil to remove the cover
     @discardableResult
     func setCoverPhoto(_ image: PreparedImage?, for tripID: UUID) -> Bool {
         guard let image else {
@@ -217,7 +195,7 @@ final class TripStore {
             if updateTrip(tripID, { $0.coverImageID = imageID }) {
                 return true
             }
-            // The trip couldn't be saved, so don't leave the photo behind.
+            // Don't leave the photo behind
             try? repository.deleteImage(id: imageID)
             return false
         } catch {
@@ -226,16 +204,13 @@ final class TripStore {
         }
     }
 
-    /// The saved photo's JPEG data, or its small thumbnail.
     func imageData(_ id: UUID, thumbnail: Bool) -> Data? {
         try? repository.imageData(id: id, thumbnail: thumbnail)
     }
 
-    // These save straight to the repository and are not passed to `sync`, so a change that came
-    // from the cloud is never uploaded again.
+    // Changes from the cloud are saved directly and not sent back to sync
 
-    /// Saves a trip as it is in the cloud (new, or changed on another device).
-    /// The cover photo is only stored on this iPhone, so the local one is kept.
+    // Cover photo is local only so keep ours
     func applyRemote(_ remote: Trip) {
         var trip = remote
         let index = trips.firstIndex { $0.id == remote.id }
@@ -251,7 +226,6 @@ final class TripStore {
         }
     }
 
-    /// A trip was deleted on another device.
     func applyRemoteDeletion(_ id: UUID) {
         guard trip(id) != nil else { return }
         do {
@@ -281,9 +255,7 @@ final class TripStore {
         return true
     }
 
-    /// Saves a new or edited memory together with photos picked for it.
-    /// The photos are saved first (as `StoredImageEntity` rows) so the memory can point at them;
-    /// if the memory then can't be saved, those photos are deleted again so nothing is left behind.
+    // Photos are saved first, and deleted again if the memory fails to save
     @discardableResult
     func saveMemory(_ memory: Memory, newPhotos: [PreparedImage]) -> Bool {
         var memory = memory
@@ -306,7 +278,6 @@ final class TripStore {
         return saved
     }
 
-    /// Deletes a journal memory, the photos picked for it and its recording.
     @discardableResult
     func deleteMemory(_ id: UUID) -> Bool {
         do {
@@ -319,15 +290,13 @@ final class TripStore {
         }
     }
 
-    // Recordings are files, not Core Data rows, so they are deleted here when their memory goes.
+    // Recordings are files so delete them here
 
-    /// The recording's file, if the memory has one and it is still on this iPhone.
     func recordingURL(for memory: Memory) -> URL? {
         guard let fileName = memory.audioFileName, recordings.exists(fileName) else { return nil }
         return recordings.url(for: fileName)
     }
 
-    /// Moves a finished recording into the account's folder for this memory and returns its file name.
     func keepRecording(_ file: URL, for memoryID: UUID) throws -> String {
         try recordings.keep(file, for: memoryID)
     }
@@ -350,8 +319,7 @@ final class TripStore {
         }
     }
 
-    /// Adds a photo to an existing memory, or creates a new photo memory when `memoryID` is nil.
-    /// Returns the memory the photo was saved to.
+    // nil memoryID creates a new photo memory
     @discardableResult
     func addPhoto(_ photo: SamplePhoto, landmark: String?, confidence: Double?, sceneTags: [String], to memoryID: UUID?) -> UUID? {
         if let memoryID, memory(memoryID) != nil {
@@ -387,7 +355,7 @@ final class TripStore {
         return memory.id
     }
 
-    /// Settings → Delete all data. Also deletes the trips from the cloud.
+    // Also removes the trips from the cloud
     func deleteAllData() {
         let deleted = trips
         do {
@@ -402,7 +370,6 @@ final class TripStore {
         }
     }
 
-    /// Adds the sample trips and memories, with dates around today.
     func loadSampleData() {
         let sample = SampleData.make(now: now)
         for trip in sample.trips { addTrip(trip) }

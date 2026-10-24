@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Grid of the 10 landmarks the model knows, showing which ones were found.
 struct LandmarksGridView: View {
     @Environment(TripStore.self) private var store
     @State private var filter: LandmarkCategory?

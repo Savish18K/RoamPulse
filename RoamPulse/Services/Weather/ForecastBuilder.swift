@@ -1,18 +1,14 @@
 import Foundation
 
-/// Turns OpenWeatherMap's responses into the `WeatherSnapshot` the screens show.
-/// A pure function of its inputs (no network, no clock), so it is unit tested with saved JSON.
+// Pure function, tested with saved JSON
 enum ForecastBuilder {
-    /// - Parameters:
-    ///   - now: steps that have already ended are dropped, so an old cached forecast still starts "now".
-    ///   - fetchedAt: when the data was downloaded.
+    // now drops steps that have already passed
     static func snapshot(from bundle: OpenWeatherMapBundle, for trip: Trip, now: Date, fetchedAt: Date,
                          isOffline: Bool) -> WeatherSnapshot {
         let calendar = Calendar.trip
         let slots = bundle.forecast.list.map(slot).filter { $0.end > now }
 
-        // "Current" conditions: the download's, unless it is over 3 hours old (an old cache),
-        // in which case the forecast step for now is closer to the truth.
+        // Use the forecast instead if the current reading is over 3 hours old
         let current = bundle.current
         let currentCondition = current.weather.first
         let staleCurrent = now.timeIntervalSince(fetchedAt) > ForecastSlot.length
@@ -68,14 +64,14 @@ enum ForecastBuilder {
         )
     }
 
-    /// One row per day (up to 5), with the trip day number when the day is part of the trip.
+    // Up to 5 days
     static func daily(from slots: [ForecastSlot], trip: Trip) -> [DailyForecast] {
         let calendar = Calendar.trip
         let days = Dictionary(grouping: slots) { calendar.startOfDay(for: $0.start) }
         return days.keys.sorted().prefix(5).compactMap { day -> DailyForecast? in
             guard let daySlots = days[day], !daySlots.isEmpty else { return nil }
             let wettest = daySlots.max { $0.rainChance < $1.rainChance } ?? daySlots[0]
-            // Show the wettest step's weather if rain is likely, otherwise the weather around midday.
+            // Wettest step if rain is likely, otherwise midday
             let midday = calendar.date(day, atMinutes: 12 * 60)
             let representative = wettest.rainChance >= 50 || wettest.isStormy
                 ? wettest
@@ -93,13 +89,12 @@ enum ForecastBuilder {
         }
     }
 
-    /// "light rain" → "Light rain"
     static func text(_ condition: OWMCondition?) -> String {
         guard let description = condition?.description, let first = description.first else { return "–" }
         return first.uppercased() + description.dropFirst()
     }
 
-    /// SF Symbol for an OpenWeatherMap condition code. `icon` ends in "n" at night.
+    // icon ends in "n" at night
     static func symbol(code: Int, icon: String) -> String {
         let night = icon.hasSuffix("n")
         switch code {

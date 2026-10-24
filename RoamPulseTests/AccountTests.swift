@@ -2,8 +2,6 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Signing up, in and out (`AppSession`), the sign-in form (`AuthViewModel`) and its checks (`AuthValidator`),
-/// changing your name and deleting the account, using a fake Firebase and one in-memory database per account.
 @MainActor
 struct AccountTests {
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sign in or create an account. Shown after onboarding whenever nobody is signed in.
+// Shown after onboarding when no one is signed in
 struct AuthView: View {
     @State private var viewModel: AuthViewModel
     @State private var showsPassword = false
@@ -158,7 +158,6 @@ struct AuthView: View {
         Task { await viewModel.submit() }
     }
 
-    /// Label, field and (after a failed try) the problem in red.
     private func field<Content: View>(_ label: String, problem: String?, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel(label)

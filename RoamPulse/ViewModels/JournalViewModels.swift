@@ -1,15 +1,13 @@
 import Foundation
 import Observation
 
-/// Journal tab: all memories, newest first, optionally for one trip.
 @MainActor
 @Observable
 final class JournalViewModel {
     private let store: TripStore
 
-    /// nil shows every trip's memories.
+    // nil = all trips
     var tripFilter: UUID?
-    /// The memory waiting for the user to confirm the delete.
     var memoryPendingDelete: Memory?
 
     init(store: TripStore) {
@@ -21,7 +19,6 @@ final class JournalViewModel {
         return store.memories(inTrip: tripFilter)
     }
 
-    /// Trips that have at least one memory, newest first, for the filter chips.
     var tripsWithMemories: [Trip] {
         let ids = Set(store.memories.map(\.tripID))
         return store.trips.filter { ids.contains($0.id) }.sorted { $0.startDate > $1.startDate }
@@ -29,7 +26,7 @@ final class JournalViewModel {
 
     var hasNoMemories: Bool { store.memories.isEmpty }
 
-    /// The trip a new memory goes to: the filtered trip, otherwise the current one.
+    // Filtered trip, otherwise the current one
     var tripForNewMemory: UUID? { tripFilter ?? store.currentTrip?.id }
 
     var canWriteMemory: Bool { !store.trips.isEmpty }
@@ -45,21 +42,18 @@ final class JournalViewModel {
     }
 }
 
-/// New Memory and Edit Memory sheet: text, photos, people, mood and the activity it belongs to.
-/// (Voice recording with on-device transcription is added in Increment 14.)
+// New / edit memory sheet
 @MainActor
 @Observable
 final class MemoryFormViewModel {
-    /// Most photos one memory can have.
     static let maxPhotos = 10
 
-    /// The memory being edited, or nil for a new one.
+    // nil for a new memory
     let memoryID: UUID?
     private let store: TripStore
     private let clock: Clock
-    /// Records voice memories. nil where recording isn't possible (e.g. some tests).
+    // nil in some tests
     private let recorder: AudioRecording?
-    /// Writes new recordings down after saving.
     private let voice: VoiceJournalService?
 
     var tripID: UUID? {
@@ -71,10 +65,10 @@ final class MemoryFormViewModel {
     var title = ""
     var text = ""
     var place = ""
-    /// When it happened. Limited to the trip's dates; the trip day is worked out from it.
+    // Kept inside the trip dates
     var date: Date {
         didSet {
-            // A different day has different activities.
+            // Different day so clear the activity
             if let activity = linkedActivity, activity.day != day {
                 linkedActivityID = nil
             }
@@ -83,20 +77,17 @@ final class MemoryFormViewModel {
     var mood: Mood?
     var peopleIDs: Set<UUID> = []
     var linkedActivityID: UUID?
-    /// Ticks off the linked activity in the itinerary when the memory is saved.
     var markVisited = true
 
-    /// Photos already saved with the memory (kept unless removed).
     private(set) var existingPhotos: [MemoryPhoto] = []
-    /// Photos picked in this form, resized and waiting to be saved.
+    // Resized, not saved until Save
     private(set) var newPhotos: [PreparedImage] = []
     private(set) var isPreparingPhotos = false
     private(set) var photoProblem: String?
 
-    /// A recording made in this form, in the temporary folder until Save.
+    // In tmp until Save
     private(set) var newRecording: URL?
     private(set) var newRecordingDuration = 0
-    /// The memory's saved recording will be deleted on Save.
     private(set) var removesSavedRecording = false
     private(set) var recordingProblem: String?
 
@@ -132,13 +123,11 @@ final class MemoryFormViewModel {
 
     var trip: Trip? { tripID.flatMap(store.trip) }
 
-    /// Active first, then upcoming, then finished trips (newest first).
     var trips: [Trip] {
         let sections = store.sections
         return sections.active + sections.upcoming + sections.completed
     }
 
-    /// The trip's first day at 00:00 to its last day at 23:59.
     var dateRange: ClosedRange<Date> {
         guard let trip else { return clock.now...clock.now }
         let calendar = Calendar.trip
@@ -147,7 +136,7 @@ final class MemoryFormViewModel {
         return start...max(start, end)
     }
 
-    /// 1-based trip day of `date`.
+    // Starts at 1
     var day: Int {
         guard let trip else { return 1 }
         return min(max(Calendar.trip.days(from: trip.startDate, to: date) + 1, 1), trip.dayCount)
@@ -157,14 +146,12 @@ final class MemoryFormViewModel {
 
     var members: [Member] { trip?.members ?? [] }
 
-    /// The day's activities, to link the memory to one of them.
     var activitiesOnDay: [Activity] { trip?.activities(onDay: day) ?? [] }
 
     var linkedActivity: Activity? {
         linkedActivityID.flatMap { id in trip?.activities.first { $0.id == id } }
     }
 
-    /// Places of the day's activities, offered as quick choices.
     var placeSuggestions: [String] {
         var seen = Set<String>()
         let places = activitiesOnDay.map(\.place) + [trip?.mainPlace ?? ""]
@@ -179,7 +166,7 @@ final class MemoryFormViewModel {
         }
     }
 
-    /// Picking another trip resets everything that belongs to the old one.
+    // Reset things from the old trip
     private func tripDidChange() {
         peopleIDs = []
         linkedActivityID = nil
@@ -189,7 +176,6 @@ final class MemoryFormViewModel {
         }
     }
 
-    /// The same time of day, moved inside the trip's dates.
     static func clamped(_ date: Date, to trip: Trip) -> Date {
         let calendar = Calendar.trip
         let minutes = calendar.minutesSinceMidnight(date)
@@ -202,7 +188,7 @@ final class MemoryFormViewModel {
         return date
     }
 
-    /// How a linked activity is saved on the memory, e.g. "Day 2 • 17:30 Nine Arch Bridge viewpoint".
+    // e.g. "Day 2 • 17:30 Nine Arch Bridge viewpoint"
     static func label(for activity: Activity) -> String {
         "Day \(activity.day) • \(activity.timeText) \(activity.title)"
     }
@@ -211,7 +197,7 @@ final class MemoryFormViewModel {
 
     var remainingPhotoSlots: Int { max(Self.maxPhotos - photoCount, 0) }
 
-    /// Resizes photos from the photo picker (off the main thread). Nothing is saved until Save.
+    // Resized off the main thread
     func addPhotos(_ files: [Data]) async {
         guard !files.isEmpty else { return }
         isPreparingPhotos = true
@@ -242,31 +228,29 @@ final class MemoryFormViewModel {
         newPhotos.remove(at: index)
     }
 
-    // Voice recording (AVFoundation). The recording is only kept if the memory is saved.
+    // Voice recording
 
     var canRecord: Bool { recorder != nil }
     var isRecording: Bool { recorder?.isRecording ?? false }
     var recordingElapsed: Int { Int(recorder?.elapsed ?? 0) }
     var recordingLevels: [Double] { recorder?.levels ?? [] }
 
-    /// The memory already has a recording that is being kept.
     var hasSavedRecording: Bool {
         (existingMemory?.hasVoice ?? false) && !removesSavedRecording && newRecording == nil
     }
 
     var hasRecording: Bool { newRecording != nil || hasSavedRecording }
 
-    /// Length in seconds of the recording that will be saved.
+    // Seconds
     var recordingDuration: Int { newRecording != nil ? newRecordingDuration : (existingMemory?.duration ?? 0) }
 
-    /// A new recording to play back before saving, or the saved one.
+    // New take if there is one, otherwise the saved one
     var recordingURL: URL? {
         if let newRecording { return newRecording }
         guard hasSavedRecording, let memory = existingMemory else { return nil }
         return store.recordingURL(for: memory)
     }
 
-    /// Asks for the microphone the first time, then records.
     func startRecording() async {
         guard let recorder, !recorder.isRecording else { return }
         recordingProblem = nil
@@ -285,7 +269,7 @@ final class MemoryFormViewModel {
         guard let recorder, recorder.isRecording else { return }
         let seconds = Int(recorder.elapsed.rounded())
         guard let file = recorder.stop() else { return }
-        // A new take replaces the one before it.
+        // New take replaces the old one
         if let previous = newRecording {
             try? FileManager.default.removeItem(at: previous)
         }
@@ -293,7 +277,7 @@ final class MemoryFormViewModel {
         newRecordingDuration = max(seconds, 1)
     }
 
-    /// Removes the recording: a new one is deleted now, a saved one on Save.
+    // New ones are deleted now, saved ones on Save
     func removeRecording() {
         if let newRecording {
             try? FileManager.default.removeItem(at: newRecording)
@@ -304,7 +288,6 @@ final class MemoryFormViewModel {
         }
     }
 
-    /// Cancel: stops recording and throws away anything not saved.
     func discardUnsavedRecording() {
         recorder?.discard()
         if let newRecording {
@@ -318,13 +301,12 @@ final class MemoryFormViewModel {
 
     private var existingMemory: Memory? { memoryID.flatMap(store.memory) }
 
-    /// Used when a voice memory is saved without a title, e.g. "Voice memory • 17:52".
+    // e.g. "Voice memory • 17:52"
     var automaticTitle: String { "Voice memory • \(date.text("HH:mm"))" }
 
-    /// A memory needs a trip, a title and something in it: text, a photo or a recording.
     var canSave: Bool { problem == nil && !isPreparingPhotos }
 
-    /// Why Save is disabled, shown under the form.
+    // Shown under the form
     var problem: String? {
         if trip == nil { return "Create a trip first. Memories belong to a trip." }
         let hasRecording = hasRecording || isRecording
@@ -333,8 +315,7 @@ final class MemoryFormViewModel {
         return nil
     }
 
-    /// Saves the memory with its new photos and recording. Returns false if it couldn't be saved.
-    /// A new recording is then written down on the iPhone in the background.
+    // New recordings get transcribed in the background after saving
     func save() -> Bool {
         if isRecording {
             stopRecording()
@@ -359,13 +340,13 @@ final class MemoryFormViewModel {
             memory.transcriptUnavailable = false
         }
 
-        // A mood picked (or cleared) here is the user's choice, so no sentiment goes with it.
+        // Picked by hand, so no sentiment
         if mood != existing?.mood {
             memory.mood = mood
             memory.sentiment = nil
         }
 
-        // The recording: a new take is moved next to the account's other recordings.
+        // Move a new take into the recordings folder
         var keptFile: String?
         if let newRecording {
             do {
@@ -378,12 +359,12 @@ final class MemoryFormViewModel {
             memory.audioFileName = keptFile
             memory.duration = newRecordingDuration
             memory.transcriptUnavailable = false
-            // The old transcript belongs to the old recording, unless it was edited here.
+            // Old transcript goes with the old recording unless it was edited
             if existing?.hasVoice == true && text.trimmed == previousText {
                 memory.transcript = ""
             }
         }
-        // A removed recording's file is deleted only once the memory has been saved without it.
+        // Only delete the file once the memory is saved
         var removedFile: String?
         if keptFile == nil && removesSavedRecording {
             removedFile = memory.audioFileName
@@ -391,7 +372,7 @@ final class MemoryFormViewModel {
             memory.duration = 0
         }
 
-        // Written or edited text is read again: places, people, mood (unless picked) and the activity.
+        // Run the NL analysis again on new text
         if memory.hasText && memory.transcript != previousText {
             JournalAnalyzer.apply(JournalAnalyzer.analyse(memory.transcript), text: memory.transcript, to: &memory, trip: trip)
         }

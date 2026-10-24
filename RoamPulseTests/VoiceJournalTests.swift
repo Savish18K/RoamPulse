@@ -2,11 +2,9 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// The voice journal: reading text with Natural Language, linking it to the trip, the
-/// transcription pipeline and its failures, and recording in the memory form (fake microphone).
 @MainActor
 struct VoiceJournalTests {
-    /// Sunday 13 December 2026, 17:52 (Day 2 of the trip below).
+    // Sun 13 Dec 2026, 17:52 (day 2)
     let now = Calendar.trip.date(2026, 12, 13, 17, 52)
     let me = Member(name: "Savishka", colorHex: 0, isMe: true)
     let suu = Member(name: "Suu", colorHex: 1)
@@ -37,9 +35,7 @@ struct VoiceJournalTests {
     @Test func placesPeopleAndMoodAreReadFromTheText() async {
         await JournalAnalyzer.prepareLanguageData()
         let analysis = JournalAnalyzer.analyse(Self.trainStory)
-        // The Simulator's test runner sometimes can't load the name-tagging data (a sandbox limit of
-        // test runs; the app and real iPhones load it). Linking members and places by name doesn't
-        // depend on it and is tested below.
+        // The Simulator test runner sometimes can't load the NL name data, member/place linking is tested below
         withKnownIssue("Name-tagging data not loaded in this Simulator test run", isIntermittent: true) {
             #expect(analysis.places.contains("Ella"))
             #expect(analysis.people.contains("Suu"))
@@ -101,7 +97,6 @@ struct VoiceJournalTests {
         #expect(AVAudioRecorderService.normalised(0) == 1)
     }
 
-    /// A store with the trip, and a memory whose recording file exists.
     private func storeWithRecording() throws -> (TripStore, Memory) {
         let store = TripStore(repository: InMemoryTripRepository(trips: [trip]), clock: FixedClock(now: now))
         let file = FileManager.default.temporaryDirectory.appending(path: "test-\(UUID().uuidString).m4a")
@@ -210,7 +205,7 @@ struct VoiceJournalTests {
         #expect(saved.duration == 48)
         #expect(store.recordingURL(for: saved) != nil, "moved into the account's Recordings folder")
 
-        // The transcription runs in the background after saving.
+        // Transcription runs in the background
         for _ in 0..<100 where store.memory(saved.id)?.hasText != true {
             try await Task.sleep(for: .milliseconds(10))
         }

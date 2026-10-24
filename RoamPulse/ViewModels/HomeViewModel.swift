@@ -1,13 +1,7 @@
 import Foundation
 import Observation
 
-/// Home tab: what matters right now.
-///
-/// Home has four states, in this order of priority:
-/// - a trip is **active**: today's plan, weather, budget, latest memory and quick actions;
-/// - one is **coming up**: a countdown and a "get ready" checklist;
-/// - all trips are **finished**: a recap of the last one and a nudge to plan the next;
-/// - there are **no trips**: a welcome with ways to start.
+// Home has 4 states: active trip, upcoming, all finished, no trips
 @MainActor
 @Observable
 final class HomeViewModel {
@@ -18,7 +12,6 @@ final class HomeViewModel {
         case completed(UUID)
     }
 
-    /// A line of the "Get ready" checklist before a trip.
     struct ReadinessItem: Identifiable, Equatable {
         let id: String
         let icon: String
@@ -51,7 +44,6 @@ final class HomeViewModel {
         return .noTrips
     }
 
-    /// The trip Home is about, whatever the state.
     var featuredTrip: Trip? {
         switch state {
         case .active(let id), .upcoming(let id), .completed(let id): store.trip(id)
@@ -59,13 +51,10 @@ final class HomeViewModel {
         }
     }
 
-    /// The trip happening today, if there is one.
     var activeTrip: Trip? { store.activeTrip }
 
-    /// The trip that Add Expense and New Memory apply to.
     var currentTrip: Trip? { store.currentTrip }
 
-    /// The next trip after the one being shown.
     var nextUpcomingTrip: Trip? {
         store.upcomingTrips.first { $0.id != featuredTrip?.id }
     }
@@ -74,7 +63,7 @@ final class HomeViewModel {
 
     var myInitials: String { store.me.initials }
 
-    /// Joining a friend's trip needs an account (cloud sync).
+    // Needs an account
     var canJoinTrips: Bool { store.accountID != nil }
 
     var dateText: String { now.text("EEEE, d MMMM") }
@@ -91,13 +80,12 @@ final class HomeViewModel {
 
     func daysUntilStart(of trip: Trip) -> Int { trip.daysUntilStart(from: now) }
 
-    /// "Tomorrow", "In 1 day" style text for the countdown.
     func countdownText(for trip: Trip) -> String {
         let days = daysUntilStart(of: trip)
         return days == 1 ? "Tomorrow" : "In \(days) days"
     }
 
-    /// e.g. countdown "Next · in 50 min", detail "17:30 Nine Arch Bridge viewpoint".
+    // e.g. ("Next · in 50 min", "17:30 Nine Arch Bridge viewpoint")
     func nextActivity(in trip: Trip) -> (countdown: String, detail: String)? {
         guard let next = trip.nextActivity(at: now) else { return nil }
         let minutes = next.minutes - Calendar.trip.minutesSinceMidnight(now)
@@ -105,13 +93,11 @@ final class HomeViewModel {
         return ("Next · \(countdown)", "\(next.timeText) \(next.title)")
     }
 
-    /// Today's activities on the active trip, in time order.
     func todaysActivities(in trip: Trip) -> [Activity] {
         guard let day = trip.dayNumber(at: now) else { return [] }
         return trip.activities(onDay: day)
     }
 
-    /// Your own balance on the trip, from the settle-up maths.
     func myBalance(in trip: Trip) -> Balance? {
         ExpenseCalculator.balances(for: trip).first { $0.member.isMe }
     }
@@ -124,24 +110,22 @@ final class HomeViewModel {
         store.memories(inTrip: trip.id).first
     }
 
-    /// The next outdoor activity at risk on the featured trip.
     var advisory: WeatherAdvisory? {
         guard let trip = featuredTrip else { return nil }
         return WeatherAdvisor.headline(for: trip, snapshot: weather, now: now)
     }
 
-    /// The forecast covers about 5 days, so a trip further away has no weather yet.
+    // Forecast only covers about 5 days
     func forecastIsAvailable(for trip: Trip) -> Bool {
         trip.status(at: now) == .active || daysUntilStart(of: trip) <= 4
     }
 
-    /// e.g. "The forecast appears on Mon 5 Jan."
+    // e.g. "The forecast appears on Mon 5 Jan."
     func forecastNote(for trip: Trip) -> String {
         let from = Calendar.trip.date(byAdding: .day, value: -4, to: trip.startDate) ?? trip.startDate
         return "The forecast for \(trip.mainPlace) appears on \(from.text("EEE d MMM"))."
     }
 
-    /// What is ready and what still needs doing before the trip.
     func readiness(for trip: Trip) -> [ReadinessItem] {
         let plannedDays = Set(trip.activities.map(\.day)).count
         return [
@@ -168,12 +152,11 @@ final class HomeViewModel {
 
     func memoriesCount(in trip: Trip) -> Int { store.memories(inTrip: trip.id).count }
 
-    /// Photos from the trip's memories, for the recap.
     func recapPhotos(for trip: Trip) -> [MemoryPhoto] {
         Array(store.memories(inTrip: trip.id).flatMap(\.photos).prefix(4))
     }
 
-    /// Loads the forecast for an active trip, or an upcoming one within the forecast range.
+    // Only for an active trip or one inside the forecast range
     func loadWeather() async {
         guard let trip = featuredTrip, trip.status(at: now) != .completed, forecastIsAvailable(for: trip) else {
             weather = nil

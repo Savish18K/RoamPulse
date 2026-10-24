@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Splitting, balances, the settle-up algorithm and the 90% budget warning.
 struct ExpenseCalculatorTests {
     let savishka = Member(name: "Savishka", colorHex: 0, isMe: true)
     let samee = Member(name: "Samee", colorHex: 0)
@@ -11,7 +10,6 @@ struct ExpenseCalculatorTests {
 
     var crew: [Member] { [savishka, samee, suu, suresha] }
 
-    /// An expense split equally between `splitWith`.
     private func expense(_ amount: Double, paidBy: Member, splitWith: [Member]) -> Expense {
         Expense(title: "Test", amount: amount, category: .food, paidBy: paidBy,
                 shares: ExpenseCalculator.equalShares(of: amount, between: splitWith), date: .now)
@@ -21,7 +19,7 @@ struct ExpenseCalculatorTests {
         balances.first { $0.member.id == member.id }?.amount
     }
 
-    /// The nine expenses of the Hill Country trip in the prototype, all split between the four of them.
+    // The 9 expenses from the prototype trip
     private var prototypeExpenses: [Expense] {
         [
             expense(14_000, paidBy: savishka, splitWith: crew),
@@ -56,7 +54,7 @@ struct ExpenseCalculatorTests {
         #expect(ExpenseCalculator.unassigned(total: 1_000, shares: [400, 600]) == 0)
         #expect(ExpenseCalculator.unassigned(total: 1_000, shares: [400, 500]) == 100)
         #expect(ExpenseCalculator.unassigned(total: 1_000, shares: [700, 600]) == -300)
-        // 0.1 + 0.2 is 0.30000000000000004 as a Double, but the cents maths gets it exactly right.
+        // 0.1 + 0.2 isn't exactly 0.3 as a Double, cents fixes that
         #expect(ExpenseCalculator.unassigned(total: 0.3, shares: [0.1, 0.2]) == 0)
     }
 
@@ -101,7 +99,7 @@ struct ExpenseCalculatorTests {
         let balances = ExpenseCalculator.balances(members: crew, expenses: prototypeExpenses, payments: [])
         let plan = ExpenseCalculator.settlements(for: balances)
 
-        // Suu owes the most (11,600) and Savishka is owed the most (14,900), so Suu pays first.
+        // Suu owes the most and Savishka is owed the most, so Suu pays first
         #expect(plan.map(\.from.name) == ["Suu", "Samee", "Samee"])
         #expect(plan.map(\.to.name) == ["Savishka", "Savishka", "Suresha"])
         #expect(plan.map(\.amount) == [11_600, 3_300, 1_100])
@@ -117,12 +115,12 @@ struct ExpenseCalculatorTests {
         let before = ExpenseCalculator.balances(members: crew, expenses: expenses, payments: [])
         let plan = ExpenseCalculator.settlements(for: before)
 
-        // Paying everything in the plan should leave nobody owing anything…
+        // After paying the plan nobody should owe anything
         let payments = plan.map { Payment(from: $0.from, to: $0.to, amount: $0.amount, date: .now) }
         let after = ExpenseCalculator.balances(members: crew, expenses: expenses, payments: payments)
         #expect(after.allSatisfy { ExpenseCalculator.toCents($0.amount) == 0 })
 
-        // …and never take more than n − 1 payments.
+        // and it shouldn't need more than n - 1 payments
         #expect(plan.count <= crew.count - 1)
     }
 
@@ -145,7 +143,7 @@ struct ExpenseCalculatorTests {
     }
 
     @Test func tiesAreSettledInNameOrder() {
-        // Suu and Samee owe the same, so Samee (alphabetically first) pays first.
+        // Same amount owed, so alphabetical order decides
         let balances = [
             Balance(member: savishka, amount: 200),
             Balance(member: suu, amount: -100),

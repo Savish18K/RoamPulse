@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Rounded card background used for most boxes in the prototype.
 struct CardModifier: ViewModifier {
     var padding: CGFloat
     var fill: Color
@@ -15,7 +14,6 @@ struct CardModifier: ViewModifier {
     }
 }
 
-/// Text field / picker box used in forms and sheets.
 struct FieldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -37,7 +35,6 @@ extension View {
     }
 }
 
-/// Small grey uppercase heading, e.g. "SETTINGS".
 struct SectionLabel: View {
     let title: String
 
@@ -53,7 +50,6 @@ struct SectionLabel: View {
     }
 }
 
-/// Label + field pair used in the create/add sheets.
 struct FormField<Content: View>: View {
     let label: String
     @ViewBuilder var content: Content
@@ -66,7 +62,6 @@ struct FormField<Content: View>: View {
     }
 }
 
-/// Icon + title + value tile (Trip detail, Landmark detail).
 struct StatTile: View {
     let icon: String
     let tint: Color
@@ -94,7 +89,6 @@ struct StatTile: View {
     }
 }
 
-/// Blue → purple capsule button.
 struct PrimaryButtonStyle: ButtonStyle {
     var fullWidth = true
     var height: CGFloat = 54
@@ -113,7 +107,6 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Grey capsule button.
 struct SecondaryButtonStyle: ButtonStyle {
     var fullWidth = true
     var height: CGFloat = 54
@@ -131,7 +124,6 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Round icon-only button (map controls, play buttons…).
 struct CircleIconButton: View {
     let systemImage: String
     var size: CGFloat = 44
@@ -151,7 +143,6 @@ struct CircleIconButton: View {
     }
 }
 
-/// The floating "Add Expense | Record Memory" pill above the tab bar.
 struct FloatingActionBar: View {
     let primaryTitle: String
     let primaryAction: () -> Void
@@ -174,7 +165,6 @@ struct FloatingActionBar: View {
     }
 }
 
-/// "‹ Back            [+ Action]" bar at the bottom of detail screens.
 struct BackActionBar: View {
     let actionTitle: String
     let action: () -> Void
@@ -205,7 +195,6 @@ struct BackActionBar: View {
     }
 }
 
-/// Rounded tag, e.g. "Kandy", "Outdoor", "Nine Arch Bridge".
 struct Chip: View {
     let title: String
     var icon: String?
@@ -246,7 +235,6 @@ struct Chip: View {
     }
 }
 
-/// Dark translucent pill used on top of photos, e.g. "Active • Day 2 of 4".
 struct GlassPill: View {
     let text: String
     var icon: String?
@@ -273,7 +261,6 @@ struct GlassPill: View {
     }
 }
 
-/// Small coloured status pill, e.g. "● Positive", "Visited".
 struct StatusBadge: View {
     let text: String
     let color: Color
@@ -302,7 +289,6 @@ struct MoodBadge: View {
     }
 }
 
-/// Lays out chips left to right and wraps onto new lines.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
@@ -346,8 +332,7 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Round avatar with the member's initials.
-/// Add an image named `avatar_<name>` (e.g. `avatar_savishka`) to Assets to show a picture instead.
+// Shows initials, or an avatar_<name> image from Assets if there is one
 struct AvatarView: View {
     let member: Member
     var size: CGFloat = 32
@@ -374,7 +359,6 @@ struct AvatarView: View {
     }
 }
 
-/// Overlapping row of avatars.
 struct AvatarStack: View {
     let members: [Member]
     var size: CGFloat = 28
@@ -389,8 +373,7 @@ struct AvatarStack: View {
     }
 }
 
-/// Shows a sample photo. Uses the asset with the same name if it exists,
-/// otherwise a gradient placeholder. Always fills the space it is given.
+// Uses the asset with this name, or a gradient if it's missing
 struct PhotoView: View {
     let photo: SamplePhoto
     var showsSymbol = true
@@ -418,14 +401,12 @@ struct PhotoView: View {
     }
 }
 
-/// Big photo header with a back button and a status pill (Trip detail, Landmark detail).
 struct HeroHeader<Content: View>: View {
     let photo: SamplePhoto
-    /// When set, shows this trip's cover (its own photo if it has one) instead of `photo`.
+    // If set, show this trip's cover instead of photo
     var trip: Trip?
     var pill: String?
     var height: CGFloat = 340
-    /// Height of the status bar, so the buttons sit below it.
     var topInset: CGFloat
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
@@ -466,9 +447,7 @@ struct HeroHeader<Content: View>: View {
     }
 }
 
-/// Segmented control styled like the prototype (dark track, raised selected pill).
-/// `dots` marks options with an orange dot, e.g. a day with a weather advisory.
-/// `onDrop` (optional) lets things be dragged onto an option, e.g. an activity onto "Day 3".
+// dots = days with a weather warning, onDrop lets activities be dragged onto a day
 struct SegmentedTabs: View {
     let options: [String]
     @Binding var selection: Int
@@ -525,7 +504,6 @@ struct SegmentedTabs: View {
     }
 }
 
-/// Makes a segment accept dropped text and outlines it while something is dragged over it.
 private struct DropTarget: ViewModifier {
     let index: Int
     let onDrop: ((Int, [String]) -> Bool)?
@@ -547,7 +525,6 @@ private struct DropTarget: ViewModifier {
     }
 }
 
-/// Circular progress ring (packing, budget).
 struct ProgressRing: View {
     var progress: Double
     var lineWidth: CGFloat = 8
@@ -566,7 +543,6 @@ struct ProgressRing: View {
 }
 
 extension View {
-    /// Shows the store's error message (a failed save, for example) as an alert.
     func errorAlert(_ store: TripStore, isEnabled: Bool = true) -> some View {
         alert(
             "Something went wrong",
@@ -581,7 +557,7 @@ extension View {
         }
     }
 
-    /// Everything a screen reads from the environment, for SwiftUI previews.
+    // Puts everything the previews need into the environment
     func previewEnvironment(_ dependencies: AppDependencies) -> some View {
         environment(dependencies)
             .environment(dependencies.store)

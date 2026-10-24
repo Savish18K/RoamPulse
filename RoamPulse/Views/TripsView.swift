@@ -130,7 +130,6 @@ struct TripsListView: View {
     }
 }
 
-/// Big photo card for a trip that is happening now.
 struct ActiveTripCard: View {
     let trip: Trip
     let statusText: String
@@ -184,7 +183,6 @@ struct ActiveTripCard: View {
     .previewEnvironment(dependencies)
 }
 
-/// Create Trip and Edit Trip.
 struct TripFormView: View {
     @State private var viewModel: TripFormViewModel
     @Environment(\.dismiss) private var dismiss
@@ -235,7 +233,7 @@ struct TripFormView: View {
                                 .foregroundStyle(.green)
                         }
                     }
-                    // Searches a moment after typing stops; a new keystroke cancels the previous search.
+                    // Search after typing stops, a new key press cancels the old one
                     .task(id: viewModel.destination) {
                         do {
                             try await Task.sleep(for: .milliseconds(400))
@@ -305,7 +303,7 @@ struct TripFormView: View {
             .safeAreaInset(edge: .bottom) {
                 Button(viewModel.saveTitle) {
                     if viewModel.save() {
-                        // The first trip with reminders on is when notification permission is asked for.
+                        // First trip with reminders on asks for permission
                         if viewModel.remindersOn {
                             Task { await reminders.requestPermissionIfNeeded() }
                         }
@@ -344,8 +342,7 @@ struct TripFormView: View {
         .presentationBackground(Theme.card)
     }
 
-    /// Pick a photo of your own for the cover. Only the photo picked is shared with the app
-    /// (no photo library permission needed), and it is resized and saved in Core Data on Save.
+    // PhotosPicker only shares the picked photo, resized and saved on Save
     private var coverSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Cover Photo")
@@ -359,7 +356,7 @@ struct TripFormView: View {
                         }
                     }
                 VStack(alignment: .leading, spacing: 6) {
-                    // Worked out here: the picker's label closure may run off the main thread.
+                    // Worked out here because the label closure can run off the main thread
                     let pickerTitle = viewModel.hasCustomCover ? "Change photo" : "Choose a photo"
                     PhotosPicker(selection: $pickedCover, matching: .images, preferredItemEncoding: .compatible) {
                         Label(pickerTitle, systemImage: "photo.on.rectangle")

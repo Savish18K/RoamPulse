@@ -1,13 +1,13 @@
 import Foundation
 
-/// The signed-in person. A plain struct, so nothing above `FirebaseAuthService` depends on Firebase.
+// Our own user type so the rest of the app doesn't depend on Firebase
 struct AppUser: Hashable {
-    /// Firebase's id for the account. It never changes, so it names the account's database and cloud data.
+    // Firebase uid, also used as the database folder name
     let uid: String
     var email: String
     var displayName: String?
 
-    /// "Savishka Kuruppu", or the part of the email before the @ when no name was saved.
+    // Falls back to the start of the email if no name was saved
     var name: String {
         if let displayName, !displayName.trimmed.isEmpty {
             return displayName.trimmed
@@ -17,7 +17,6 @@ struct AppUser: Hashable {
 
     var firstName: String { name.components(separatedBy: " ").first ?? name }
 
-    /// "Savishka Kuruppu" → "SK", "savishka" → "SA".
     var initials: String {
         let words = name.split(separator: " ")
         if words.count >= 2, let first = words[0].first, let second = words[1].first {
@@ -27,43 +26,33 @@ struct AppUser: Hashable {
     }
 }
 
-/// Signing in, signing up and signing out.
-///
-/// The app uses `FirebaseAuthService`. Tests use a fake, and the app falls back to
-/// `UnavailableAuthService` when Firebase hasn't been set up (no GoogleService-Info.plist).
+// Auth protocol, Firebase in the app and a fake in tests
 @MainActor
 protocol AuthService: AnyObject {
     var currentUser: AppUser? { get }
-    /// Calls `onChange` with the current user, and again every time someone signs in or out.
     func observeUser(_ onChange: @escaping (AppUser?) -> Void)
     func signUp(name: String, email: String, password: String) async throws -> AppUser
     func signIn(email: String, password: String) async throws -> AppUser
     func sendPasswordReset(to email: String) async throws
     func signOut() throws
 
-    /// Changes the name saved on the account.
     func updateDisplayName(_ name: String) async throws -> AppUser
-    /// Checks the password again. Firebase needs a recent sign-in before deleting an account.
+    // Firebase needs a recent sign in before deleting an account
     func reauthenticate(password: String) async throws
-    /// Deletes the signed-in account for good.
     func deleteAccount() async throws
 }
 
-/// Sign-in problems in plain words. `FirebaseAuthService` turns Firebase's error codes into these.
 enum AuthError: LocalizedError, Equatable {
     case notConfigured
     case invalidEmail
-    /// Wrong email or wrong password. Firebase doesn't say which, so that nobody can find out
-    /// whether an email has an account (email enumeration protection).
+    // Firebase doesn't say which one was wrong (email enumeration protection)
     case wrongCredentials
     case emailAlreadyInUse
     case weakPassword
     case network
     case tooManyAttempts
     case accountDisabled
-    /// Email/Password sign-in isn't turned on in the Firebase console.
     case signInMethodNotEnabled
-    /// Deleting an account needs a fresh sign-in.
     case needsRecentSignIn
     case other(String)
 
@@ -86,9 +75,9 @@ enum AuthError: LocalizedError, Equatable {
     }
 }
 
-/// Checks the sign-in form before anything is sent. Each function returns a message, or nil if the value is fine.
+// Returns an error message or nil if the value is ok
 enum AuthValidator {
-    /// Firebase accepts 6, but 8 is the usual minimum for a reasonable password.
+    // Firebase allows 6 but 8 is safer
     static let minimumPasswordLength = 8
 
     static func nameProblem(_ name: String) -> String? {
@@ -98,12 +87,11 @@ enum AuthValidator {
     static func emailProblem(_ email: String) -> String? {
         let email = email.trimmed
         if email.isEmpty { return "Enter your email address." }
-        // Something@something.something, with no spaces. The server does the real check.
+        // Basic check only, Firebase does the real one
         let pattern = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
         return email.range(of: pattern, options: .regularExpression) == nil ? "Enter a valid email address." : nil
     }
 
-    /// New accounts need a long enough password; signing in only needs one to be typed.
     static func passwordProblem(_ password: String, isNewAccount: Bool) -> String? {
         if password.isEmpty { return "Enter your password." }
         if isNewAccount && password.count < minimumPasswordLength {
@@ -113,8 +101,7 @@ enum AuthValidator {
     }
 }
 
-/// Used when Firebase isn't set up, and in the unit-test host app. Nobody is ever signed in,
-/// and every action explains that sign-in isn't set up.
+// Used when Firebase isn't set up (and in the test host)
 @MainActor
 final class UnavailableAuthService: AuthService {
     var currentUser: AppUser? { nil }
@@ -141,7 +128,7 @@ final class UnavailableAuthService: AuthService {
     func deleteAccount() async throws { throw AuthError.notConfigured }
 }
 
-/// Always signed in as the sample user. Used by SwiftUI previews.
+// For previews
 @MainActor
 final class PreviewAuthService: AuthService {
     let currentUser: AppUser? = AppUser(uid: "preview", email: SampleData.profile.email,

@@ -4,11 +4,9 @@ import Testing
 import UIKit
 @testable import RoamPulse
 
-/// The journal: writing, editing and deleting memories, their photos in Core Data,
-/// linking to an activity, and the Journal tab's trip filter.
 @MainActor
 struct JournalTests {
-    /// Sunday 13 December 2026, 16:40 (Day 2 of the trip below).
+    // Sun 13 Dec 2026, 16:40 (day 2)
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let persistence = PersistenceController(inMemory: true)
     let me = Member(name: "Savishka", colorHex: 0, isMe: true)
@@ -25,7 +23,7 @@ struct JournalTests {
         self.trip = trip
     }
 
-    /// A store backed by a real (in-memory) Core Data database, with the trip saved.
+    // Real in-memory Core Data with the trip saved
     private func makeStore() -> TripStore {
         let store = TripStore(repository: CoreDataTripRepository(context: persistence.container.viewContext),
                               clock: FixedClock(now: now))
@@ -122,7 +120,6 @@ struct JournalTests {
         #expect(try count("StoredImageEntity") == 2)
         #expect(store.imageData(memory.storedImageIDs[0], thumbnail: true) != nil)
 
-        // Loads back the same from Core Data.
         let reloaded = try CoreDataTripRepository(context: persistence.container.viewContext).loadMemories()
         #expect(reloaded.first?.photos == memory.photos)
     }

@@ -2,14 +2,12 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Sharing a trip: invite codes, who owns what, "me" on each phone, joining, leaving,
-/// and the timeout used for actions that need a connection.
 @MainActor
 struct SharingTests {
     let owner = "uid-savishka"
     let friend = "uid-samee"
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
-    /// The same trip (same ids) for the whole test.
+    // Same ids for the whole test
     let hill: Trip
 
     init() {
@@ -84,14 +82,14 @@ struct SharingTests {
     }
 
     @Test func editsNeverRewriteWhoIsOnTheTrip() {
-        // Samee's phone hasn't heard that Suu joined yet, and renames the trip.
+        // Samee's phone doesn't know Suu joined yet
         var old = trip()
         old.memberUIDs = [owner, friend]
         var renamed = old
         renamed.name = "Ella Weekend"
         let writes = TripChangeSet.writes(from: old, to: renamed, accountID: friend, now: now)
 
-        // An update only writes the content fields, so Suu's uid in the cloud is untouched.
+        // Updates only write content fields, Suu's uid isn't touched
         guard case .updateTrip = writes.first else {
             Issue.record("Expected a content-only update")
             return
@@ -99,7 +97,7 @@ struct SharingTests {
         #expect(!TripRecord.contentFields.contains("memberUIDs"))
         #expect(!TripRecord.contentFields.contains("ownerUID"))
 
-        // A change to the member list alone uploads nothing (joining and leaving have their own writes).
+        // Member changes alone upload nothing
         var joined = old
         joined.memberUIDs.append("uid-suu")
         #expect(TripChangeSet.writes(from: old, to: joined, accountID: friend, now: now).isEmpty)

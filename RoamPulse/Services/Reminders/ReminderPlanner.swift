@@ -1,15 +1,11 @@
 import Foundation
 
-/// What the user chose in Settings → Notifications. Saved in UserDefaults.
+// Saved in UserDefaults
 struct ReminderSettings: Equatable {
-    /// Packing reminder the evening before, and a reminder before each activity
-    /// (only for trips with "Bedtime & packing reminders" on).
     var tripReminders = true
-    /// How long before an activity its reminder appears.
     var minutesBefore = 30
-    /// When the packing reminder appears the day before a trip, in minutes since midnight (19:00).
+    // Minutes since midnight (19:00)
     var packingTime = 19 * 60
-    /// Alerts when a new forecast puts an outdoor activity today or tomorrow at risk.
     var weatherAlerts = true
 
     static let minutesBeforeChoices = [15, 30, 60, 120]
@@ -38,10 +34,8 @@ struct ReminderSettings: Equatable {
     }
 }
 
-/// One local notification the app wants to exist.
 struct PlannedReminder: Hashable, Identifiable {
-    /// Stable per thing reminded about (e.g. one per activity), so a change replaces the old
-    /// notification instead of adding a second one.
+    // Same id replaces the old notification instead of adding another
     var id: String
     var title: String
     var body: String
@@ -49,11 +43,10 @@ struct PlannedReminder: Hashable, Identifiable {
     var tripID: UUID
 }
 
-/// Works out which reminders should be scheduled. A pure function of the trips, settings and time,
-/// so every rule is unit tested. `ReminderService` then makes the system's list match.
+// Pure function so the rules can be unit tested
 enum ReminderPlanner {
     static let idPrefix = "roampulse."
-    /// iOS keeps at most 64 pending notifications per app; leave room for weather alerts.
+    // iOS allows 64, leave some room for weather alerts
     static let maxScheduled = 60
 
     static func packingID(_ tripID: UUID) -> String { "\(idPrefix)packing.\(tripID.uuidString)" }
@@ -62,7 +55,6 @@ enum ReminderPlanner {
         id.hasPrefix("\(idPrefix)packing.") || id.hasPrefix("\(idPrefix)activity.")
     }
 
-    /// Everything that should be scheduled now, soonest first.
     static func plan(trips: [Trip], settings: ReminderSettings, now: Date) -> [PlannedReminder] {
         guard settings.tripReminders else { return [] }
         let reminders = trips.filter(\.remindersOn).flatMap { trip in
@@ -72,7 +64,6 @@ enum ReminderPlanner {
         return Array(reminders.sorted { $0.fireDate < $1.fireDate }.prefix(maxScheduled))
     }
 
-    /// The evening before the trip, with how much is packed.
     static func packingReminder(for trip: Trip, settings: ReminderSettings, now: Date) -> PlannedReminder? {
         let calendar = Calendar.trip
         guard let dayBefore = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: trip.startDate)) else {
@@ -88,7 +79,6 @@ enum ReminderPlanner {
         return PlannedReminder(id: packingID(trip.id), title: "Time to pack", body: body, fireDate: fireDate, tripID: trip.id)
     }
 
-    /// `minutesBefore` each activity that hasn't happened or been ticked off yet.
     static func activityReminders(for trip: Trip, settings: ReminderSettings, now: Date) -> [PlannedReminder] {
         trip.activities.compactMap { activity in
             guard !activity.isDone else { return nil }
@@ -106,8 +96,7 @@ enum ReminderPlanner {
         }
     }
 
-    /// Weather alerts to send now: outdoor activities today or tomorrow that a new forecast puts at risk.
-    /// Each alert has an id per activity and time window, so the same warning is never sent twice.
+    // id per activity and time window so the same alert isn't sent twice
     static func weatherAlerts(for trip: Trip, snapshot: WeatherSnapshot, now: Date,
                               alreadySent: Set<String>) -> [PlannedReminder] {
         let calendar = Calendar.trip

@@ -2,10 +2,7 @@ import Foundation
 import Observation
 import UserNotifications
 
-/// Creates the app's services once and hands them out (dependency injection).
-/// Views read this from the environment and pass what each view model needs into the view
-/// model's initialiser, so a view model never creates its own services. Tests and previews
-/// build the same view models with stand-ins: an in-memory repository and a fixed clock.
+// Creates all the services once and passes them to the view models
 @MainActor
 @Observable
 final class AppDependencies {
@@ -17,14 +14,10 @@ final class AppDependencies {
     let session: AppSession
     let reminders: ReminderService
     let appLock: AppLock
-    /// Records voice memories (AVFoundation).
     let recorder: AudioRecording
-    /// Writes recordings down and reads them (Speech + Natural Language), on the iPhone.
     let voice: VoiceJournalService
-    /// Shows reminders while the app is open and opens the trip when one is tapped.
     let notificationDelegate = NotificationDelegate()
 
-    /// - Parameter makeWeather: builds the weather service once the store exists (it caches forecasts there).
     init(clock: Clock, auth: AuthService, sync: SyncService, isCloudAvailable: Bool,
          openRepository: @escaping (String) throws -> TripRepository,
          deleteLocalData: @escaping (String) throws -> Void = { _ in },
@@ -36,7 +29,7 @@ final class AppDependencies {
         self.clock = clock
         self.auth = auth
         self.sync = sync
-        // Empty until someone signs in and `session` opens their database.
+        // Empty until someone signs in
         let store = TripStore(repository: InMemoryTripRepository(), clock: clock)
         self.store = store
         self.weather = makeWeather(store)
@@ -48,10 +41,9 @@ final class AppDependencies {
         self.voice = VoiceJournalService(store: store, transcriber: transcriber)
     }
 
-    /// The real app: Firebase sign-in and sync, a Core Data database per account, OpenWeatherMap
-    /// (if an API key is set), local notifications, Face ID and the real time.
+    // Real services used by the app
     static func live() -> AppDependencies {
-        // Firebase must be configured before anything uses Auth or Firestore.
+        // Firebase has to be configured first
         let firebaseIsReady = FirebaseBootstrap.configure()
         let clock = SystemClock()
         let dependencies = AppDependencies(
@@ -71,7 +63,7 @@ final class AppDependencies {
             authenticator: LocalDeviceAuthenticator()
         )
 
-        // A new forecast can put tomorrow's hike at risk: tell the user (once).
+        // Send a weather alert when a new forecast puts an activity at risk
         if let liveWeather = dependencies.weather as? OpenWeatherMapService {
             let reminders = dependencies.reminders
             liveWeather.onNewForecast = { trip, snapshot in
@@ -85,7 +77,6 @@ final class AppDependencies {
         return dependencies
     }
 
-    /// SwiftUI previews: signed in as the sample user, the sample trips in memory, nothing saved or synced.
     static func preview() -> AppDependencies {
         let clock = SystemClock()
         let sample = SampleData.make(now: clock.now)
@@ -105,6 +96,5 @@ final class AppDependencies {
         return dependencies
     }
 
-    /// The active sample trip, for previews.
     var previewTripID: UUID { store.activeTrip?.id ?? store.trips.first?.id ?? UUID() }
 }

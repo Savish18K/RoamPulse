@@ -1,7 +1,6 @@
 import Charts
 import SwiftUI
 
-/// Search, Timeline, Mood and Landmarks views over the journal.
 struct InsightsView: View {
     @State private var viewModel: InsightsViewModel
     @State private var tab = 0
@@ -44,7 +43,7 @@ struct InsightsView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Theme.background)
         .navigationTitle("Insights")
-        // A place or person tapped on a memory opens the search for it.
+        // Tapping a place or person on a memory searches for it
         .onChange(of: router.insightsSearch, initial: true) { _, text in
             guard let text else { return }
             tab = 0
@@ -77,7 +76,6 @@ struct InsightsView: View {
         .previewEnvironment(dependencies)
 }
 
-/// Search memories by what was written or said, a place, a person or a landmark.
 struct MemorySearchView: View {
     @Bindable var viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router
@@ -167,7 +165,7 @@ struct MemorySearchView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// The search text in bold purple wherever it appears.
+    // Bold purple highlight on matches
     private func highlighted(_ text: String) -> AttributedString {
         var attributed = AttributedString(text)
         let query = viewModel.query.trimmed
@@ -182,7 +180,6 @@ struct MemorySearchView: View {
     }
 }
 
-/// All memories by day, newest first.
 struct MemoryTimelineView: View {
     let viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router
@@ -257,7 +254,6 @@ struct MemoryTimelineView: View {
     }
 }
 
-/// How each day felt: the sentiment of that day's memories, or the mood picked by hand.
 struct MoodView: View {
     let viewModel: InsightsViewModel
     @Environment(AppRouter.self) private var router

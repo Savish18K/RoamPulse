@@ -1,17 +1,13 @@
 import SwiftUI
 
-/// Sample trips that mirror the Figma prototype.
-///
-/// They are added when a new account is created, and again from Settings → Load sample trips.
-/// Dates are worked out from "now", so Hill Country Explorer is always on its second day.
+// Sample trips based on the Figma prototype, dates are relative to today
 enum SampleData {
 
     static let profile = UserProfile(fullName: "Savishka Kuruppu", email: "savishka@icloud.com")
 
-    /// The local user, shown on Home and Profile.
     static let me = Member(name: "Savishka", initials: "SK", colorHex: 0xD9738F, isMe: true)
 
-    /// The four friends. Members are saved per trip, so each trip gets its own copies (with new ids).
+    // Each trip gets its own copies of the members
     private struct Crew {
         let savishka = Member(name: "Savishka", initials: "SK", colorHex: 0xD9738F, isMe: true)
         let samee = Member(name: "Samee", initials: "SM", colorHex: 0x5B8FD6)
@@ -21,7 +17,7 @@ enum SampleData {
         var everyone: [Member] { [savishka, samee, suu, suresha] }
     }
 
-    /// Dates counted in days from today, e.g. `days.at(-1, 18, 30)` is yesterday at 18:30.
+    // e.g. days.at(-1, 18, 30) is yesterday at 18:30
     private struct RelativeDays {
         let today: Date
 
@@ -32,15 +28,13 @@ enum SampleData {
         }
     }
 
-    /// The sample trips and journal. Hill Country Explorer started yesterday,
-    /// Jaffna is a few months away, and the Colombo and Sigiriya trips are finished.
     static func make(now: Date) -> (trips: [Trip], memories: [Memory]) {
         let days = RelativeDays(today: Calendar.trip.startOfDay(for: now))
         let hill = hillCountry(days)
         return ([hill.trip, jaffna(days), colombo(days), sigiriya(days)], hill.memories)
     }
 
-    /// Day 1 is yesterday (offset -1) and Day 2 is today (offset 0).
+    // Day 1 is yesterday, day 2 is today
     private static func hillCountry(_ days: RelativeDays) -> (trip: Trip, memories: [Memory]) {
         let crew = Crew()
         var trip = Trip(
@@ -175,7 +169,7 @@ enum SampleData {
             expense("Dinner at Ministry of Crab", 8_000, .food, paidBy: crew.samee, splitWith: pair, days.at(-74, 20, 0)),
             expense("Lotus Tower tickets", 10_000, .activities, paidBy: crew.samee, splitWith: pair, days.at(-73, 17, 30)),
         ]
-        // Samee already paid back what they owed, so this trip is settled.
+        // Samee already paid back so this trip is settled
         trip.payments = [Payment(from: crew.samee, to: crew.savishka, amount: 3_000, date: days.at(-72, 10, 0))]
         return trip
     }
@@ -221,7 +215,6 @@ enum SampleData {
                  isOutdoor: outdoor, isDone: done)
     }
 
-    /// An expense split equally between `splitWith`.
     private static func expense(_ title: String, _ amount: Double, _ category: ExpenseCategory,
                                 paidBy: Member, splitWith: [Member], _ date: Date) -> Expense {
         Expense(title: title, amount: amount, category: category, paidBy: paidBy,
@@ -248,10 +241,7 @@ enum SampleData {
 
 }
 
-/// Sample photos used across the prototype.
-///
-/// Each case loads the image set with the same name from Assets.xcassets/Photos
-/// (credits in CREDITS.md). If an image is missing, `PhotoView` falls back to the gradient below.
+// Images are in Assets.xcassets/Photos (credits in CREDITS.md)
 enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
     case nineArchBridge, blueTrainBridge, trainWindow, hillTrain, teaEstate, mistyHills
     case sigiriya, colomboSkyline, galleFort, jaffnaKovil
@@ -292,8 +282,7 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// Mock result of the landmark model for this photo.
-    /// Some photos are deliberately below the 70% threshold to show the "please confirm" flow.
+    // Fake model result for now, some are under 70% to show the confirm flow
     var recognition: RecognitionResult {
         switch self {
         case .nineArchBridge:
@@ -337,7 +326,6 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
 }
 
 extension SamplePhoto {
-    /// Picks a cover photo for a new trip from the place names in its destination.
     static func cover(for destination: String) -> SamplePhoto {
         let place = destination.lowercased()
         let covers: [(keyword: String, photo: SamplePhoto)] = [
@@ -351,5 +339,4 @@ extension SamplePhoto {
     }
 }
 
-// Encodable for Settings → Export my data (saved as its name).
 extension SamplePhoto: Encodable {}

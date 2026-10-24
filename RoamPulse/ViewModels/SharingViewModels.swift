@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-/// Invite Friends sheet: makes an invite code for the trip and the message to send.
 @MainActor
 @Observable
 final class ShareTripViewModel {
@@ -24,7 +23,6 @@ final class ShareTripViewModel {
 
     var trip: Trip? { store.trip(tripID) }
 
-    /// People already on the trip with their own account.
     var joinedMembers: [Member] { trip?.members.filter { $0.userUID != nil } ?? [] }
 
     var invite: TripInvite? {
@@ -51,7 +49,6 @@ final class ShareTripViewModel {
     }
 }
 
-/// Join Trip sheet: enter a friend's code, say which member you are, join.
 @MainActor
 @Observable
 final class JoinTripViewModel {
@@ -65,7 +62,7 @@ final class JoinTripViewModel {
     private(set) var step: Step = .enterCode
     private(set) var isWorking = false
     private(set) var errorMessage: String?
-    /// Which member of the trip you are. nil means "I'm not on the list" (you're added as a new member).
+    // nil = add me as a new member
     var selectedMemberID: String?
 
     private let store: TripStore
@@ -82,7 +79,7 @@ final class JoinTripViewModel {
         if case .chooseMember(let invite) = step { invite } else { nil }
     }
 
-    /// Picks the member with your name automatically, if there is one.
+    // Pre-select the member with my name
     private func suggestedMember(in invite: TripInvite) -> String? {
         let myName = store.me.name.lowercased()
         return invite.availableMembers.first { $0.name.lowercased() == myName }?.id

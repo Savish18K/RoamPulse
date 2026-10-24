@@ -4,13 +4,12 @@ import Testing
 import UIKit
 @testable import RoamPulse
 
-/// Resizing picked photos, saving them in Core Data as trip covers, and the Create Trip form's photo.
 @MainActor
 struct ImageTests {
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let persistence = PersistenceController(inMemory: true)
 
-    /// A plain JPEG of the given size, standing in for a photo from the library.
+    // Plain JPEG used as a fake library photo
     private func photo(width: Int, height: Int) -> Data {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -30,7 +29,7 @@ struct ImageTests {
              members: [Member(name: "Savishka", colorHex: 0, isMe: true)], cover: .galleFort)
     }
 
-    /// A store backed by a real (in-memory) Core Data database.
+    // Real in-memory Core Data
     private func coreDataStore() -> (TripStore, CoreDataTripRepository) {
         let repository = CoreDataTripRepository(context: persistence.container.viewContext)
         return (TripStore(repository: repository, clock: FixedClock(now: now)), repository)

@@ -16,29 +16,25 @@ enum RecordingError: LocalizedError, Equatable {
     }
 }
 
-/// Records a voice memory with a live level meter. Behind a protocol so the journal form can be
-/// tested without a microphone.
+// Protocol so the form can be tested without a mic
 @MainActor
 protocol AudioRecording: AnyObject {
     var isRecording: Bool { get }
-    /// Seconds recorded so far.
     var elapsed: TimeInterval { get }
-    /// The last few loudness readings, 0 (silent) to 1 (loud), for the level meter.
+    // 0 to 1, for the level meter
     var levels: [Double] { get }
-    /// Asks for the microphone the first time; afterwards just reports the answer.
     func requestPermission() async -> Bool
     func start() throws
-    /// Stops and returns the finished file (in the temporary folder until the memory is saved).
+    // File stays in tmp until the memory is saved
     func stop() -> URL?
-    /// Stops and throws the recording away.
     func discard()
 }
 
-/// `AVAudioRecorder`, recording AAC (`.m4a`, about 1 MB a minute) to a temporary file.
+// Records AAC .m4a (about 1 MB a minute)
 @MainActor
 @Observable
 final class AVAudioRecorderService: AudioRecording {
-    /// Longest recording, so a forgotten recording doesn't fill the iPhone.
+    // Stop at 10 minutes so it can't fill the phone
     static let maxDuration: TimeInterval = 10 * 60
     private static let levelCount = 32
 
@@ -110,14 +106,14 @@ final class AVAudioRecorderService: AudioRecording {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    /// Reads the loudness 20 times a second for the meter and the timer.
+    // 20 times a second
     private func startMetering() {
         meterTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(50))
                 guard let self, let recorder = self.recorder else { return }
                 if !recorder.isRecording {
-                    // Reached the maximum length.
+                    // Hit the max length
                     _ = self.stop()
                     return
                 }
@@ -129,7 +125,7 @@ final class AVAudioRecorderService: AudioRecording {
         }
     }
 
-    /// Decibels (-160 silent … 0 loudest) to 0…1. Below -50 dB counts as silence.
+    // -160...0 dB to 0...1, under -50 dB is silence
     nonisolated static func normalised(_ decibels: Float) -> Double {
         let floor: Float = -50
         guard decibels > floor else { return 0 }
@@ -137,7 +133,6 @@ final class AVAudioRecorderService: AudioRecording {
     }
 }
 
-/// Plays back a memory's recording (`AVAudioPlayer`) and reports the progress.
 @MainActor
 @Observable
 final class AudioPlayback: NSObject, AVAudioPlayerDelegate {

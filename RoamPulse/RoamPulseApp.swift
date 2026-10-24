@@ -2,8 +2,7 @@ import SwiftUI
 
 @main
 struct RoamPulseApp: App {
-    /// Built once: Firebase, sign-in, sync, the real clock and the weather service.
-    /// `live()` configures Firebase first, so it is ready before anything uses it.
+    // live() sets up Firebase before anything uses it
     @State private var dependencies = AppDependencies.live()
     @State private var router = AppRouter()
 
@@ -18,7 +17,6 @@ struct RoamPulseApp: App {
                 .environment(dependencies.voice)
                 .environment(router)
                 .onAppear {
-                    // Tapping a reminder opens its trip.
                     dependencies.notificationDelegate.openTrip = { [router] tripID in
                         router.openTrip(tripID)
                     }
@@ -27,8 +25,7 @@ struct RoamPulseApp: App {
     }
 }
 
-/// Decides between onboarding, signing in and the main app, shows the lock screen,
-/// keeps reminders up to date and presents every sheet in the app.
+// Picks onboarding / sign in / main app and shows all the sheets
 struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(TripStore.self) private var store
@@ -40,7 +37,7 @@ struct RootView: View {
     @AppStorage("hasOnboarded") private var hasOnboarded = false
     @AppStorage("appTheme") private var appTheme: AppTheme = .dark
 
-    /// Everything the scheduled reminders depend on. When any of it changes, they are rescheduled.
+    // Reminders are rescheduled when any of these change
     private struct ReminderInputs: Equatable {
         var trips: [Trip]
         var settings: ReminderSettings
@@ -66,7 +63,7 @@ struct RootView: View {
                         .transition(.opacity)
                 case .signedIn(let user):
                     MainTabView()
-                        // A new account gets fresh screens, not the last person's scroll positions.
+                        // New account gets fresh screens
                         .id(user.uid)
                         .blur(radius: appLock.isLocked ? 20 : 0)
                         .allowsHitTesting(!appLock.isLocked)
@@ -78,7 +75,7 @@ struct RootView: View {
                 }
             }
         }
-        // Hides trips and expenses in the app switcher when App Lock is on.
+        // Hide the content in the app switcher when App Lock is on
         .overlay {
             if appLock.isEnabled && session.user != nil && scenePhase != .active && !appLock.isLocked {
                 PrivacyCover()
@@ -86,8 +83,7 @@ struct RootView: View {
         }
         .animation(.default, value: session.state)
         .animation(.default, value: appLock.isLocked)
-        // Lock when the app opens with someone already signed in, but not right after signing in
-        // with a password.
+        // Don't lock right after a password sign in
         .onAppear {
             if session.user != nil { appLock.lockOnLaunch() }
         }
@@ -101,7 +97,7 @@ struct RootView: View {
                 Task { await reminders.removeAll() }
             }
         }
-        // Recordings saved just before the app was closed are written down now.
+        // Transcribe recordings left from last time
         .task(id: session.user?.uid) {
             guard session.user != nil else { return }
             async let languageData: Void = voice.prepareLanguageData()
@@ -110,7 +106,7 @@ struct RootView: View {
         }
         .task(id: ReminderInputs(trips: store.trips, settings: reminders.settings, isSignedIn: session.user != nil)) {
             guard session.user != nil else { return }
-            // Wait for a burst of edits (e.g. dragging activities) to finish before rescheduling.
+            // Wait for edits to settle before rescheduling
             do {
                 try await Task.sleep(for: .seconds(1))
             } catch {
@@ -120,7 +116,6 @@ struct RootView: View {
         }
         .sheet(item: $router.activeSheet) { sheet in
             SheetContent(sheet: sheet)
-                // A sheet shows its own save errors; the alert below handles everything else.
                 .errorAlert(store)
         }
         .errorAlert(store, isEnabled: router.activeSheet == nil)
@@ -136,7 +131,6 @@ struct RootView: View {
     }
 }
 
-/// The five tabs from the prototype. Each tab has its own NavigationStack.
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AppDependencies.self) private var dependencies

@@ -1,26 +1,16 @@
 import Foundation
 
-// The shape of a trip in Cloud Firestore, and the rules for moving between that and `Trip`.
-// Nothing in this file imports Firebase, so all of it is unit tested without a network.
-//
-//   trips/{tripID}                      TripRecord: name, dates, budget, owner, members' uids
-//   trips/{tripID}/members/{id}         MemberRecord
-//   trips/{tripID}/activities/{id}      ActivityRecord
-//   trips/{tripID}/packing/{id}         PackingRecord
-//   trips/{tripID}/expenses/{id}        ExpenseRecord (with its shares inside)
-//   trips/{tripID}/payments/{id}        PaymentRecord
-//
-// Every item is its own document, so two phones changing different expenses of the same trip
-// don't overwrite each other. Ids are the same UUIDs used in Core Data.
+// Firestore layout for a trip, each item is its own document under trips/{tripID}/...
+// so two phones editing different items don't overwrite each other
 
-/// The lists inside a trip. Each one is a Firestore subcollection of the trip's document.
+// Subcollections of a trip
 enum SyncCollection: String, CaseIterable, Comparable {
     case members, activities, packing, expenses, payments
 
     static func < (lhs: SyncCollection, rhs: SyncCollection) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
-/// Where an item lives: `trips/{tripID}/{collection}/{id}`.
+// trips/{tripID}/{collection}/{id}
 struct ItemKey: Hashable, Comparable {
     var collection: SyncCollection
     var id: String
@@ -30,29 +20,27 @@ struct ItemKey: Hashable, Comparable {
     }
 }
 
-/// The trip's own document.
 struct TripRecord: Codable, Equatable {
     var name: String
     var destination: String
     var startDate: Date
     var endDate: Date
     var budget: Double
-    /// Name of the sample cover photo. The user's own cover photo stays on the iPhone.
+    // Sample cover name, custom covers stay on the phone
     var cover: String
     var remindersOn: Bool
-    /// The account that created the trip.
     var ownerUID: String
-    /// Accounts allowed to read and change the trip. The security rules check this list.
+    // Checked by the security rules
     var memberUIDs: [String]
-    /// Deleted trips are kept as a "tombstone" so other devices find out they were deleted.
+    // Kept as a tombstone so other devices know it was deleted
     var isDeleted: Bool
     var updatedAt: Date
-    /// Where the weather comes from. Optional, because older trips may not have it.
+    // Optional for older trips
     var latitude: Double?
     var longitude: Double?
 }
 
-/// Items keep their place in the list (`position`), because Firestore returns documents sorted by id.
+// Firestore sorts by id so we store the order ourselves
 protocol PositionedRecord {
     var position: Int { get }
 }
@@ -62,7 +50,7 @@ struct MemberRecord: Codable, Equatable, PositionedRecord {
     var name: String
     var initials: String
     var colorHex: Int
-    /// The account of the person this member is, if they use the app. Decides `isMe` on each phone.
+    // Used to work out isMe on each phone
     var userUID: String?
 }
 
@@ -84,7 +72,7 @@ struct PackingRecord: Codable, Equatable, PositionedRecord {
     var isPacked: Bool
 }
 
-/// Money is saved as whole cents so it adds up exactly, like `ExpenseCalculator`.
+// Stored in cents
 struct ExpenseRecord: Codable, Equatable, PositionedRecord {
     var position: Int
     var title: String
@@ -109,7 +97,6 @@ struct PaymentRecord: Codable, Equatable, PositionedRecord {
     var date: Date
 }
 
-/// Any one item document.
 enum ItemRecord: Equatable {
     case member(MemberRecord)
     case activity(ActivityRecord)
@@ -129,7 +116,7 @@ enum TripRecords {
 
     static func amount(cents: Int) -> Double { Double(cents) / 100 }
 
-    /// The trip's own document. A trip made before it had an owner belongs to the signed-in account.
+    // Trips without an owner get the signed in account
     static func header(for trip: Trip, accountID: String, updatedAt: Date, isDeleted: Bool = false) -> TripRecord {
         let owner = trip.ownerUID ?? accountID
         var members = trip.memberUIDs.isEmpty ? [owner] : trip.memberUIDs
@@ -153,7 +140,6 @@ enum TripRecords {
         )
     }
 
-    /// Every item of the trip, keyed by where it is stored.
     static func items(for trip: Trip, accountID: String) -> [ItemKey: ItemRecord] {
         var items: [ItemKey: ItemRecord] = [:]
         func add(_ collection: SyncCollection, _ id: UUID, _ record: ItemRecord) {
@@ -191,8 +177,7 @@ enum TripRecords {
         return items
     }
 
-    /// Builds the trip back from its documents. `accountID` decides which member is "me" on this phone.
-    /// Items that point at a missing member are skipped, the same way Core Data skips damaged rows.
+    // Items pointing at a missing member are skipped
     static func trip(id: UUID, header: TripRecord, lists: [SyncCollection: [String: ItemRecord]],
                      accountID: String) -> Trip {
         let members = sorted(lists[.members], \.member).map { id, record in
@@ -245,7 +230,6 @@ enum TripRecords {
         )
     }
 
-    /// The records of one kind in list order, with their ids.
     private static func sorted<Record: PositionedRecord>(
         _ items: [String: ItemRecord]?, _ extract: KeyPath<ItemRecord, Record?>
     ) -> [(UUID, Record)] {
@@ -258,24 +242,20 @@ enum TripRecords {
     }
 }
 
-/// One document write.
 enum SyncWrite: Equatable {
-    /// A new trip document: written in full, including its owner and members.
+    // Full write including owner and members
     case createTrip(UUID, TripRecord)
-    /// A change to a trip: only `TripRecord.contentFields` are written, never `ownerUID` or `memberUIDs`.
-    /// Those only change when someone joins or leaves, so an edit made on a phone that hasn't heard
-    /// about a new member yet can't remove them again.
+    // Only writes contentFields, so an edit can't remove a member that just joined
     case updateTrip(UUID, TripRecord)
     case setItem(tripID: UUID, ItemKey, ItemRecord)
     case deleteItem(tripID: UUID, ItemKey)
 }
 
 extension TripRecord {
-    /// The fields a trip update writes (everything except `ownerUID` and `memberUIDs`).
+    // Everything except ownerUID and memberUIDs
     static let contentFields = ["name", "destination", "startDate", "endDate", "budget", "cover", "remindersOn",
                                 "isDeleted", "updatedAt", "latitude", "longitude"]
 
-    /// The same record with the membership fields blanked, to compare only what an update writes.
     var content: TripRecord {
         var record = self
         record.ownerUID = ""
@@ -283,23 +263,19 @@ extension TripRecord {
         return record
     }
 
-    /// What is left of a deleted trip: just enough for other devices to remove it.
-    /// The name and everything else is cleared, so a deleted trip leaves no personal data behind.
+    // Clears the name etc. so no personal data is left
     static func tombstone(owner: String, members: [String], at date: Date) -> TripRecord {
         TripRecord(name: "", destination: "", startDate: date, endDate: date, budget: 0, cover: "",
                    remindersOn: false, ownerUID: owner, memberUIDs: members, isDeleted: true, updatedAt: date)
     }
 }
 
-/// Works out the smallest set of writes that makes Firestore match a change made on this iPhone.
+// Works out the minimum Firestore writes for a change
 enum TripChangeSet {
-    /// `old` is nil for a new trip; `new` is nil for a deleted one.
-    /// Only documents that actually changed are written: ticking one packing item is one write.
-    /// The cover photo id is not part of any record, so changing only the photo writes nothing.
+    // old is nil for a new trip, new is nil for a deleted one. Only changed docs are written
     static func writes(from old: Trip?, to new: Trip?, accountID: String, now: Date) -> [SyncWrite] {
         guard let new else {
             guard let old else { return [] }
-            // Keep a tombstone for other devices, and remove the trip's items.
             let header = TripRecords.header(for: old, accountID: accountID, updatedAt: now)
             let tombstone = TripRecord.tombstone(owner: header.ownerUID, members: header.memberUIDs, at: now)
             let items = TripRecords.items(for: old, accountID: accountID).keys.sorted()
@@ -331,8 +307,7 @@ enum TripChangeSet {
     }
 }
 
-/// Firestore's current copy of one trip, put together from the trip's document and its five lists,
-/// which arrive from six separate listeners.
+// Puts a trip back together from its 6 listeners
 struct RemoteTripMirror {
     enum Part: Hashable {
         case header
@@ -344,11 +319,10 @@ struct RemoteTripMirror {
     private var received: Set<Part> = []
     private var pending: Set<Part> = []
 
-    /// True while Firestore is still showing writes from this iPhone that the server hasn't confirmed.
-    /// Those changes are already in Core Data, so nothing is applied until the server answers.
+    // Wait until the server confirms our own writes
     var hasPendingWrites: Bool { !pending.isEmpty }
 
-    /// True once the trip's document and all five lists have arrived at least once.
+    // Trip doc + all 5 lists received
     var hasEveryPart: Bool { received.count == SyncCollection.allCases.count + 1 }
 
     mutating func receiveHeader(_ record: TripRecord, hasPendingWrites: Bool) {
@@ -361,9 +335,7 @@ struct RemoteTripMirror {
         mark(.list(collection), hasPendingWrites: hasPendingWrites)
     }
 
-    /// The trip as the cloud has it, or nil while parts are missing or if it was deleted.
-    /// Without waiting for every part, a half-arrived trip (say, with no expenses yet) would
-    /// overwrite the full copy on the iPhone.
+    // nil until every part is here, otherwise a half loaded trip would overwrite the local one
     func trip(id: UUID, accountID: String) -> Trip? {
         guard hasEveryPart, let header, !header.isDeleted else { return nil }
         return TripRecords.trip(id: id, header: header, lists: lists, accountID: accountID)

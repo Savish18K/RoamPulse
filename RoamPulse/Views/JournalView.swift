@@ -1,7 +1,6 @@
 import PhotosUI
 import SwiftUI
 
-/// Journal tab: every memory, newest first, with a filter per trip.
 struct JournalView: View {
     @State private var viewModel: JournalViewModel
     @Environment(AppRouter.self) private var router
@@ -125,10 +124,9 @@ struct JournalView: View {
         .previewEnvironment(dependencies)
 }
 
-/// Card for one memory in the Journal list.
 struct MemoryCard: View {
     let memory: Memory
-    /// Shown when the list has several trips.
+    // Only shown when several trips are listed
     var tripName: String?
     var isFeatured = false
     @Environment(AppRouter.self) private var router
@@ -257,7 +255,6 @@ struct MemoryCard: View {
         .frame(height: 160)
     }
 
-    /// Place tags plus a "Scene: …" chip.
     private var chips: [String] {
         var tags = memory.placeTags
         if !memory.sceneTags.isEmpty {
@@ -275,8 +272,7 @@ struct MemoryCard: View {
     }
 }
 
-/// Memory detail sheet: photos, mood, text, tags, people and the linked activity.
-/// Tapping a place or person opens Insights filtered to it.
+// Tapping a place or person opens it in Insights
 struct MemoryDetailView: View {
     let memoryID: UUID
 
@@ -538,8 +534,6 @@ struct MemoryDetailView: View {
         .previewEnvironment(dependencies)
 }
 
-/// New Memory and Edit Memory: what happened, photos, who was there, how it felt,
-/// and which planned activity it belongs to.
 struct MemoryFormView: View {
     @State private var viewModel: MemoryFormViewModel
     @State private var pickedPhotos: [PhotosPickerItem] = []
@@ -554,7 +548,7 @@ struct MemoryFormView: View {
         case title, text, place
     }
 
-    /// - Parameter start: Record Memory starts recording straight away; Add Photos opens the photo picker.
+    // start decides whether to record or open the picker straight away
     init(viewModel: MemoryFormViewModel, start: MemoryFormStart = .writing) {
         _viewModel = State(initialValue: viewModel)
         _showsPhotoPicker = State(initialValue: start == .photos)
@@ -648,7 +642,7 @@ struct MemoryFormView: View {
                 case .photos: break
                 }
             }
-            // Swiping the sheet away is the same as Cancel.
+            // Swiping down = Cancel
             .onDisappear {
                 playback.stop()
                 if !didSave { viewModel.discardUnsavedRecording() }
@@ -658,7 +652,6 @@ struct MemoryFormView: View {
         .presentationBackground(Theme.card)
     }
 
-    /// Record, stop, listen back, or remove. While recording, the bars follow the microphone level.
     private var voiceSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Voice")
@@ -976,7 +969,7 @@ struct MemoryFormView: View {
         .previewEnvironment(dependencies)
 }
 
-/// Bars showing the microphone level over the last moments, newest on the right.
+// Newest on the right
 struct LevelMeterView: View {
     let levels: [Double]
 
@@ -994,7 +987,7 @@ struct LevelMeterView: View {
     }
 }
 
-/// Lets the user type a note when on-device transcription isn't available.
+// For when transcription isn't available
 struct TypeNoteView: View {
     let memoryID: UUID
     @Environment(TripStore.self) private var store

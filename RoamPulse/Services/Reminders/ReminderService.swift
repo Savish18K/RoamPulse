@@ -16,15 +16,13 @@ enum NotificationPermission: Equatable {
     }
 }
 
-/// The parts of `UNUserNotificationCenter` the app uses, behind a protocol so tests can record
-/// what would be scheduled.
+// Protocol so tests don't schedule real notifications
 @MainActor
 protocol NotificationScheduling: AnyObject {
     func permission() async -> NotificationPermission
     func requestPermission() async -> Bool
     func pendingIdentifiers() async -> [String]
-    /// Schedules the reminder at its fire date, or shows it now when `immediately` is true.
-    /// Scheduling an id that already exists replaces it.
+    // Same id replaces the existing one
     func schedule(_ reminder: PlannedReminder, immediately: Bool) async throws
     func removePending(_ identifiers: [String])
 }
@@ -72,12 +70,7 @@ final class UserNotificationScheduler: NotificationScheduling {
     }
 }
 
-/// Keeps the scheduled local notifications in step with the trips (UserNotifications).
-///
-/// Every time the trips or settings change, `reschedule` works out the reminders that should exist
-/// (`ReminderPlanner`), removes ones that are no longer wanted (a deleted activity or trip) and adds or
-/// replaces the rest. Ids are per activity/trip, so editing an activity's time replaces its reminder.
-/// Nothing is ever asked for until the user turns a reminder on.
+// Keeps the local notifications in sync with the trips
 @MainActor
 @Observable
 final class ReminderService {
@@ -102,8 +95,6 @@ final class ReminderService {
         permission = await scheduler.permission()
     }
 
-    /// Asks for permission the first time; afterwards just reports the answer.
-    /// Returns true when notifications are allowed.
     @discardableResult
     func requestPermissionIfNeeded() async -> Bool {
         await refreshPermission()
@@ -114,7 +105,6 @@ final class ReminderService {
         return permission == .allowed
     }
 
-    /// Makes the scheduled reminders match the trips.
     func reschedule(trips: [Trip]) async {
         await refreshPermission()
         guard permission == .allowed else { return }
@@ -130,14 +120,12 @@ final class ReminderService {
         }
     }
 
-    /// Removes every scheduled reminder, e.g. after signing out, so someone else's trips don't notify.
+    // So the next user doesn't get someone else's reminders
     func removeAll() async {
         let ours = await scheduler.pendingIdentifiers().filter { $0.hasPrefix(ReminderPlanner.idPrefix) }
         scheduler.removePending(ours)
     }
 
-    /// Called after a new forecast is downloaded: alerts about outdoor activities today or tomorrow
-    /// that are now at risk. Each warning is only sent once.
     func sendWeatherAlerts(for trip: Trip, snapshot: WeatherSnapshot) async {
         guard settings.weatherAlerts, trip.remindersOn else { return }
         await refreshPermission()
@@ -149,14 +137,13 @@ final class ReminderService {
             try? await scheduler.schedule(alert, immediately: true)
             sent.insert(alert.id)
         }
-        // Old ids can go; only the last 200 are needed to avoid repeats.
+        // Only keep the last 200 ids
         defaults.set(Array(sent.sorted().suffix(200)), forKey: Self.sentAlertsKey)
     }
 }
 
-/// Shows reminders even while the app is open, and opens the trip when one is tapped.
+// Show reminders in the foreground and open the trip on tap
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
-    /// Called with the trip of the tapped notification.
     var openTrip: ((UUID) -> Void)?
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,

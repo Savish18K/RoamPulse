@@ -2,15 +2,13 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Which reminders are planned (`ReminderPlanner`) and how `ReminderService` keeps the scheduled
-/// notifications in step with the trips, using a fake notification centre.
 @MainActor
 struct ReminderTests {
-    /// Sunday 13 December 2026, 16:40.
+    // Sun 13 Dec 2026, 16:40
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let calendar = Calendar.trip
 
-    /// Starts on Wednesday 16 December, with one activity on Day 1 at 09:00.
+    // Starts Wed 16 Dec, one activity on day 1 at 09:00
     private func upcomingTrip() -> Trip {
         var trip = Trip(name: "Southern Coast", destination: "Galle", startDate: calendar.date(2026, 12, 16),
                         endDate: calendar.date(2026, 12, 17), budget: 0, members: [], cover: .galleFort)
@@ -153,7 +151,6 @@ struct ReminderTests {
     }
 }
 
-/// The app lock: when it locks, turning it on and off, and unlocking, with a fake Face ID.
 @MainActor
 struct AppLockTests {
     let start = Calendar.trip.date(2026, 12, 13, 16, 40)

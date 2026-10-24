@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Weather and activity advisories for one trip, from OpenWeatherMap (or sample data without an API key).
 struct WeatherView: View {
     @State private var viewModel: WeatherViewModel
 

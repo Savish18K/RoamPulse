@@ -1,10 +1,8 @@
 import Foundation
 @testable import RoamPulse
 
-// Stand-ins for Firebase, the network, notifications and Face ID, so the tests run offline
-// and give the same result every time.
+// Fakes for Firebase, network, notifications and Face ID so tests run offline
 
-/// Pretends to be Firebase Authentication, keeping accounts in a dictionary.
 @MainActor
 final class FakeAuthService: AuthService {
     private(set) var currentUser: AppUser?
@@ -12,7 +10,7 @@ final class FakeAuthService: AuthService {
     private var accounts: [String: (password: String, user: AppUser)] = [:]
     private(set) var resetEmails: [String] = []
     private(set) var deletedAccounts: [String] = []
-    /// Set to make the next call fail with this error.
+    // Next call fails with this
     var nextError: AuthError?
 
     func addAccount(name: String, email: String, password: String) -> AppUser {
@@ -30,7 +28,7 @@ final class FakeAuthService: AuthService {
         try throwNextError()
         guard accounts[email] == nil else { throw AuthError.emailAlreadyInUse }
         let user = addAccount(name: name, email: email, password: password)
-        // Like Firebase, the listener hears about the new user before its name has been saved.
+        // Like Firebase, the user arrives before the name is saved
         setUser(AppUser(uid: user.uid, email: email, displayName: nil))
         return user
     }
@@ -75,7 +73,7 @@ final class FakeAuthService: AuthService {
         setUser(nil)
     }
 
-    /// Signs someone in as if Firebase remembered them from the last launch.
+    // Like Firebase remembering the last sign in
     func restoreSession(_ user: AppUser) {
         currentUser = user
     }
@@ -93,7 +91,7 @@ final class FakeAuthService: AuthService {
     }
 }
 
-/// Records what the store asks to upload instead of talking to Firestore.
+// Records uploads instead of using Firestore
 @MainActor
 final class RecordingSyncService: SyncService {
     private(set) var status: SyncStatus = .off
@@ -103,9 +101,8 @@ final class RecordingSyncService: SyncService {
     private(set) var leftTrips: [UUID] = []
     private(set) var joined: [(invite: TripInvite, memberID: String?, name: String)] = []
     private(set) var cloudDataDeleted: [UUID] = []
-    /// Invites that `findInvite` can find, by code.
     var invites: [String: TripInvite] = [:]
-    /// Set to make sharing calls fail, e.g. `.offline`.
+    // e.g. .offline
     var sharingError: SharingError?
     var now = Calendar.trip.date(2026, 12, 13, 16, 40)
 
@@ -153,7 +150,7 @@ final class RecordingSyncService: SyncService {
     }
 }
 
-/// One in-memory database per account, like the app's one Core Data file per account.
+// One in-memory database per account
 final class AccountDatabases {
     private(set) var repositories: [String: InMemoryTripRepository] = [:]
     private(set) var deleted: [String] = []
@@ -173,16 +170,12 @@ final class AccountDatabases {
     }
 }
 
-/// Pretends to be UNUserNotificationCenter.
 @MainActor
 final class FakeNotificationScheduler: NotificationScheduling {
     var currentPermission: NotificationPermission = .notDetermined
-    /// What the user answers when asked.
     var answer = true
     private(set) var permissionRequests = 0
-    /// Scheduled (not yet delivered) notifications by id.
     private(set) var pending: [String: PlannedReminder] = [:]
-    /// Notifications shown straight away.
     private(set) var delivered: [PlannedReminder] = []
 
     func permission() async -> NotificationPermission { currentPermission }
@@ -208,12 +201,11 @@ final class FakeNotificationScheduler: NotificationScheduling {
     }
 }
 
-/// Says yes or no instead of asking for Face ID.
 @MainActor
 final class FakeAuthenticator: DeviceAuthenticating {
     var biometry: Biometry = .faceID
     var hasPasscode = true
-    /// The next attempt fails with this error; nil means it succeeds.
+    // nil means success
     var nextError: AppLockError?
     private(set) var attempts = 0
 
@@ -228,7 +220,6 @@ final class FakeAuthenticator: DeviceAuthenticating {
     }
 }
 
-/// A clock the test can move forward.
 final class MutableClock: Clock {
     var now: Date
 
@@ -241,12 +232,12 @@ final class MutableClock: Clock {
     }
 }
 
-/// Answers OpenWeatherMap requests with saved JSON instead of using the network.
+// Returns saved JSON instead of using the network
 final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
     private let lock = NSLock()
-    /// Response per API path, e.g. "/data/2.5/weather".
+    // e.g. "/data/2.5/weather"
     var responses: [String: (status: Int, body: Data)] = [:]
-    /// When set, every request fails with this (e.g. no connection).
+    // e.g. no connection
     var error: URLError?
     private(set) var requestedPaths: [String] = []
 
@@ -268,7 +259,7 @@ final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
     }
 }
 
-/// Pretends to record: "stopping" writes a small file, like a finished recording.
+// Stop writes a small file like a real recording
 @MainActor
 final class FakeRecorder: AudioRecording {
     var allowsMicrophone = true
@@ -298,7 +289,6 @@ final class FakeRecorder: AudioRecording {
     }
 }
 
-/// Answers with a fixed text, or fails with a fixed error, instead of listening to the file.
 final class FakeTranscriber: SpeechTranscribing, @unchecked Sendable {
     var result: Result<String, TranscriptionError>
     private(set) var calls = 0

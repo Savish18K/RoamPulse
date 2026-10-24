@@ -15,7 +15,7 @@ enum Mood: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Weather-style icon so mood never relies on colour alone.
+    // Icon too so mood isn't shown by colour only
     var icon: String {
         switch self {
         case .positive: "sun.max.fill"
@@ -33,13 +33,11 @@ enum Mood: String, CaseIterable, Identifiable {
     }
 }
 
-/// A photo in a memory: one of the app's sample photos, or one the user picked
-/// (resized and saved in Core Data as a `StoredImageEntity`, never uploaded).
+// Sample photo or one the user picked (stored in Core Data, not uploaded)
 enum MemoryPhoto: Hashable {
     case sample(SamplePhoto)
     case stored(UUID)
 
-    /// Stable within a memory, for SwiftUI lists and for matching Core Data rows.
     var key: String {
         switch self {
         case .sample(let photo): "sample-\(photo.rawValue)"
@@ -52,7 +50,6 @@ enum MemoryPhoto: Hashable {
     }
 }
 
-/// A journal entry: written text, photos, a voice recording, or any mix of them.
 struct Memory: Identifiable, Hashable {
     var id = UUID()
     var tripID: UUID
@@ -61,7 +58,7 @@ struct Memory: Identifiable, Hashable {
     var day: Int
     var place: String
     var transcript: String
-    /// Recording length in seconds. 0 = photo-only memory.
+    // Seconds, 0 for photo-only memories
     var duration: Int
     var people: [Member]
     var mood: Mood?
@@ -73,10 +70,9 @@ struct Memory: Identifiable, Hashable {
     var photos: [MemoryPhoto] = []
     var linkedActivity: String?
     var isVisited = false
-    /// True when on-device speech recognition doesn't support the language.
+    // Speech recognition doesn't support the language
     var transcriptUnavailable = false
-    /// The recording's file in the account's Recordings folder (see `RecordingFiles`).
-    /// Sample memories have a length but no file.
+    // File name in the Recordings folder, sample memories don't have one
     var audioFileName: String?
 
     var hasVoice: Bool { duration > 0 }
@@ -85,7 +81,6 @@ struct Memory: Identifiable, Hashable {
 
     var hasText: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// "Photo + voice", "Photo", "Voice" or "Note"
     var kindText: String {
         switch (photos.isEmpty, hasVoice) {
         case (false, true): "Photo + voice"
@@ -95,7 +90,6 @@ struct Memory: Identifiable, Hashable {
         }
     }
 
-    /// The photos the user picked (not samples), whose image data is stored in Core Data.
     var storedImageIDs: [UUID] { photos.compactMap(\.storedImageID) }
 }
 
@@ -117,7 +111,6 @@ enum LandmarkStatus: Hashable {
     case notVisited
 }
 
-/// One of the Sri Lankan landmarks the Core ML model will recognise.
 struct Landmark: Identifiable, Hashable {
     let id = UUID()
     var name: String
@@ -129,7 +122,6 @@ struct Landmark: Identifiable, Hashable {
     var photoCount = 0
     var voiceCount = 0
 
-    /// Recognised in a photo (automatically or confirmed by the user).
     var isFound: Bool {
         switch status {
         case .recognised, .confirmedByUser: true
@@ -143,7 +135,6 @@ struct Landmark: Identifiable, Hashable {
     }
 }
 
-/// One guess from the landmark model.
 struct LandmarkCandidate: Identifiable, Hashable {
     var name: String
     var confidence: Double
@@ -151,7 +142,7 @@ struct LandmarkCandidate: Identifiable, Hashable {
     var id: String { name }
 }
 
-/// Mock output of the landmark model + Vision scene tags for a photo.
+// Fake model output for now
 struct RecognitionResult: Hashable {
     static let threshold = 0.7
     static let otherLabel = "Other (not a landmark)"
@@ -186,7 +177,6 @@ struct DailyForecast: Identifiable, Hashable {
     var low: Int
 }
 
-/// The headline warning shown on Home and the Weather screen, for the next outdoor activity at risk.
 struct WeatherAdvisory: Hashable {
     var day: Int
     var title: String
@@ -194,7 +184,6 @@ struct WeatherAdvisory: Hashable {
     var message: String
 }
 
-/// A warning for one outdoor activity, worked out by `WeatherAdvisor`.
 struct ActivityAdvisory: Hashable {
     enum Kind: Hashable {
         case storm, rain, heat
@@ -203,13 +192,12 @@ struct ActivityAdvisory: Hashable {
     var activityID: UUID
     var day: Int
     var kind: Kind
-    /// e.g. "Heavy rain likely"
+    // e.g. "Heavy rain likely"
     var title: String
-    /// e.g. "14:00–17:00"
+    // e.g. "14:00–17:00"
     var window: String
-    /// When the risky weather starts, used to send the alert only once.
+    // So the alert is only sent once
     var windowStart: Date
-    /// e.g. "Heavy rain likely 14:00–17:00 (90%). Drier around 08:00 (20%)."
     var message: String
 
     var icon: String {
@@ -221,17 +209,16 @@ struct ActivityAdvisory: Hashable {
     }
 }
 
-/// One 3-hour step of the forecast (OpenWeatherMap's 5 day / 3 hour forecast).
+// One 3 hour step from OpenWeatherMap
 struct ForecastSlot: Hashable {
     static let length: TimeInterval = 3 * 60 * 60
 
     var start: Date
     var temperature: Int
-    /// Chance of rain or snow, 0–100.
+    // 0-100
     var rainChance: Int
-    /// Rain (and snow) expected during the 3 hours, in mm.
     var rainMM: Double
-    /// OpenWeatherMap's condition code: 2xx thunderstorm, 3xx drizzle, 5xx rain, 800 clear, 80x clouds.
+    // 2xx storm, 3xx drizzle, 5xx rain, 800 clear, 80x clouds
     var conditionCode: Int
     var condition: String
     var symbol: String
@@ -242,11 +229,10 @@ struct ForecastSlot: Hashable {
 
 enum WeatherSource: Hashable {
     case openWeatherMap
-    /// Built-in sample data, used when no OpenWeatherMap API key is set (and in previews).
+    // Used when there's no API key
     case sample
 }
 
-/// Forecast for a trip's destination.
 struct WeatherSnapshot: Hashable {
     var location: String
     var condition: String
@@ -258,21 +244,18 @@ struct WeatherSnapshot: Hashable {
     var windKmh: Int
     var rainChance: Int
     var sunset: String
-    /// When the forecast was downloaded.
     var fetchedAt: Date
     var hourly: [HourlyForecast]
     var daily: [DailyForecast]
-    /// Every 3-hour step, used for the advice on each activity.
     var slots: [ForecastSlot]
-    /// True when there was no connection and a saved forecast is shown.
+    // No connection, showing the saved forecast
     var isOffline = false
     var source: WeatherSource = .openWeatherMap
 
-    /// "16:32"
     var updatedAt: String { fetchedAt.text("HH:mm") }
 }
 
-// Encodable for Settings → Export my data.
+// For Settings -> Export my data
 extension Memory: Encodable {}
 extension MemoryPhoto: Encodable {}
 extension Mood: Encodable {}

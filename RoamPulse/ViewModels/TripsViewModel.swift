@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-/// Trips tab: trips grouped into Active, Upcoming and Completed, with search and delete.
 @MainActor
 @Observable
 final class TripsListViewModel {
@@ -10,7 +9,6 @@ final class TripsListViewModel {
     private let weatherService: WeatherService
 
     var searchText = ""
-    /// The trip waiting for the user to confirm the delete.
     var tripPendingDelete: Trip?
     private(set) var weather: WeatherSnapshot?
 
@@ -36,7 +34,7 @@ final class TripsListViewModel {
         !hasNoTrips && activeTrips.isEmpty && upcomingTrips.isEmpty && completedTrips.isEmpty
     }
 
-    /// Matches the trip name, destination, activities and the titles of its memories.
+    // Name, destination, activities and memory titles
     func matchesSearch(_ trip: Trip) -> Bool {
         let text = searchText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return true }
@@ -76,16 +74,16 @@ final class TripsListViewModel {
     }
 }
 
-/// Create Trip and Edit Trip sheet.
+// Create / edit trip sheet
 @MainActor
 @Observable
 final class TripFormViewModel {
     private let store: TripStore
-    /// The trip being edited, or nil when creating a new one.
+    // nil when creating
     let tripID: UUID?
 
     var name = ""
-    /// Typing a different destination forgets the place picked from the suggestions (and its coordinates).
+    // Typing again clears the picked place and its coordinates
     var destination = "" {
         didSet {
             if destination != pickedPlace?.name {
@@ -100,7 +98,6 @@ final class TripFormViewModel {
     var newCompanionName = ""
     private(set) var companions: [Member]
 
-    /// What happens to the cover photo when the form is saved.
     enum CoverChange: Equatable {
         case unchanged
         case replace(PreparedImage)
@@ -108,19 +105,17 @@ final class TripFormViewModel {
     }
 
     private(set) var coverChange: CoverChange = .unchanged
-    /// True while a picked photo is being resized.
     private(set) var isPreparingCover = false
-    /// Set when a picked file couldn't be read as a photo.
     private(set) var coverProblem: String?
 
-    /// Shown when there are no search results (e.g. offline).
+    // Used when the search gives nothing (e.g. offline)
     let destinationSuggestions = ["Galle Fort", "Unawatuna", "Hikkaduwa", "Mirissa"]
-    /// Places matching the destination, from OpenWeatherMap's geocoding.
+    // From OpenWeatherMap geocoding
     private(set) var placeSuggestions: [Place] = []
-    /// The suggestion the user tapped. Its coordinates are saved with the trip for the weather.
+    // Coordinates are saved with the trip
     private(set) var pickedPlace: Place?
     private let weather: WeatherService?
-    /// The destination when the form opened, so editing a trip doesn't search until it changes.
+    // So editing doesn't search until the destination changes
     private var originalDestination = ""
 
     init(tripID: UUID? = nil, store: TripStore, clock: Clock, weather: WeatherService? = nil) {
@@ -128,7 +123,7 @@ final class TripFormViewModel {
         self.tripID = tripID
         self.weather = weather
 
-        // A new trip starts a week from today and lasts three days.
+        // New trips start next week and last 3 days
         let calendar = Calendar.trip
         let today = calendar.startOfDay(for: clock.now)
         startDate = calendar.date(byAdding: .day, value: 7, to: today) ?? today
@@ -148,14 +143,14 @@ final class TripFormViewModel {
         }
     }
 
-    /// Looks up places matching the destination. Called by the view a moment after typing stops.
+    // The view calls this after a short delay
     func searchPlaces() async {
         let query = destination.trimmed
         guard let weather, query.count >= 2, pickedPlace == nil, query != originalDestination else {
             placeSuggestions = []
             return
         }
-        // Offline or no results: the fixed suggestions are shown instead.
+        // Fall back to the fixed suggestions
         placeSuggestions = (try? await weather.searchPlaces(query)) ?? []
     }
 
@@ -165,7 +160,6 @@ final class TripFormViewModel {
         placeSuggestions = []
     }
 
-    /// The trip's own photo will be shown (a new one was picked, or it already had one that isn't being removed).
     var hasCustomCover: Bool {
         switch coverChange {
         case .replace: true
@@ -174,7 +168,6 @@ final class TripFormViewModel {
         }
     }
 
-    /// The small JPEG for the form's preview: the newly picked photo or the saved one.
     var coverThumbnailData: Data? {
         switch coverChange {
         case .replace(let image): image.thumbnail
@@ -183,16 +176,15 @@ final class TripFormViewModel {
         }
     }
 
-    /// The sample photo used when there is no photo of the user's own.
     var defaultCover: SamplePhoto {
         existingTrip?.cover ?? .cover(for: destination)
     }
 
-    /// Resizes a photo from the photo picker. Nothing is saved until the form is saved.
+    // Not saved until the form is saved
     func useCoverPhoto(_ data: Data) async {
         isPreparingCover = true
         coverProblem = nil
-        // Resizing a 12 MP photo takes a moment, so it runs off the main thread.
+        // Slow for big photos so do it off the main thread
         let prepared = await Task.detached(priority: .userInitiated) { ImageProcessor.prepare(data) }.value
         isPreparingCover = false
         if let prepared {
@@ -221,20 +213,19 @@ final class TripFormViewModel {
 
     var dayCount: Int { Calendar.trip.days(from: startDate, to: endDate) + 1 }
 
-    /// Digits only, so "90,000" and "90000" both work.
+    // Digits only so "90,000" works too
     var budget: Double { Double(budgetText.filter(\.isNumber)) ?? 0 }
 
     var canSave: Bool {
         datesAreValid && !name.trimmed.isEmpty && !destination.trimmed.isEmpty
     }
 
-    /// "9 – 11 Jan 2027"
     var dateRangeText: String {
         let sameMonth = startDate.text("MMM yyyy") == endDate.text("MMM yyyy")
         return startDate.text(sameMonth ? "d" : "d MMM") + " – " + endDate.text("d MMM yyyy")
     }
 
-    /// When editing makes the trip shorter, activities on the removed days move to the new last day.
+    // Activities on removed days move to the new last day
     var shortenedTripWarning: String? {
         guard let trip = existingTrip, datesAreValid else { return nil }
         let count = trip.activities.filter { $0.day > dayCount }.count
@@ -251,8 +242,7 @@ final class TripFormViewModel {
         companions.append(Member(name: newName, colorHex: color))
     }
 
-    /// You can't remove yourself, someone who has joined with their own account (they leave the trip
-    /// themselves), or someone who is already part of an expense.
+    // Can't remove yourself, someone with an account, or someone in an expense
     func canRemove(_ member: Member) -> Bool {
         if member.isMe || member.userUID != nil { return false }
         return !(existingTrip?.hasMoney(involving: member) ?? false)
@@ -263,7 +253,7 @@ final class TripFormViewModel {
         companions.removeAll { $0.id == member.id }
     }
 
-    /// Creates or updates the trip. Returns false if the form isn't valid or saving failed.
+    // false if invalid or the save failed
     func save() -> Bool {
         guard canSave else { return false }
 
@@ -289,7 +279,7 @@ final class TripFormViewModel {
         let picked = pickedPlace
         let saved = store.updateTrip(tripID) { trip in
             if trip.destination != destination.trimmed || picked != nil {
-                // A new destination: use the picked place, or look it up again when the weather loads.
+                // Use the picked place, otherwise it's looked up when the weather loads
                 trip.latitude = picked?.latitude
                 trip.longitude = picked?.longitude
             }
@@ -305,7 +295,7 @@ final class TripFormViewModel {
         return saved && saveCoverChange(for: tripID)
     }
 
-    /// The photo is saved after the trip, because it is linked to the trip's saved row.
+    // Saved after the trip since it links to the trip row
     private func saveCoverChange(for tripID: UUID) -> Bool {
         switch coverChange {
         case .unchanged: true
@@ -316,6 +306,5 @@ final class TripFormViewModel {
 }
 
 extension String {
-    /// The string without spaces or new lines at either end.
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }

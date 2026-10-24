@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-/// Trip detail: summary tiles, day tabs and the selected day's schedule.
 @MainActor
 @Observable
 final class TripDetailViewModel {
@@ -10,7 +9,7 @@ final class TripDetailViewModel {
     private let clock: Clock
     private let weatherService: WeatherService
 
-    /// The day being shown, 1-based.
+    // Starts at 1
     var selectedDay: Int
     var showDeleteConfirmation = false
     private(set) var weather: WeatherSnapshot?
@@ -20,7 +19,7 @@ final class TripDetailViewModel {
         self.store = store
         self.clock = clock
         self.weatherService = weather
-        // Open on the requested day, otherwise today (for an active trip), otherwise Day 1.
+        // Requested day, else today, else day 1
         selectedDay = initialDay ?? store.trip(tripID)?.dayNumber(at: clock.now) ?? 1
     }
 
@@ -53,13 +52,13 @@ final class TripDetailViewModel {
 
     var dayTitles: [String] { (1...(trip?.dayCount ?? 1)).map { "Day \($0)" } }
 
-    /// The segmented control works with 0-based indexes.
+    // Segmented control uses 0-based
     var selectedDayIndex: Int {
         get { selectedDay - 1 }
         set { selectedDay = newValue + 1 }
     }
 
-    /// Tabs that get an orange dot because an outdoor activity that day has a weather warning.
+    // Days with a weather warning get an orange dot
     var advisoryDayIndexes: Set<Int> {
         guard let trip else { return [] }
         return Set(WeatherAdvisor.advisoryDays(for: trip, in: weather).map { $0 - 1 })
@@ -77,7 +76,6 @@ final class TripDetailViewModel {
 
     var intensity: DayIntensity? { trip?.intensity(ofDay: selectedDay) }
 
-    /// Extra advice on demanding days (see `ItineraryPlanner.demandingDayAdvice`).
     var intensityAdvice: String? {
         let previous = selectedDay > 1 ? trip?.intensity(ofDay: selectedDay - 1) : nil
         return ItineraryPlanner.demandingDayAdvice(today: intensity, previousDay: previous)
@@ -94,7 +92,6 @@ final class TripDetailViewModel {
         return activity.timeText
     }
 
-    /// Days the activity could be moved to.
     func otherDays(for activity: Activity) -> [Int] {
         (1...(trip?.dayCount ?? 1)).filter { $0 != activity.day }
     }
@@ -116,15 +113,14 @@ final class TripDetailViewModel {
         }
     }
 
-    /// Moves the activity to another day (it keeps its time).
+    // Keeps its time
     func move(_ activity: Activity, toDay day: Int) {
         store.updateTrip(tripID) { trip in
             trip.activities = ItineraryPlanner.move(activity.id, toDay: day, dayCount: trip.dayCount, in: trip.activities)
         }
     }
 
-    /// Drag and drop within the day: the dragged activity takes the target's place.
-    /// Returns false if the dragged item isn't an activity on this day.
+    // false if it isn't an activity from this day
     @discardableResult
     func moveActivity(_ draggedID: UUID, onto target: Activity) -> Bool {
         let day = activities
@@ -134,7 +130,7 @@ final class TripDetailViewModel {
         return true
     }
 
-    /// Drag an activity onto a day tab to move it to that day.
+    // Dropping on a day tab moves it there
     @discardableResult
     func moveActivity(_ draggedID: UUID, toDayIndex index: Int) -> Bool {
         guard let activity = trip?.activities.first(where: { $0.id == draggedID }), activity.day != index + 1 else {
@@ -144,7 +140,7 @@ final class TripDetailViewModel {
         return true
     }
 
-    /// Accessible alternative to dragging (VoiceOver users can't drag).
+    // For VoiceOver since you can't drag
     func moveUp(_ activity: Activity) {
         guard let index = activities.firstIndex(where: { $0.id == activity.id }), index > 0 else { return }
         reorder(activities, from: index, to: index - 1)
@@ -162,15 +158,15 @@ final class TripDetailViewModel {
         }
     }
 
-    /// Returns true once the trip is gone, so the screen can close.
+    // true when it's gone so the screen can close
     func deleteTrip() -> Bool {
         store.deleteTrip(tripID)
     }
 
-    /// The owner deletes the trip; someone it was shared with can only leave it.
+    // Shared members can only leave
     var canDeleteForEveryone: Bool { trip.map(store.isOwner) ?? true }
 
-    /// Sharing needs an account (cloud sync).
+    // Needs an account
     var canShare: Bool { store.accountID != nil }
 
     var deleteTitle: String { canDeleteForEveryone ? "Delete Trip" : "Leave Trip" }
@@ -191,12 +187,12 @@ final class TripDetailViewModel {
     }
 }
 
-/// Add Activity and Edit Activity sheet.
+// Add / edit activity sheet
 @MainActor
 @Observable
 final class ActivityFormViewModel {
     let tripID: UUID
-    /// The activity being edited, or nil when adding a new one.
+    // nil when adding
     let activityID: UUID?
     private let store: TripStore
 
@@ -237,13 +233,12 @@ final class ActivityFormViewModel {
 
     var canSave: Bool { !title.trimmed.isEmpty }
 
-    /// For the segmented control (Low, Moderate, High).
     var effortIndex: Int {
         get { Effort.allCases.firstIndex(of: effort) ?? 0 }
         set { effort = Effort.allCases[newValue] }
     }
 
-    /// A gentle warning, not an error: two things can be planned at the same time.
+    // Just a warning, clashes are allowed
     var clashWarning: String? {
         guard let trip = store.trip(tripID),
               let clash = ItineraryPlanner.clashes(day: day, minutes: minutes, ignoring: activityID, in: trip.activities).first
@@ -251,10 +246,10 @@ final class ActivityFormViewModel {
         return "“\(clash.title)” is also at \(clash.timeText) on Day \(day)."
     }
 
-    /// Returns false if the form isn't valid or saving failed.
+    // false if invalid or the save failed
     func save() -> Bool {
         guard canSave, let trip = store.trip(tripID) else { return false }
-        // An empty place means the trip's main place; the day must be inside the trip.
+        // Empty place uses the trip's main place
         let finalPlace = place.trimmed.isEmpty ? trip.mainPlace : place.trimmed
         let finalDay = min(max(day, 1), trip.dayCount)
 
@@ -283,7 +278,6 @@ final class ActivityFormViewModel {
     }
 }
 
-/// Packing list: progress ring, items by category and weather suggestions.
 @MainActor
 @Observable
 final class PackingViewModel {
@@ -313,7 +307,6 @@ final class PackingViewModel {
 
     var packedText: String { "\(trip?.packedCount ?? 0) / \(trip?.packing.count ?? 0) packed" }
 
-    /// From the forecast and the itinerary; items already on the list are left out.
     var suggestions: [PackingSuggestion] {
         guard let trip else { return [] }
         return PackingAdvisor.suggestions(for: trip, forecast: weather)
@@ -326,7 +319,7 @@ final class PackingViewModel {
         }
     }
 
-    /// Adds an item unless the name is empty or already on the list.
+    // Skips empty names and duplicates
     func addItem(named rawName: String, category: String) {
         let name = rawName.trimmed
         guard !name.isEmpty, let trip,
@@ -344,7 +337,6 @@ final class PackingViewModel {
         }
     }
 
-    /// Replaces the list with the default template, all unpacked.
     func resetToTemplate() {
         store.updateTrip(tripID) { $0.packing = PackingAdvisor.defaultTemplate() }
     }

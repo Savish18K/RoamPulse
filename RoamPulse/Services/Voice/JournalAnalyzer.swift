@@ -1,31 +1,21 @@
 import Foundation
 import NaturalLanguage
 
-/// What the Natural Language framework found in a memory's text.
 struct TextAnalysis: Equatable {
-    /// Place names, e.g. "Ella", "Nine Arch Bridge".
     var places: [String] = []
-    /// People's names.
     var people: [String] = []
-    /// Organisations, e.g. "Sri Lanka Railways".
     var organisations: [String] = []
-    /// -1 (negative) … 1 (positive), or nil if there was nothing to score.
+    // -1 to 1, nil if nothing to score
     var sentiment: Double?
 
     var mood: Mood? { sentiment.map(JournalAnalyzer.mood) }
 }
 
-/// Reads a memory's text on the iPhone with the Natural Language framework (no server):
-/// the places, people and organisations mentioned (`NLTagger` name types) and how it feels
-/// (`NLTagger` sentiment score). `apply` then links what was found to the trip: its members,
-/// its places and the activity the memory is about.
+// Finds places, people and mood in the text using NLTagger (on device)
 enum JournalAnalyzer {
-    /// Sentiment above this reads as positive, below the negative of it as negative.
     static let moodThreshold = 0.2
 
-    /// Makes sure the on-device language data for names and sentiment is installed (iOS downloads it
-    /// once, in the background, when first needed). Returns false if it isn't available, in which case
-    /// `analyse` still links trip members and places by name but can't read names or mood.
+    // iOS downloads this the first time. Names and mood won't work until it's there
     @discardableResult
     static func prepareLanguageData(for language: NLLanguage = .english) async -> Bool {
         var available = true
@@ -53,7 +43,7 @@ enum JournalAnalyzer {
         let tagger = NLTagger(tagSchemes: [.nameType, .sentimentScore])
         tagger.string = text
 
-        // Named entities. joinNames keeps "Nine Arch Bridge" together instead of three words.
+        // joinNames keeps "Nine Arch Bridge" as one name
         let options: NLTagger.Options = [.omitWhitespace, .omitPunctuation, .joinNames]
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, range in
             let name = String(text[range])
@@ -66,7 +56,7 @@ enum JournalAnalyzer {
             return true
         }
 
-        // Sentiment per paragraph, averaged (one long memory can have a good and a bad part).
+        // Average per paragraph
         var scores: [Double] = []
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .paragraph, scheme: .sentimentScore,
                              options: []) { tag, _ in
@@ -81,11 +71,7 @@ enum JournalAnalyzer {
         return analysis
     }
 
-    /// Updates the memory with what the text says:
-    /// - place tags: places found by the tagger plus the trip's own places mentioned by name;
-    /// - people: trip members mentioned by name are added (people already tagged stay);
-    /// - mood: read from the sentiment, unless the user picked a mood by hand;
-    /// - linked activity: the activity that day whose name or place is mentioned, if none is linked yet.
+    // Adds places, people, mood and the linked activity to the memory
     static func apply(_ analysis: TextAnalysis, text: String, to memory: inout Memory, trip: Trip) {
         let members = membersMentioned(in: text, analysis: analysis, members: trip.members)
         let memberNames = Set(trip.members.map { $0.name.lowercased() })
@@ -103,7 +89,7 @@ enum JournalAnalyzer {
             memory.people.append(member)
         }
 
-        // A mood with no sentiment was picked by hand: keep it.
+        // Mood was picked by hand, keep it
         let moodPickedByHand = memory.mood != nil && memory.sentiment == nil
         if !moodPickedByHand {
             memory.sentiment = analysis.sentiment
@@ -116,7 +102,7 @@ enum JournalAnalyzer {
         }
     }
 
-    /// Trip members named in the text. Names are matched as whole words, so "Suu" doesn't match "Suun".
+    // Whole word match so "Suu" doesn't match "Suun"
     static func membersMentioned(in text: String, analysis: TextAnalysis, members: [Member]) -> [Member] {
         members.filter { member in
             guard !member.isMe else { return false }
@@ -126,7 +112,6 @@ enum JournalAnalyzer {
         }
     }
 
-    /// The trip's places (activity places, the destination) that the text names.
     static func knownPlacesMentioned(in text: String, trip: Trip) -> [String] {
         let destinationParts = trip.destination.components(separatedBy: " to ")
         let candidates = trip.activities.map(\.place) + destinationParts
@@ -135,8 +120,7 @@ enum JournalAnalyzer {
             .filter { !$0.isEmpty && containsWord($0, in: text) }
     }
 
-    /// The activity on `day` the memory is about: one whose title is in the text first, otherwise
-    /// one at a place that was mentioned (the closest in time to the memory, if several).
+    // Title match first, otherwise the closest activity at a mentioned place
     static func activityMentioned(in text: String, places: [String], trip: Trip, day: Int, near date: Date) -> Activity? {
         let activities = trip.activities(onDay: day)
         if let byTitle = activities.first(where: { containsWord($0.title, in: text) }) {
@@ -148,7 +132,7 @@ enum JournalAnalyzer {
         return atPlace.min { abs($0.minutes - minutes) < abs($1.minutes - minutes) }
     }
 
-    /// Case-insensitive whole-word match: "Ella" is found in "Ella's" and "in Ella." but not in "Bellagio".
+    // Whole word, ignores case
     static func containsWord(_ word: String, in text: String) -> Bool {
         let escaped = NSRegularExpression.escapedPattern(for: word)
         return text.range(of: "\\b\(escaped)\\b", options: [.regularExpression, .caseInsensitive]) != nil

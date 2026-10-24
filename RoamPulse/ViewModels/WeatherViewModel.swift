@@ -1,8 +1,6 @@
 import Foundation
 import Observation
 
-/// Weather screen for one trip. The forecast comes from the injected `WeatherService`
-/// (OpenWeatherMap, or sample data when no API key is set).
 @MainActor
 @Observable
 final class WeatherViewModel {
@@ -30,19 +28,16 @@ final class WeatherViewModel {
         }
     }
 
-    /// Shown above the forecast when it is a saved copy because there is no connection.
     var offlineText: String? {
         guard let snapshot, snapshot.isOffline else { return nil }
         return "You're offline. Showing the forecast from \(snapshot.fetchedAt.text("EEE HH:mm"))."
     }
 
-    /// The next outdoor activity at risk.
     var advisory: WeatherAdvisory? {
         guard let trip else { return nil }
         return WeatherAdvisor.headline(for: trip, snapshot: snapshot, now: store.now)
     }
 
-    /// Every activity with a warning, for the list on the Weather screen.
     var activityAdvisories: [(activity: Activity, advisory: ActivityAdvisory)] {
         guard let trip else { return [] }
         return WeatherAdvisor.advisories(for: trip, snapshot: snapshot).compactMap { advisory in
@@ -50,7 +45,6 @@ final class WeatherViewModel {
         }
     }
 
-    /// - Parameter refresh: true for pull-to-refresh and the refresh button.
     func load(refresh: Bool = false) async {
         guard let trip, !isLoading else { return }
         isLoading = true

@@ -144,7 +144,6 @@ struct ExpensesView: View {
     }
 }
 
-/// One expense line: payer avatar (or category icon), title, who paid, amount.
 struct ExpenseRow: View {
     let expense: Expense
     var showsCategoryIcon = false
@@ -170,7 +169,7 @@ struct ExpenseRow: View {
         .padding(.vertical, 10)
     }
 
-    /// "Paid by Samee • You owe LKR 850" when someone else paid for you, otherwise how it was split.
+    // e.g. "Paid by Samee • You owe LKR 850"
     private var subtitle: String {
         if !expense.paidBy.isMe, let me = expense.participants.first(where: \.isMe) {
             return "Paid by \(expense.paidBy.name) • You owe \(expense.share(of: me).lkr)"
@@ -342,8 +341,7 @@ struct ExpenseAnalyticsView: View {
     .previewEnvironment(dependencies)
 }
 
-/// Add Expense and Edit Expense, with its own number pad like the prototype.
-/// The number pad types into whichever amount is selected: the total, or a person's share.
+// Has its own number pad that types into the total or a share
 struct ExpenseFormView: View {
     @State private var viewModel: ExpenseFormViewModel
     @Environment(\.dismiss) private var dismiss
@@ -421,7 +419,7 @@ struct ExpenseFormView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
             .overlay(alignment: .bottom) {
-                // Only needs highlighting when the number pad can also type into a share.
+                // Only highlight when shares can be typed too
                 if viewModel.splitMethod == .custom {
                     Capsule().fill(isActive ? Color.blue : .clear).frame(width: 60, height: 3)
                 }

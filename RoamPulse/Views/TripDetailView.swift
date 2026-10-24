@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Hub for one trip: summary tiles, day tabs and the day's schedule.
 struct TripDetailView: View {
     @State private var viewModel: TripDetailViewModel
     @Environment(AppRouter.self) private var router
@@ -55,7 +54,7 @@ struct TripDetailView: View {
                     )
                     .padding(.horizontal)
 
-                    // Redraws every minute so the "NOW" line and "Up next" stay current.
+                    // Refresh every minute so "NOW" and "Up next" stay right
                     TimelineView(.everyMinute) { _ in
                         schedule(trip)
                     }
@@ -260,7 +259,7 @@ struct TripDetailView: View {
             .background(Theme.fill, in: Capsule())
     }
 
-    /// Long-press menu. Also the accessible way to reorder and move, since VoiceOver can't drag.
+    // Long press menu, also how VoiceOver users reorder
     @ViewBuilder
     private func activityMenu(_ activity: Activity, trip: Trip) -> some View {
         Button {
@@ -317,7 +316,6 @@ struct TripDetailView: View {
     .previewEnvironment(dependencies)
 }
 
-/// Add Activity and Edit Activity.
 struct ActivityFormView: View {
     @State private var viewModel: ActivityFormViewModel
     @Environment(\.dismiss) private var dismiss
@@ -521,7 +519,7 @@ struct PackingView: View {
         showAddItem = true
     }
 
-    /// Weather and itinerary suggestions, like "Rain likely on Day 3 → Camera rain cover".
+    // e.g. "Rain likely on Day 3 -> Camera rain cover"
     private var suggestionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Suggested for this trip", systemImage: "sparkles")

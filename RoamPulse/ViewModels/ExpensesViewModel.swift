@@ -1,14 +1,12 @@
 import Foundation
 import Observation
 
-/// Expenses screen: budget card, balances and the expenses grouped by day.
 @MainActor
 @Observable
 final class ExpensesViewModel {
     let tripID: UUID
     private let store: TripStore
 
-    /// The expense waiting for the user to confirm the delete.
     var expensePendingDelete: Expense?
 
     init(tripID: UUID, store: TripStore) {
@@ -40,7 +38,6 @@ final class ExpensesViewModel {
         }
     }
 
-    /// Who is owed the most first.
     var balances: [Balance] {
         guard let trip, !trip.expenses.isEmpty else { return [] }
         return ExpenseCalculator.balances(for: trip).sorted { $0.amount > $1.amount }
@@ -52,7 +49,7 @@ final class ExpensesViewModel {
         var id: Date { day }
     }
 
-    /// Expenses grouped by calendar day, newest day first.
+    // Newest day first
     var expenseDays: [ExpenseDay] {
         let calendar = Calendar.trip
         let groups = Dictionary(grouping: trip?.expenses ?? []) { calendar.startOfDay(for: $0.date) }
@@ -75,7 +72,7 @@ final class ExpensesViewModel {
         expensePendingDelete = nil
     }
 
-    /// Plain-text summary for the Share button (Messages, WhatsApp…).
+    // For the share button
     var shareSummary: String {
         guard let trip else { return "" }
         var lines = ["\(trip.name) — expenses", "Total spent: \(trip.totalSpent.lkr)"]
@@ -100,7 +97,6 @@ final class ExpensesViewModel {
     }
 }
 
-/// Analytics: spending by category and by day, and the settle-up plan.
 @MainActor
 @Observable
 final class ExpenseAnalyticsViewModel {
@@ -134,16 +130,13 @@ final class ExpenseAnalyticsViewModel {
             .sorted { $0.date < $1.date }
     }
 
-    /// The fewest payments that would settle everyone up.
     var settlements: [Settlement] {
         guard let trip else { return [] }
         return ExpenseCalculator.settlements(for: trip)
     }
 
-    /// Payments already made, newest first.
     var payments: [Payment] { (trip?.payments ?? []).sorted { $0.date > $1.date } }
 
-    /// Records the payment, so the balances and the plan update.
     func settle(_ settlement: Settlement) {
         let payment = Payment(from: settlement.from, to: settlement.to, amount: settlement.amount, date: clock.now)
         store.updateTrip(tripID) { $0.payments.append(payment) }
@@ -156,18 +149,17 @@ final class ExpenseAnalyticsViewModel {
     }
 }
 
-/// Add Expense and Edit Expense sheet, with its own number pad and equal or custom splits.
+// Add / edit expense sheet
 @MainActor
 @Observable
 final class ExpenseFormViewModel {
-    /// Which amount the number pad is typing into.
     enum Field: Hashable {
         case total
         case share(UUID)
     }
 
     let tripID: UUID
-    /// The expense being edited, or nil when adding a new one.
+    // nil when adding
     let expenseID: UUID?
     private let store: TripStore
     private let clock: Clock
@@ -176,11 +168,9 @@ final class ExpenseFormViewModel {
     var category: ExpenseCategory = .transport
     var payerID: UUID?
     private(set) var splitMethod: SplitMethod = .equal
-    /// Equal split: the members who are left out.
     private(set) var excludedIDs: Set<UUID> = []
     var activeField: Field = .total
     private(set) var totalText = ""
-    /// Custom split: what each member typed.
     private(set) var shareTexts: [UUID: String] = [:]
 
     init(tripID: UUID, expenseID: UUID? = nil, store: TripStore, clock: Clock) {
@@ -210,7 +200,6 @@ final class ExpenseFormViewModel {
 
     var members: [Member] { store.trip(tripID)?.members ?? [] }
 
-    /// The chosen payer, or you, or the first member.
     var payer: Member? {
         members.first { $0.id == payerID } ?? members.first(where: \.isMe) ?? members.first
     }
@@ -221,7 +210,7 @@ final class ExpenseFormViewModel {
 
     func isIncluded(_ member: Member) -> Bool { !excludedIDs.contains(member.id) }
 
-    /// Taps on an avatar. At least one person always stays in the split.
+    // At least one person stays in
     func toggleParticipant(_ member: Member) {
         if excludedIDs.contains(member.id) {
             excludedIDs.remove(member.id)
@@ -240,7 +229,7 @@ final class ExpenseFormViewModel {
     func setSplitMethod(_ method: SplitMethod) {
         splitMethod = method
         activeField = .total
-        // Start the custom split from an equal split, so the user only adjusts the differences.
+        // Start from an equal split so the user only changes the differences
         if method == .custom && shareTexts.isEmpty && amount > 0 {
             for share in ExpenseCalculator.equalShares(of: amount, between: members) {
                 shareTexts[share.member.id] = AmountInput.text(for: share.amount)
@@ -250,7 +239,7 @@ final class ExpenseFormViewModel {
 
     func shareAmount(for member: Member) -> Double { Double(shareTexts[member.id] ?? "") ?? 0 }
 
-    /// Money not yet given to anyone. Negative when the shares add up to too much.
+    // Negative when it adds up to too much
     var unassigned: Double {
         ExpenseCalculator.unassigned(total: amount, shares: members.map(shareAmount))
     }
@@ -260,7 +249,6 @@ final class ExpenseFormViewModel {
         return unassigned > 0 ? "\(unassigned.lkr) left to assign" : "\((-unassigned).lkr) too much"
     }
 
-    /// Who owes what, from the chosen split. Always adds up to `amount` when valid.
     var shares: [ExpenseShare] {
         switch splitMethod {
         case .equal:
@@ -272,7 +260,6 @@ final class ExpenseFormViewModel {
         }
     }
 
-    /// Why the expense can't be saved yet, if there is a reason worth showing.
     var validationMessage: String? {
         guard amount > 0, splitMethod == .custom else { return nil }
         if shares.isEmpty { return "Give at least one person a share." }
@@ -300,7 +287,7 @@ final class ExpenseFormViewModel {
         }
     }
 
-    /// Returns false if the form isn't valid or saving failed.
+    // false if invalid or the save failed
     func save() -> Bool {
         guard canSave, let payer else { return false }
         let title = note.trimmed.isEmpty ? category.rawValue : note.trimmed
@@ -323,8 +310,7 @@ final class ExpenseFormViewModel {
     }
 }
 
-/// Rules for typing an amount on the number pad: one decimal point, at most
-/// two decimal places and nine digits.
+// One decimal point, max 2 decimals and 9 digits
 enum AmountInput {
     static let deleteKey = "⌫"
     static let maxDigits = 9
@@ -344,7 +330,7 @@ enum AmountInput {
         }
     }
 
-    /// "12500.5" → "12,500.5", "" → "0".
+    // e.g. "12500.5" -> "12,500.5"
     static func display(_ text: String) -> String {
         guard !text.isEmpty else { return "0" }
         let parts = text.split(separator: ".", omittingEmptySubsequences: false)
@@ -352,7 +338,7 @@ enum AmountInput {
         return parts.count > 1 ? "\(whole).\(parts[1])" : whole
     }
 
-    /// The text the number pad starts with when editing, e.g. 6200 → "6200", 33.5 → "33.5".
+    // e.g. 6200 -> "6200", 33.5 -> "33.5"
     static func text(for amount: Double) -> String {
         let cents = ExpenseCalculator.toCents(amount)
         if cents % 100 == 0 { return String(cents / 100) }

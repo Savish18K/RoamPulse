@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// The demanding-day rule, time ordering, drag to reorder and moving between days.
 struct ItineraryPlannerTests {
 
     private func activity(_ title: String, at hour: Int, _ minute: Int = 0,
@@ -15,13 +14,13 @@ struct ItineraryPlannerTests {
     }
 
     @Test func fourEasyActivitiesAreAnEasyDay() {
-        // 1 + 1 + 1 + 1 = 4 points, below the moderate line of 5.
+        // 4 points, under the moderate line
         let day = (8...11).map { activity("Stop \($0)", at: $0) }
         #expect(ItineraryPlanner.intensity(of: day) == .easy)
     }
 
     @Test func fivePointsMakeAModerateDay() {
-        // The prototype's Day 2: three easy activities and the Nine Arch Bridge walk (1 + 1 + 1 + 2).
+        // Prototype day 2: 1 + 1 + 1 + 2
         let day = [
             activity("Breakfast", at: 7, 30),
             activity("Train", at: 8, 45),
@@ -46,7 +45,7 @@ struct ItineraryPlannerTests {
     }
 
     @Test func thePrototypesDayThreeIsDemanding() {
-        // 4 + 1 + 2 + 1 = 8 points.
+        // 4 + 1 + 2 + 1 = 8
         let day = [
             activity("Little Adam's Peak sunrise hike", at: 6, effort: .high),
             activity("Ella spice garden", at: 11),
@@ -85,12 +84,12 @@ struct ItineraryPlannerTests {
     @Test func reorderingKeepsTheDaysTimeSlots() {
         let day = [activity("Hike", at: 6), activity("Spice garden", at: 11), activity("Falls", at: 15)]
 
-        // Drag Falls (index 2) to the top (index 0).
+        // Drag Falls to the top
         let reordered = ItineraryPlanner.reorder(day, moving: 2, to: 0)
 
         #expect(reordered.map(\.title) == ["Falls", "Hike", "Spice garden"])
         #expect(reordered.map(\.timeText) == ["06:00", "11:00", "15:00"])
-        // So the list is still in time order.
+        // Still in time order
         #expect(ItineraryPlanner.ordered(reordered).map(\.title) == ["Falls", "Hike", "Spice garden"])
     }
 

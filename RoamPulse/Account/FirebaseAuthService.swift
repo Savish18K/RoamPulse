@@ -1,10 +1,7 @@
 import FirebaseAuth
 import Foundation
 
-/// Email-and-password accounts with Firebase Authentication.
-///
-/// This is the only file that imports FirebaseAuth. Firebase keeps the signed-in user in the
-/// iPhone's keychain, so the app opens signed in (even offline) after the first sign-in.
+// Email/password login using Firebase Auth
 @MainActor
 final class FirebaseAuthService: AuthService {
     private var listener: AuthStateDidChangeListenerHandle?
@@ -19,7 +16,7 @@ final class FirebaseAuthService: AuthService {
         if let listener {
             auth.removeStateDidChangeListener(listener)
         }
-        // Firebase calls this on the main thread: once straight away, then on every sign-in and sign-out.
+        // Called once straight away, then on every sign in / sign out
         listener = auth.addStateDidChangeListener { _, user in
             MainActor.assumeIsolated {
                 onChange(user.map(AppUser.init(firebaseUser:)))
@@ -35,8 +32,7 @@ final class FirebaseAuthService: AuthService {
             throw Self.authError(from: error)
         }
 
-        // Save the name on the account. If this fails (no signal), the account still exists
-        // and works; the app just uses the start of the email as the name until it's set.
+        // If this fails the account still works, name just falls back to the email
         let change = user.createProfileChangeRequest()
         change.displayName = name
         try? await change.commitChanges()
@@ -99,10 +95,8 @@ final class FirebaseAuthService: AuthService {
         }
     }
 
-    /// Turns a Firebase error into a message the user can act on.
     static func authError(from error: Error) -> AuthError {
         let nsError = error as NSError
-        // The full error (including the server's reply) goes to Xcode's console for debugging.
         print("Firebase Auth error:", nsError)
         guard nsError.domain == AuthErrors.domain, let code = AuthErrorCode(rawValue: nsError.code) else {
             return .other(error.localizedDescription)
@@ -110,8 +104,7 @@ final class FirebaseAuthService: AuthService {
         switch code {
         case .operationNotAllowed: return .signInMethodNotEnabled
         case .requiresRecentLogin: return .needsRecentSignIn
-        // The server says CONFIGURATION_NOT_FOUND when Authentication was never set up in the console.
-        // The SDK reports that as a vague "internal error", so look inside it.
+        // Firebase reports a missing Auth setup as a generic internal error
         case .internalError where String(describing: nsError).contains("CONFIGURATION_NOT_FOUND"):
             return .signInMethodNotEnabled
         case .invalidEmail: return .invalidEmail

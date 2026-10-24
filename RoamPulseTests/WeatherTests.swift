@@ -2,15 +2,14 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// OpenWeatherMap: reading its JSON, building the forecast screens, the advice for each activity,
-/// and the service's caching, offline and error behaviour, all with saved responses (no network).
+// All with saved responses, no network
 @MainActor
 struct WeatherTests {
-    /// Sunday 13 December 2026, 16:40, like the prototype.
+    // Sun 13 Dec 2026, 16:40
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let calendar = Calendar.trip
 
-    /// Real-shaped responses (trimmed to the fields the app reads).
+    // Trimmed to the fields we read
     static let currentJSON = """
     {"weather":[{"id":500,"main":"Rain","description":"light rain","icon":"10d"}],
      "main":{"temp":19.4,"feels_like":19.6,"temp_min":18.2,"temp_max":21.7,"pressure":1012,"humidity":88},
@@ -42,7 +41,6 @@ struct WeatherTests {
         return trip
     }
 
-    /// One 3-hour step of a forecast.
     private func slot(_ day: Int, _ hour: Int, rain: Int, temperature: Int = 20, code: Int = 500, mm: Double = 0) -> ForecastSlot {
         ForecastSlot(start: calendar.date(2026, 12, day, hour), temperature: temperature, rainChance: rain, rainMM: mm,
                      conditionCode: code, condition: "Rain", symbol: ForecastBuilder.symbol(code: code, icon: "10d"))
@@ -125,7 +123,7 @@ struct WeatherTests {
         #expect(ForecastBuilder.symbol(code: code, icon: icon) == symbol)
     }
 
-    /// Day 3 (Mon 14 Dec): dry morning, heavy rain 12:00–18:00.
+    // Day 3: dry morning, heavy rain 12:00-18:00
     private var rainyDay: WeatherSnapshot {
         snapshot([slot(14, 6, rain: 10, code: 801), slot(14, 9, rain: 20, code: 802), slot(14, 12, rain: 70, code: 500),
                   slot(14, 15, rain: 90, code: 502, mm: 6), slot(14, 18, rain: 30, code: 803)])
@@ -217,7 +215,7 @@ struct WeatherTests {
     @Test func offlineTheSavedForecastIsShown() async throws {
         let http = onlineHTTP()
         let ella = trip()
-        // Keep the store: the service only holds it weakly (the app's AppDependencies owns it).
+        // Keep the store alive, the service only holds it weakly
         let (service, store) = makeService(http: http, trip: ella)
         _ = try await service.forecast(for: ella)
 

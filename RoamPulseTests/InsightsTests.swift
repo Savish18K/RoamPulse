@@ -2,11 +2,9 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Insights (search, suggestions, timeline, mood), the Statistics numbers (`TravelStats`)
-/// and the Home dashboard's states.
 @MainActor
 struct InsightsTests {
-    /// Sunday 13 December 2026, 16:40.
+    // Sun 13 Dec 2026, 16:40
     let now = Calendar.trip.date(2026, 12, 13, 16, 40)
     let calendar = Calendar.trip
     let suu = Member(name: "Suu", colorHex: 1)

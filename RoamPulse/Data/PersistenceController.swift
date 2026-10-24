@@ -1,12 +1,8 @@
 import CoreData
 
-/// Sets up the Core Data stack: the model and the SQLite database on the iPhone.
-///
-/// Every signed-in account has its own database file, so two people who sign in on the same
-/// iPhone never see each other's trips, and signing out doesn't delete anything.
+// Core Data setup, each account gets its own SQLite file
 final class PersistenceController {
-    /// The compiled model (RoamPulse.xcdatamodeld). It is loaded once and shared, so tests can
-    /// create many in-memory stores without Core Data warning about duplicate entity classes.
+    // Loaded once so tests can make lots of in-memory stores without warnings
     static let model: NSManagedObjectModel = {
         let bundle = Bundle(for: PersistenceController.self)
         guard let url = bundle.url(forResource: "RoamPulse", withExtension: "momd"),
@@ -18,15 +14,13 @@ final class PersistenceController {
 
     let container: NSPersistentContainer
 
-    /// Set when the database couldn't be opened. The app shows this instead of crashing.
     private(set) var loadError: Error?
 
-    /// - Parameter inMemory: true for tests and previews, so nothing is written to disk.
     convenience init(inMemory: Bool = false) {
         self.init(storeURL: inMemory ? URL(fileURLWithPath: "/dev/null") : nil)
     }
 
-    /// The database of one signed-in account: Application Support/Accounts/<uid>/RoamPulse.sqlite.
+    // Application Support/Accounts/<uid>/RoamPulse.sqlite
     convenience init(accountID: String) {
         let folder = Self.folder(for: accountID)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -39,8 +33,7 @@ final class PersistenceController {
             .appending(path: folderName(for: accountID), directoryHint: .isDirectory)
     }
 
-    /// Deletes an account's database, including photos Core Data stored as separate files.
-    /// Used when the account itself is deleted. The store must not be open.
+    // Used when the account is deleted, store must be closed first
     static func deleteStore(accountID: String) throws {
         let folder = folder(for: accountID)
         guard FileManager.default.fileExists(atPath: folder.path) else { return }
@@ -49,13 +42,12 @@ final class PersistenceController {
         try FileManager.default.removeItem(at: folder)
     }
 
-    /// - Parameter storeURL: where the SQLite file lives. nil uses Core Data's default location.
     init(storeURL: URL?) {
         container = NSPersistentContainer(name: "RoamPulse", managedObjectModel: Self.model)
         if let storeURL {
             container.persistentStoreDescriptions.first?.url = storeURL
         }
-        // Lightweight migration is on by default, so adding an attribute later won't lose data.
+        // Lightweight migration is on by default
         container.loadPersistentStores { [weak self] _, error in
             self?.loadError = error
         }
@@ -63,7 +55,7 @@ final class PersistenceController {
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
     }
 
-    /// Firebase user ids are letters and digits; anything else is replaced so the id is a safe folder name.
+    // Make sure the uid is a safe folder name
     static func folderName(for accountID: String) -> String {
         String(accountID.map { $0.isLetter || $0.isNumber ? $0 : "_" })
     }

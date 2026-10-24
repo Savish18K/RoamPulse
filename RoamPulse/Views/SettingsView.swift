@@ -2,8 +2,7 @@ import AVFAudio
 import Speech
 import SwiftUI
 
-/// Profile → Settings: account, notifications, app lock, permissions, appearance and data.
-/// Everything here reads and changes real state; nothing is a placeholder.
+// Settings screen, everything here is real (no placeholders)
 struct SettingsView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -44,7 +43,7 @@ struct SettingsView: View {
         }
         .background(Theme.background)
         .navigationTitle("Settings")
-        // Permissions can be changed in the iPhone's Settings app, so check again on return.
+        // Re-check permissions when coming back from the Settings app
         .task(id: scenePhase) {
             if scenePhase == .active { await reminders.refreshPermission() }
         }
@@ -175,7 +174,7 @@ struct SettingsView: View {
         }
     }
 
-    /// Turning a reminder on asks for notification permission the first time.
+    // First time asks for notification permission
     private func askingPermission(for setting: Binding<Bool>) -> Binding<Bool> {
         Binding(
             get: { setting.wrappedValue },
@@ -188,7 +187,7 @@ struct SettingsView: View {
         )
     }
 
-    /// The packing reminder time as a Date for the picker (only hour and minute matter).
+    // Only hour and minute are used
     private func packingTime(_ reminders: ReminderService) -> Binding<Date> {
         Binding(
             get: { Calendar.trip.date(Calendar.trip.startOfDay(for: store.now), atMinutes: reminders.settings.packingTime) },
@@ -250,7 +249,7 @@ struct SettingsView: View {
                 permissionRow("waveform", "Speech recognition", status: SystemPermissions.speech.title,
                               isAllowed: SystemPermissions.speech == .allowed)
                 Divider().padding(.leading, 56)
-                // PhotosPicker only gives the app the photos you pick, so no permission is needed.
+                // PhotosPicker doesn't need permission
                 permissionRow("photo", "Photos", status: "Only photos you pick", isAllowed: true)
                 Divider().padding(.leading, 56)
                 permissionRow(appLock.biometry.icon, appLock.biometry.name,
@@ -346,7 +345,6 @@ struct SettingsView: View {
         .previewEnvironment(.preview())
 }
 
-/// The microphone and speech recognition permissions the voice journal will ask for.
 enum SystemPermissions {
     enum Status: Equatable {
         case notAsked, allowed, denied
@@ -377,7 +375,6 @@ enum SystemPermissions {
     }
 }
 
-/// Settings → Name.
 struct EditProfileView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppSession.self) private var session
@@ -440,7 +437,7 @@ struct EditProfileView: View {
     }
 }
 
-/// Settings → Delete account. Explains what is deleted and asks for the password again.
+// Asks for the password again before deleting
 struct DeleteAccountView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppSession.self) private var session
@@ -514,7 +511,7 @@ struct DeleteAccountView: View {
             defer { isDeleting = false }
             do {
                 try await session.deleteAccount(password: password)
-                // Signing out closes this sheet and shows the sign-in screen.
+                // Signing out closes the sheet anyway
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -522,7 +519,7 @@ struct DeleteAccountView: View {
     }
 }
 
-/// Settings → Export my data: everything on this iPhone as a readable JSON file.
+// Exports everything on the phone as JSON
 enum DataExporter {
     struct Export: Encodable {
         var app = "RoamPulse"
@@ -539,7 +536,7 @@ enum DataExporter {
         return try encoder.encode(Export(exportedAt: now, account: account, trips: trips, memories: memories))
     }
 
-    /// Writes the export to a temporary file for the share sheet.
+    // Temp file for the share sheet
     @MainActor
     static func writeFile(store: TripStore, now: Date) throws -> URL {
         let data = try json(trips: store.trips, memories: store.memories, account: store.profile.email, now: now)

@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Invite Friends: shows a code for the trip and shares it with the system share sheet.
 struct ShareTripView: View {
     @State private var viewModel: ShareTripViewModel
     @Environment(\.dismiss) private var dismiss
@@ -91,7 +90,6 @@ struct ShareTripView: View {
     }
 }
 
-/// Join Trip: enter a code from a friend, choose who you are on the trip, and join.
 struct JoinTripView: View {
     @State private var viewModel: JoinTripViewModel
     @Environment(\.dismiss) private var dismiss

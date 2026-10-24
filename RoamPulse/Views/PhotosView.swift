@@ -1,11 +1,8 @@
 import SwiftUI
 
-// Prototype of the landmark-recognition flow (Figma screens 12–15), kept as the design for
-// Increment 15. It isn't opened from the app yet: "Add Photos" now uses the real photo picker in
-// the journal form (MemoryFormView), and Increment 15 adds Vision + Core ML recognition to that flow.
+// Prototype of the landmark flow (Figma 12-15), not used yet. Increment 15 adds the real Vision / Core ML version
 
-/// Mock photo picker that matches the prototype.
-/// In the real app this becomes PhotosUI's `PhotosPicker`.
+// Mock picker, will be PhotosPicker
 struct PhotoPickerView: View {
     let memoryID: UUID?
 
@@ -169,8 +166,7 @@ struct PhotoPickerView: View {
         .previewEnvironment(.preview())
 }
 
-/// Recognising → Recognised (≥ 70%) or Please confirm (< 70%), one photo at a time.
-/// Results come from `SamplePhoto.recognition` until the Core ML model is added.
+// Uses fake results until the Core ML model is added
 struct PhotoRecognitionView: View {
     let photos: [SamplePhoto]
     let memoryID: UUID?
@@ -500,7 +496,7 @@ struct PhotoRecognitionView: View {
         }
     }
 
-    /// Placeholder link logic: first activity in the current trip whose title contains the landmark name.
+    // Placeholder: first activity with the landmark in its title
     private func matchingActivity(for landmark: String) -> Activity? {
         let key = landmark.components(separatedBy: " (").first ?? landmark
         return trip?.activities.first { $0.title.localizedCaseInsensitiveContains(key) }
@@ -520,7 +516,7 @@ struct PhotoRecognitionView: View {
     }
 }
 
-/// Green → blue confidence bar with a tick at the 70% threshold.
+// Tick marks the 70% threshold
 struct ConfidenceBar: View {
     let value: Double
     var showsThreshold = true
@@ -545,7 +541,6 @@ struct ConfidenceBar: View {
     }
 }
 
-/// Corner brackets + a moving scan line drawn over the photo while recognising.
 private struct ScanOverlay: View {
     @State private var isAtBottom = false
 
@@ -572,7 +567,6 @@ private struct ScanOverlay: View {
     }
 }
 
-/// List of all landmarks so the user can pick the right one.
 struct LandmarkChooserView: View {
     @Binding var selection: String?
     @Environment(TripStore.self) private var store

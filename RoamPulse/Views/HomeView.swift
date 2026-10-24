@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Home tab: today's trip at a glance, a countdown before a trip, a recap after one,
-/// or a welcome when there are no trips yet.
 struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @Environment(AppRouter.self) private var router
@@ -12,7 +10,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        // Redraws every minute so the greeting, countdowns and "Next · in 50 min" stay current.
+        // Refresh every minute so the countdowns stay right
         TimelineView(.everyMinute) { _ in
             ScrollView {
                 VStack(spacing: 14) {
@@ -643,7 +641,6 @@ struct HomeView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// A card that explains what's missing and offers the one action that fills it.
     private func emptyCard(icon: String, tint: Color, title: String, text: String, action: String,
                            perform: @escaping () -> Void) -> some View {
         HStack(alignment: .top, spacing: 14) {
@@ -665,7 +662,6 @@ struct HomeView: View {
     }
 }
 
-/// Tile inside the Quick Actions card.
 struct QuickActionTile: View {
     let icon: String
     let tint: Color

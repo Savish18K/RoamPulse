@@ -1,14 +1,13 @@
 import Charts
 import SwiftUI
 
-/// Profile → Travel footprint: trips, days, places, memories, landmarks and spending,
-/// for this year or all time. The numbers come from `TravelStats`.
+// Numbers come from TravelStats
 struct StatisticsView: View {
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
     @State private var range = 0
 
-    /// Rough LKR → USD rate for the "equivalent" line.
+    // Rough LKR to USD rate
     private let usdRate = 300.3
 
     private var thisYear: Int { Calendar.trip.component(.year, from: store.now) }

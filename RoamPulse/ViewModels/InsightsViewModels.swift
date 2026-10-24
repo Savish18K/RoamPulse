@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// Searching and summarising journal memories. Pure functions, so they are unit tested.
+// Pure functions so they can be tested
 enum MemorySearch {
-    /// True when the memory mentions `query` in its title, text, place, people, tags or landmark.
+    // Checks title, text, place, people, tags and landmark
     static func matches(_ memory: Memory, _ query: String) -> Bool {
         let text = query.trimmed
         guard !text.isEmpty else { return true }
@@ -12,8 +12,7 @@ enum MemorySearch {
         return fields.contains { $0.localizedCaseInsensitiveContains(text) }
     }
 
-    /// The sentence of the text that contains `query`, for the search result card.
-    /// Falls back to the start of the text when the match was somewhere else (e.g. a person).
+    // Sentence containing the query, or the start of the text
     static func snippet(of text: String, matching query: String, maxLength: Int = 140) -> String {
         let sentences = text.split(whereSeparator: { ".!?".contains($0) })
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -24,7 +23,7 @@ enum MemorySearch {
         return (index > 0 ? "… " : "") + sentences[index] + "."
     }
 
-    /// Quick searches from the user's own memories: the places and people that come up most.
+    // Most common places and people
     static func suggestions(from memories: [Memory], limit: Int = 6) -> [String] {
         var counts: [String: Int] = [:]
         for memory in memories {
@@ -33,15 +32,14 @@ enum MemorySearch {
                 counts[term, default: 0] += 1
             }
         }
-        // Most mentioned first; ties in A–Z order so the chips don't jump around.
+        // Ties sorted A-Z so the chips don't move around
         return counts
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .prefix(limit)
             .map(\.key)
     }
 
-    /// A score from -1 (negative) to 1 (positive): the sentiment read from the text, or a value
-    /// for a mood picked by hand.
+    // -1 to 1, from the sentiment or the mood picked by hand
     static func moodScore(_ memory: Memory) -> Double? {
         if let sentiment = memory.sentiment { return sentiment }
         switch memory.mood {
@@ -53,7 +51,6 @@ enum MemorySearch {
     }
 }
 
-/// The average mood of one day.
 struct DayMood: Identifiable, Equatable {
     let date: Date
     let score: Double
@@ -63,7 +60,6 @@ struct DayMood: Identifiable, Equatable {
     var mood: Mood { score > 0.2 ? .positive : (score < -0.2 ? .negative : .mixed) }
 }
 
-/// One day on the timeline.
 struct TimelineDay: Identifiable, Equatable {
     let date: Date
     let title: String
@@ -72,14 +68,13 @@ struct TimelineDay: Identifiable, Equatable {
     var id: Date { date }
 }
 
-/// Insights tab: search, timeline and mood over the journal, for one trip or all of them.
 @MainActor
 @Observable
 final class InsightsViewModel {
     private let store: TripStore
 
     var query = ""
-    /// nil means every trip.
+    // nil = all trips
     var tripFilter: UUID?
 
     init(store: TripStore) {
@@ -88,7 +83,6 @@ final class InsightsViewModel {
 
     var hasMemories: Bool { !store.memories.isEmpty }
 
-    /// Memories of the chosen trip (or all), newest first.
     var memories: [Memory] {
         guard let tripFilter else { return store.sortedMemories }
         return store.memories(inTrip: tripFilter)
@@ -118,7 +112,6 @@ final class InsightsViewModel {
         memory.id == store.latestMemory?.id
     }
 
-    /// Memories grouped by calendar day, newest day first, with the trip and its day number.
     var timeline: [TimelineDay] {
         let groups = Dictionary(grouping: memories) { Calendar.trip.startOfDay(for: $0.date) }
         return groups.keys.sorted(by: >).compactMap { day in
@@ -131,7 +124,6 @@ final class InsightsViewModel {
         }
     }
 
-    /// The average mood of each day that has a memory with a mood, oldest first.
     var dayMoods: [DayMood] {
         let scored = memories.compactMap { memory in MemorySearch.moodScore(memory).map { (memory, $0) } }
         let groups = Dictionary(grouping: scored) { Calendar.trip.startOfDay(for: $0.0.date) }
@@ -146,8 +138,7 @@ final class InsightsViewModel {
     var memoriesWithMood: [Memory] { memories.filter { $0.mood != nil } }
 }
 
-/// The numbers on the Statistics screen, worked out from the trips and memories.
-/// Pure, so the maths is unit tested.
+// Stats screen numbers, pure so they can be tested
 struct TravelStats: Equatable {
     enum Period: Equatable {
         case year(Int)
@@ -161,19 +152,18 @@ struct TravelStats: Equatable {
         var total: Double { byCategory.values.reduce(0, +) }
     }
 
-    /// Trips that have started (active or finished) in the period.
+    // Started trips only
     let trips: [Trip]
     let daysTravelled: Int
     let places: Int
     let memories: Int
     let photos: Int
     let totalSpent: Double
-    /// Spending and budget of the trips that have a budget, to say "on budget" fairly.
+    // Only trips with a budget
     let budgetedSpent: Double
     let totalBudget: Double
     let byCategory: [ExpenseCategory: Double]
     let byTrip: [TripSpending]
-    /// Landmarks named on memories (recognised in photos, or chosen by the user).
     let landmarks: [String]
 
     var tripCount: Int { trips.count }
@@ -208,7 +198,7 @@ struct TravelStats: Equatable {
 
         return TravelStats(
             trips: trips,
-            // An active trip counts the days so far.
+            // Active trip counts days so far
             daysTravelled: trips.reduce(0) { total, trip in
                 total + (trip.status(at: now) == .active ? (trip.dayNumber(at: now) ?? 0) : trip.dayCount)
             },

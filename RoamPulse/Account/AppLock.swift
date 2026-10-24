@@ -2,7 +2,6 @@ import Foundation
 import LocalAuthentication
 import Observation
 
-/// Which biometric sensor the iPhone has.
 enum Biometry: Equatable {
     case faceID, touchID, opticID, none
 
@@ -26,7 +25,6 @@ enum Biometry: Equatable {
 }
 
 enum AppLockError: LocalizedError, Equatable {
-    /// The iPhone has no passcode, so nothing can protect the app.
     case noPasscode
     case cancelled
     case failed(String)
@@ -40,17 +38,15 @@ enum AppLockError: LocalizedError, Equatable {
     }
 }
 
-/// Face ID / Touch ID with the passcode as a backup, behind a protocol so tests can say yes or no.
+// Face ID / Touch ID behind a protocol so tests can fake it
 @MainActor
 protocol DeviceAuthenticating {
     var biometry: Biometry { get }
-    /// False when the iPhone has no passcode set.
     func canAuthenticate() -> Bool
     func authenticate(reason: String) async throws
 }
 
-/// LocalAuthentication. `.deviceOwnerAuthentication` tries Face ID or Touch ID first and offers
-/// the passcode if that fails, so nobody is locked out if their face isn't recognised.
+// Tries Face ID first, falls back to the passcode
 @MainActor
 struct LocalDeviceAuthenticator: DeviceAuthenticating {
     var biometry: Biometry {
@@ -83,20 +79,15 @@ struct LocalDeviceAuthenticator: DeviceAuthenticating {
     }
 }
 
-/// The optional app lock (Settings → Privacy).
-///
-/// When it is on, the app locks on launch and when it comes back after being in the background for
-/// longer than "Require after". The content is also hidden in the app switcher. Turning the lock on
-/// or off needs Face ID / Touch ID / passcode, so someone borrowing the phone can't just switch it off.
+// Optional app lock from Settings, locks on launch and after "Require after" in the background
 @MainActor
 @Observable
 final class AppLock {
     private(set) var isLocked = false
     private(set) var isEnabled: Bool
     private(set) var isAuthenticating = false
-    /// Why the last attempt failed, shown on the lock screen.
     private(set) var errorMessage: String?
-    /// 0 = immediately, otherwise minutes in the background before locking.
+    // 0 means lock straight away
     var delayMinutes: Int {
         didSet { defaults.set(delayMinutes, forKey: Key.delay) }
     }
@@ -125,7 +116,7 @@ final class AppLock {
 
     var canBeUsed: Bool { authenticator.canAuthenticate() }
 
-    /// Returns false (and leaves the setting as it was) if the person couldn't confirm it's them.
+    // Returns false if the user couldn't confirm it's them
     @discardableResult
     func setEnabled(_ enabled: Bool) async -> Bool {
         guard enabled != isEnabled else { return true }
@@ -145,7 +136,6 @@ final class AppLock {
         return true
     }
 
-    /// The app opened with someone signed in.
     func lockOnLaunch() {
         isLocked = isEnabled
     }
@@ -154,7 +144,6 @@ final class AppLock {
         backgroundedAt = clock.now
     }
 
-    /// Locks if the app was in the background for at least `delayMinutes`.
     func didBecomeActive() {
         defer { backgroundedAt = nil }
         guard isEnabled, let since = backgroundedAt else { return }
@@ -163,7 +152,7 @@ final class AppLock {
         }
     }
 
-    /// Signed out: there is nothing to protect, and the next person shouldn't see a lock screen.
+    // Nothing to protect after sign out
     func reset() {
         isLocked = false
         backgroundedAt = nil
@@ -183,7 +172,7 @@ final class AppLock {
         }
     }
 
-    /// Cancelling isn't an error worth showing.
+    // User cancelling isn't an error
     private static func message(for error: Error) -> String? {
         if let error = error as? AppLockError {
             return error.errorDescription

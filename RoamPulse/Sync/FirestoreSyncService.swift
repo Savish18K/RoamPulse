@@ -2,25 +2,14 @@ import FirebaseFirestore
 import Foundation
 import Observation
 
-/// Keeps the account's trips in Cloud Firestore in step with Core Data.
-///
-/// **Up:** after `TripStore` saves a change, `tripDidChange` works out the documents that changed
-/// (`TripChangeSet`) and sends them as one batch. Firestore applies the batch to its offline cache
-/// straight away and uploads it when there is a connection, so this class needs no upload queue.
-///
-/// **Down:** one listener watches the account's trips, and each trip gets one listener per list
-/// (members, activities, packing, expenses, payments). `RemoteTripMirror` collects what they report.
-/// When every part has arrived and none still holds unconfirmed writes from this iPhone, the trip is
-/// saved locally with `TripStore.applyRemote`.
-///
-/// Conflicts: the server keeps the last write it receives for each document, so if two devices change
-/// the same expense, the later one wins; changes to different items don't affect each other.
+// Syncs trips between Core Data and Firestore. Local changes go up as a batch, listeners bring changes down
+// If two phones edit the same item the last write wins
 @MainActor
 @Observable
 final class FirestoreSyncService: SyncService {
     private(set) var status: SyncStatus = .off
 
-    /// Firestore allows at most 500 writes in one batch.
+    // Firestore allows 500 writes per batch, stay under it
     private static let batchLimit = 450
 
     @ObservationIgnored private let clock: Clock
@@ -49,8 +38,7 @@ final class FirestoreSyncService: SyncService {
         self.store = store
         status = .connecting
 
-        // Every trip this account is a member of. includeMetadataChanges also reports when a write
-        // is confirmed by the server, or when the app goes offline, so the status stays correct.
+        // includeMetadataChanges so we also hear about confirmed writes and going offline
         tripsListener = db.collection("trips")
             .whereField("memberUIDs", arrayContains: accountID)
             .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
@@ -84,7 +72,7 @@ final class FirestoreSyncService: SyncService {
 
     private func upload(_ writes: [SyncWrite]) {
         guard !writes.isEmpty else { return }
-        // The trip's own document is always first, so it exists before its items (the security rules need it).
+        // Trip doc goes first because the rules need it to exist
         for start in stride(from: 0, to: writes.count, by: Self.batchLimit) {
             let batch = db.batch()
             do {
@@ -95,7 +83,7 @@ final class FirestoreSyncService: SyncService {
                 report(error)
                 return
             }
-            // Offline, this completion only runs once the phone is back online, so nothing waits for it.
+            // Only runs once back online, so don't wait for it
             batch.commit { [weak self] error in
                 guard let error else { return }
                 MainActor.assumeIsolated {
@@ -143,7 +131,7 @@ final class FirestoreSyncService: SyncService {
         guard accountID != nil else { throw SharingError.notSignedIn }
         guard let code = InviteCode.normalized(code) else { throw SharingError.inviteNotFound }
         let document = invites.document(code)
-        // Straight from the server: a cached copy could be out of date.
+        // Get it from the server, the cache might be old
         let snapshot: DocumentSnapshot
         do {
             snapshot = try await withTimeout { try await document.getDocument(source: .server) }
@@ -164,7 +152,7 @@ final class FirestoreSyncService: SyncService {
         guard let accountID else { throw SharingError.notSignedIn }
         let trip = tripDocument(invite.tripID)
 
-        // 1. Add this account to the trip. The rules check the invite named in `joinCode`.
+        // 1. Add this account to the trip (rules check the invite)
         try await withTimeout {
             try await trip.updateData([
                 "memberUIDs": FieldValue.arrayUnion([accountID]),
@@ -172,7 +160,7 @@ final class FirestoreSyncService: SyncService {
             ])
         }
 
-        // 2. Now a member, link the account to a person on the trip so the phone knows who "me" is.
+        // 2. Link the account to a member so the app knows who "me" is
         let members = trip.collection(SyncCollection.members.rawValue)
         if let memberID {
             try await withTimeout {
@@ -186,14 +174,13 @@ final class FirestoreSyncService: SyncService {
                 try await members.document(newMember.id.uuidString).setData(data)
             }
         }
-        // The trips listener now sees the trip and downloads it.
+        // The trips listener picks it up from here
     }
 
     func leaveTrip(_ trip: Trip) {
         guard let accountID else { return }
         let document = tripDocument(trip.id)
-        // Two separate writes, in order: unlink "me" while still a member, then leave.
-        // Firestore sends queued writes in order, so this also works offline.
+        // Unlink "me" first, then leave. Writes are sent in order so this works offline
         if let me = trip.members.first(where: { $0.userUID == accountID }) {
             document.collection(SyncCollection.members.rawValue).document(me.id.uuidString)
                 .updateData(["userUID": FieldValue.delete()]) { [weak self] error in
@@ -214,7 +201,7 @@ final class FirestoreSyncService: SyncService {
     func deleteCloudData(for trips: [Trip]) async throws {
         guard let accountID else { throw SharingError.notSignedIn }
 
-        // Own trips: empty tombstone + delete every item. Shared trips: just leave.
+        // Own trips get a tombstone, shared ones we just leave
         var writes: [SyncWrite] = []
         for trip in trips {
             if trip.ownerUID == nil || trip.ownerUID == accountID {
@@ -228,7 +215,7 @@ final class FirestoreSyncService: SyncService {
             for write in writes[start..<min(start + Self.batchLimit, writes.count)] {
                 try add(write, to: batch)
             }
-            // Unlike normal edits, wait for the server: once the account is gone these writes would be refused.
+            // Wait for the server here, after the account is deleted these would be rejected
             try await withTimeout(seconds: 20) {
                 try await batch.commit()
             }
@@ -252,8 +239,7 @@ final class FirestoreSyncService: SyncService {
         }
         tripsAreFromCache = snapshot.metadata.isFromCache
 
-        // A trip that left the query (deleted in the console, or this account removed from it):
-        // stop listening but keep the copy on the iPhone, so nothing is lost by mistake.
+        // Trip left the query, stop listening but keep the local copy
         for change in snapshot.documentChanges where change.type == .removed {
             if let id = UUID(uuidString: change.document.documentID) {
                 stopListening(to: id)
@@ -275,8 +261,7 @@ final class FirestoreSyncService: SyncService {
             applyIfReady(id)
         }
 
-        // The first answer from the server: upload any trip the cloud doesn't have yet, for example
-        // one made before syncing started. Cached answers are skipped because they may be incomplete.
+        // First server answer: upload any trips the cloud is missing
         if !didUploadMissingTrips && !snapshot.metadata.isFromCache {
             didUploadMissingTrips = true
             let cloudIDs = Set(snapshot.documents.compactMap { UUID(uuidString: $0.documentID) })
@@ -307,7 +292,7 @@ final class FirestoreSyncService: SyncService {
         }
         var records: [String: ItemRecord] = [:]
         for document in snapshot.documents {
-            // A document that can't be read (for example, edited by hand in the console) is skipped.
+            // Skip documents we can't read
             if let record = Self.record(in: collection, from: document) {
                 records[document.documentID] = record
             }
@@ -328,7 +313,7 @@ final class FirestoreSyncService: SyncService {
         }
     }
 
-    /// Saves the cloud's copy of the trip on the iPhone once it is complete and confirmed by the server.
+    // Only save once all parts arrived and the server confirmed our writes
     private func applyIfReady(_ tripID: UUID) {
         guard let accountID, let mirror = mirrors[tripID], !mirror.hasPendingWrites,
               let trip = mirror.trip(id: tripID, accountID: accountID) else { return }
@@ -359,7 +344,7 @@ final class FirestoreSyncService: SyncService {
         if let errorMessage {
             status = .failed(errorMessage)
         } else if tripsAreFromCache {
-            // Firestore answers from its cache first; that only means "offline" once the server has answered before.
+            // Only offline if the server has answered before
             status = didUploadMissingTrips ? .offline : .connecting
         } else if hasPendingWrites {
             status = .uploading

@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import RoamPulse
 
-/// Moving trips to and from Firestore's document shape, working out what to upload, deciding when
-/// the cloud's copy is ready to save, and how `TripStore` talks to the sync service.
-/// None of this needs Firebase: `FirestoreSyncService` only sends what these parts produce.
+// None of this needs Firebase
 @MainActor
 struct SyncTests {
     let account = "uid-savishka"
@@ -12,7 +10,6 @@ struct SyncTests {
     let me = Member(name: "Savishka", initials: "SK", colorHex: 0xD9738F, isMe: true, userUID: "uid-savishka")
     let samee = Member(name: "Samee", initials: "SM", colorHex: 0x5B8FD6)
 
-    /// Uses every kind of item, both kinds of split, cents and a payment.
     private func sampleTrip() -> Trip {
         let start = Calendar.trip.date(2026, 12, 12)
         var trip = Trip(name: "Hill Country Explorer", destination: "Kandy to Ella", startDate: start,
@@ -42,7 +39,7 @@ struct SyncTests {
         return trip
     }
 
-    /// What the six Firestore listeners would deliver for this trip.
+    // What the 6 listeners would send
     private func mirror(of trip: Trip, pending: Bool = false) -> RemoteTripMirror {
         var mirror = RemoteTripMirror()
         mirror.receiveHeader(TripRecords.header(for: trip, accountID: account, updatedAt: now), hasPendingWrites: pending)
@@ -107,7 +104,7 @@ struct SyncTests {
         let trip = sampleTrip()
         let writes = TripChangeSet.writes(from: nil, to: trip, accountID: account, now: now)
         #expect(writes.first == .createTrip(trip.id, TripRecords.header(for: trip, accountID: account, updatedAt: now)))
-        // 2 members + 2 activities + 3 packing items + 2 expenses + 1 payment
+        // 2 members + 2 activities + 3 packing + 2 expenses + 1 payment
         #expect(writes.count == 1 + 10)
     }
 

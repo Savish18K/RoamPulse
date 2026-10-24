@@ -1,22 +1,18 @@
 import SwiftUI
 
-// These are plain value types. Views and view models only ever see these;
-// Core Data entities are converted to and from them in CoreDataTripRepository.
+// Plain structs used by the views, CoreDataTripRepository converts them to entities
 
-/// A person travelling on a trip.
 struct Member: Identifiable, Hashable {
     var id: UUID
     var name: String
     var initials: String
-    /// Avatar colour as 0xRRGGBB, so it can be saved in Core Data.
+    // Stored as 0xRRGGBB so it fits in Core Data
     var colorHex: Int
-    /// True for the person signed in on this iPhone.
     var isMe: Bool
-    /// The account of this person, once they use the app and have joined the trip. Each phone
-    /// works out `isMe` by comparing this with its own signed-in account.
+    // Set once they join, used to work out isMe on each phone
     var userUID: String?
 
-    /// `initials` defaults to the first two letters, e.g. "Nimal" → "NI".
+    // Defaults to the first two letters
     init(id: UUID = UUID(), name: String, initials: String? = nil, colorHex: Int, isMe: Bool = false,
          userUID: String? = nil) {
         self.id = id
@@ -29,11 +25,10 @@ struct Member: Identifiable, Hashable {
 
     var color: Color { Color(hex: UInt32(colorHex)) }
 
-    /// Colours handed out to new companions in turn.
+    // Colours given to new companions in order
     static let palette = [0x4FB3A9, 0xE39B4B, 0x6F7BD9, 0xC9658A, 0x6E9F7A, 0x5B8FD6]
 }
 
-/// The signed-in person's name and email, shown on the Profile screen.
 struct UserProfile: Equatable {
     var fullName: String
     var email: String
@@ -43,11 +38,10 @@ enum TripStatus {
     case upcoming, active, completed
 }
 
-/// A trip is the container for its itinerary, packing list and expenses.
 struct Trip: Identifiable, Hashable {
     var id = UUID()
     var name: String
-    /// Route or place, e.g. "Kandy to Ella".
+    // e.g. "Kandy to Ella"
     var destination: String
     var startDate: Date
     var endDate: Date
@@ -58,23 +52,19 @@ struct Trip: Identifiable, Hashable {
     var activities: [Activity] = []
     var packing: [PackingItem] = []
     var expenses: [Expense] = []
-    /// Settle-up payments the group has already made.
     var payments: [Payment] = []
-    /// A photo the user picked for the cover, saved in Core Data (`StoredImageEntity`).
-    /// nil means the sample photo in `cover` is shown. Only kept on this iPhone, never synced.
+    // Picked cover photo, local only. nil uses the sample cover
     var coverImageID: UUID?
-    /// The account that created the trip. Only the owner can delete it for everyone.
+    // Only the owner can delete it for everyone
     var ownerUID: String?
-    /// Accounts the trip is shared with (the owner included). Firestore's rules check this list.
+    // Includes the owner, checked by the Firestore rules
     var memberUIDs: [String] = []
-    /// Where the weather comes from. Set when the destination is picked from the search
-    /// suggestions, or looked up the first time the forecast is loaded.
+    // Set from the place search, or looked up the first time weather loads
     var latitude: Double?
     var longitude: Double?
 }
 
 extension Trip {
-    /// True when someone else's account has joined the trip.
     var isShared: Bool { memberUIDs.count > 1 }
 
     var hasCoordinates: Bool { latitude != nil && longitude != nil }
@@ -88,7 +78,7 @@ extension Trip {
         return .active
     }
 
-    /// 1-based day number while the trip is active, otherwise nil.
+    // Starts at 1, nil if the trip isn't active
     func dayNumber(at now: Date) -> Int? {
         guard status(at: now) == .active else { return nil }
         return Calendar.trip.days(from: startDate, to: now) + 1
@@ -102,27 +92,23 @@ extension Trip {
         Calendar.trip.date(byAdding: .day, value: day - 1, to: startDate) ?? startDate
     }
 
-    /// "Kandy → Ella"
     var routeText: String { destination.replacingOccurrences(of: " to ", with: " → ") }
 
-    /// Last place on the route, used for the weather, e.g. "Kandy to Ella" → "Ella".
+    // e.g. "Kandy to Ella" -> "Ella"
     var mainPlace: String {
         destination.components(separatedBy: " to ").last?.trimmingCharacters(in: .whitespaces) ?? destination
     }
 
-    /// "Sat 12 to Tue 15 Dec"
     var dateRangeText: String {
         let sameMonth = startDate.text("MMM") == endDate.text("MMM")
         return startDate.text(sameMonth ? "EEE d" : "EEE d MMM") + " to " + endDate.text("EEE d MMM")
     }
 
-    /// "10–14 Apr 2027"
     var compactDateRange: String {
         let sameMonth = startDate.text("MMM yyyy") == endDate.text("MMM yyyy")
         return startDate.text(sameMonth ? "d" : "d MMM") + "–" + endDate.text("d MMM yyyy")
     }
 
-    /// "Active • Day 2 of 4", "In 12 days" or "Completed".
     func statusText(at now: Date) -> String {
         switch status(at: now) {
         case .active: "Active • Day \(dayNumber(at: now) ?? 1) of \(dayCount)"
@@ -133,13 +119,9 @@ extension Trip {
     }
 }
 
-/// Trips split into the three groups shown on the Trips tab.
 struct TripSections {
-    /// Happening now, earliest start first.
     var active: [Trip] = []
-    /// Soonest first.
     var upcoming: [Trip] = []
-    /// Most recently finished first.
     var completed: [Trip] = []
 }
 
@@ -161,12 +143,10 @@ extension Sequence where Element == Trip {
 }
 
 extension Trip {
-    /// The day's activities in time order (see `ItineraryPlanner`).
     func activities(onDay day: Int) -> [Activity] {
         ItineraryPlanner.ordered(activities.filter { $0.day == day })
     }
 
-    /// The next activity today that hasn't happened yet.
     func nextActivity(at now: Date) -> Activity? {
         guard let today = dayNumber(at: now) else { return nil }
         let minutesNow = Calendar.trip.minutesSinceMidnight(now)
@@ -183,12 +163,12 @@ extension Trip {
 
     var packingProgress: Double { packing.isEmpty ? 0 : Double(packedCount) / Double(packing.count) }
 
-    /// Money spent on the trip. Settle-up payments are not spending, so they are not counted.
+    // Payments aren't spending so they're not counted
     var totalSpent: Double { expenses.reduce(0) { $0 + $1.amount } }
 
     var budgetLeft: Double { budget - totalSpent }
 
-    /// 0…1 for the progress bars (capped at 1 when over budget).
+    // Capped at 1 for the progress bar
     var spentFraction: Double { budget > 0 ? min(totalSpent / budget, 1) : 0 }
 
     var budgetStatus: BudgetStatus { ExpenseCalculator.budgetStatus(spent: totalSpent, budget: budget) }
@@ -199,7 +179,7 @@ extension Trip {
 
     func member(_ id: UUID) -> Member? { members.first { $0.id == id } }
 
-    /// True when the member appears in an expense or payment, so removing them would break the maths.
+    // Can't remove a member that has money attached
     func hasMoney(involving member: Member) -> Bool {
         expenses.contains { $0.paidBy.id == member.id || $0.shares.contains { $0.member.id == member.id } }
             || payments.contains { $0.from.id == member.id || $0.to.id == member.id }
@@ -214,12 +194,11 @@ enum Effort: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
-/// One item in the day-by-day itinerary.
 struct Activity: Identifiable, Hashable {
     var id = UUID()
     var day: Int
     var title: String
-    /// Minutes since midnight, e.g. 17:30 → 1050.
+    // e.g. 17:30 -> 1050
     var minutes: Int
     var place: String
     var effort: Effort
@@ -229,7 +208,6 @@ struct Activity: Identifiable, Hashable {
     var timeText: String { minutes.clockText }
 }
 
-/// Badge shown above a day's schedule. Worked out by `ItineraryPlanner.intensity(of:)`.
 enum DayIntensity {
     case easy, moderate, demanding
 
@@ -249,7 +227,6 @@ enum DayIntensity {
         }
     }
 
-    /// Icon so the badge doesn't rely on colour alone.
     var icon: String {
         switch self {
         case .easy: "figure.walk"
@@ -300,7 +277,6 @@ enum SplitMethod: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
-/// How much of an expense one member owes.
 struct ExpenseShare: Hashable {
     var member: Member
     var amount: Double
@@ -313,7 +289,7 @@ struct Expense: Identifiable, Hashable {
     var category: ExpenseCategory
     var paidBy: Member
     var splitMethod: SplitMethod = .equal
-    /// Who owes what. The amounts always add up to `amount`.
+    // Always adds up to amount
     var shares: [ExpenseShare]
     var date: Date
 
@@ -324,7 +300,6 @@ struct Expense: Identifiable, Hashable {
     }
 }
 
-/// Money one member has paid another to settle up. Saved, unlike `Settlement`.
 struct Payment: Identifiable, Hashable {
     var id = UUID()
     var from: Member
@@ -333,7 +308,7 @@ struct Payment: Identifiable, Hashable {
     var date: Date
 }
 
-/// Net position of one member. Positive = gets money back, negative = owes.
+// Positive means they get money back
 struct Balance: Identifiable, Hashable {
     var member: Member
     var amount: Double
@@ -346,7 +321,7 @@ struct Balance: Identifiable, Hashable {
     }
 }
 
-/// A suggested payment that would settle the group up. Worked out, never saved.
+// Calculated, not saved
 struct Settlement: Identifiable, Hashable {
     var from: Member
     var to: Member
@@ -355,12 +330,10 @@ struct Settlement: Identifiable, Hashable {
     var id: String { "\(from.id)-\(to.id)" }
 }
 
-/// How the spending compares with the budget.
 enum BudgetStatus: Equatable {
-    /// No budget was set (budget is 0).
     case noBudget
     case onTrack
-    /// 90% or more of the budget is used.
+    // 90% or more used
     case nearLimit
     case overBudget
 
@@ -381,8 +354,7 @@ enum BudgetStatus: Equatable {
     }
 }
 
-// Encodable so Settings → Export my data can write everything as JSON.
-// (Synthesised conformance has to be declared in the same file as the type.)
+// Has to be in the same file for the synthesised conformance
 extension Member: Encodable {}
 extension Trip: Encodable {}
 extension Activity: Encodable {}
