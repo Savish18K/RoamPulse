@@ -68,8 +68,10 @@ RoamPulse/
 │   ├── Reminders/             ReminderPlanner (which notifications) and ReminderService (UserNotifications)
 │   ├── Location/              LocationService (Core Location), GeofencePlanner + GeofenceService (CLMonitor),
 │   │                          PlaceSearch (MapKit search for activity places)
+│   ├── Landmarks/             LandmarkRecognizer (Vision + my Core ML model), LandmarkCatalogue (names, other names, status)
 │   └── Voice/                 AudioRecorder (AVFoundation), Transcriber (Speech), JournalAnalyzer (Natural Language),
 │                              VoiceJournalService (the pipeline), RecordingFiles (where audio is kept)
+├── ML/                       MobileCLIP image encoder (Apple) + my landmark classifier (Create ML), see MLTraining/
 ├── Data/
 │   ├── RoamPulse.xcdatamodeld Core Data model (11 entities)
 │   ├── PersistenceController.swift Core Data stack: one database per account, or in memory for tests
@@ -92,7 +94,7 @@ The project uses Xcode folder-synced groups, so any file added to these folders 
 
 ## Current state
 
-Increments 1–14 and 16 are done:
+Increments 1–16 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -137,8 +139,14 @@ Increments 1–14 and 16 are done:
   tapping it opens a new memory already linked to that activity. While the app is open, each location update
   is also checked against the same circles. Location never leaves the iPhone.
 
-Landmark recognition is still to come (Increment 15; the photo-recognition prototype screens are kept in
-`PhotosView.swift`).
+- **Landmark recognition (Vision + my own Core ML model):** photos added to a memory are recognised on the
+  iPhone by a Create ML image classifier trained on 12 famous Sri Lankan landmarks plus "Other" (dataset,
+  training and evaluation in [MLTraining/](MLTraining/README.md)). Vision also adds general scene tags. When the
+  model is sure (above the threshold chosen on the validation set), the landmark is filled in and the memory is
+  linked to the planned activity at that landmark, which is ticked off as visited. When it isn't sure, or sees
+  no landmark, the form shows its top three guesses and the user chooses; a guess is never saved silently. If
+  the note names a different landmark than the photo shows, the form asks which is right. The Landmarks tab in
+  Insights and the Statistics screen show what was recognised, chosen, mentioned in a voice note or planned.
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator
@@ -150,6 +158,9 @@ Journal memories, voice notes and photos are never uploaded.
 - **Face ID:** *Features → Face ID → Enrolled*, then *Matching Face* / *Non-matching Face* when the app asks.
 - **Notifications:** add an activity a few minutes ahead with *Before activities* set to 15 min, then press ⌘⇧H.
 - **Offline:** turn off the Mac's Wi-Fi; the Weather screen shows the saved forecast with an offline banner.
+- **Landmark recognition:** the Simulator's Photos library has a few test photos the model never saw in training.
+  Tap *Add Photos* on a memory and pick one; the landmark appears in a few seconds. Photos it isn't sure about
+  show its top three guesses instead.
 - **Sharing:** sign in with two accounts on two simulators (e.g. iPhone 17 and iPhone Air).
 - **Map and arrival alerts:** *Settings → Add NIBM test trip* adds a one-day trip for today around NIBM,
   Colombo 7 (lectures at NIBM, Independence Square, the National Museum, Viharamahadevi Park) and opens its map.
