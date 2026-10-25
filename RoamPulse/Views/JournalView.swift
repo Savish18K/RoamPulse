@@ -590,6 +590,9 @@ struct MemoryFormView: View {
                             .accessibilityLabel("What happened")
                     }
                     photosSection
+                    if viewModel.showsLandmarkSection {
+                        LandmarkRecognitionSection(viewModel: viewModel)
+                    }
                     placeSection
                     if !viewModel.members.isEmpty {
                         peopleSection

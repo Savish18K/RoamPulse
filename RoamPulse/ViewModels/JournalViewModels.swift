@@ -55,6 +55,7 @@ final class MemoryFormViewModel {
     // nil in some tests
     private let recorder: AudioRecording?
     private let voice: VoiceJournalService?
+    private let recognizer: LandmarkRecognizing?
 
     var tripID: UUID? {
         didSet {
@@ -85,6 +86,22 @@ final class MemoryFormViewModel {
     private(set) var isPreparingPhotos = false
     private(set) var photoProblem: String?
 
+    // Landmark recognition on the new photos (Vision + my Core ML model)
+    private(set) var isRecognising = false
+    // The clearest result among the new photos, shown on the form
+    private(set) var recognition: RecognitionResult?
+    // What gets saved. Only set when the model is sure enough or the user chose it
+    private(set) var landmark: String?
+    // nil when the user picked the landmark themselves
+    private(set) var landmarkConfidence: Double?
+    private(set) var sceneTags: [String] = []
+    private(set) var recognitionProblem: String?
+    // Results per new photo, keyed by its thumbnail
+    private var results: [Data: RecognitionResult] = [:]
+    private var userChoseLandmark = false
+    private var autoLinkedActivityID: UUID?
+    private var conflictSettled = false
+
     // In tmp until Save
     private(set) var newRecording: URL?
     private(set) var newRecordingDuration = 0
@@ -92,8 +109,10 @@ final class MemoryFormViewModel {
     private(set) var recordingProblem: String?
 
     init(memoryID: UUID? = nil, tripID: UUID? = nil, activityID: UUID? = nil, store: TripStore, clock: Clock,
-         recorder: AudioRecording? = nil, voice: VoiceJournalService? = nil) {
+         recorder: AudioRecording? = nil, voice: VoiceJournalService? = nil,
+         recognizer: LandmarkRecognizing? = nil) {
         self.memoryID = memoryID
+        self.recognizer = recognizer
         self.store = store
         self.clock = clock
         self.recorder = recorder
@@ -112,6 +131,11 @@ final class MemoryFormViewModel {
             linkedActivityID = store.trip(memory.tripID)?.activities
                 .first { Self.label(for: $0) == memory.linkedActivity }?.id
             markVisited = memory.isVisited
+            landmark = memory.landmark
+            landmarkConfidence = memory.landmarkConfidence
+            sceneTags = memory.sceneTags
+            // A landmark already saved isn't replaced by what new photos show
+            userChoseLandmark = memory.landmark != nil
         } else {
             self.tripID = tripID ?? store.currentTrip?.id
             if let trip {
@@ -215,11 +239,95 @@ final class MemoryFormViewModel {
             allowed.map(ImageProcessor.prepare)
         }.value
         isPreparingPhotos = false
-        newPhotos += prepared.compactMap { $0 }
+        let added = prepared.compactMap { $0 }
+        newPhotos += added
         if prepared.contains(where: { $0 == nil }) {
             photoProblem = "Some files couldn't be opened as photos."
         } else if files.count > allowed.count {
             photoProblem = "A memory can have up to \(Self.maxPhotos) photos."
+        }
+        await recognise(added)
+    }
+
+    // Landmark recognition
+
+    var landmarkInfo: LandmarkInfo? { landmark.flatMap(LandmarkCatalogue.info) }
+
+    var showsLandmarkSection: Bool { isRecognising || recognition != nil || landmark != nil || recognitionProblem != nil }
+
+    // The model wasn't sure (or saw no landmark), so the user is asked instead of saving a guess
+    var needsLandmarkConfirmation: Bool { landmark == nil && !userChoseLandmark && recognition != nil }
+
+    var landmarkChosenByUser: Bool { landmark != nil && landmarkConfidence == nil }
+
+    // A different landmark named in the title or text, e.g. the note says Sigiriya but the photo looks like Dambulla
+    var conflictingLandmark: LandmarkInfo? {
+        guard let landmark, !conflictSettled,
+              let named = LandmarkCatalogue.mentioned(in: "\(title) \(text)"), named.name != landmark else { return nil }
+        return named
+    }
+
+    func chooseLandmark(_ name: String) {
+        userChoseLandmark = true
+        conflictSettled = true
+        setLandmark(name, confidence: nil)
+    }
+
+    func rejectLandmark() {
+        userChoseLandmark = true
+        recognition = nil
+        setLandmark(nil, confidence: nil)
+    }
+
+    func keepPhotoLandmark() {
+        conflictSettled = true
+    }
+
+    private func recognise(_ photos: [PreparedImage]) async {
+        guard let recognizer, !photos.isEmpty else { return }
+        isRecognising = true
+        recognitionProblem = nil
+        for photo in photos {
+            do {
+                results[photo.thumbnail] = try await recognizer.recognize(photo.data)
+            } catch {
+                recognitionProblem = error.localizedDescription
+            }
+        }
+        isRecognising = false
+        refreshLandmark()
+    }
+
+    private func refreshLandmark() {
+        let current = newPhotos.compactMap { results[$0.thumbnail] }
+        // A photo of a landmark wins over one that shows "Other"
+        recognition = current.max { Self.score($0) < Self.score($1) }
+        var tags = existingMemory?.sceneTags ?? []
+        for tag in current.flatMap(\.sceneTags) where !tags.contains(tag) {
+            tags.append(tag)
+        }
+        sceneTags = Array(tags.prefix(6))
+
+        guard !userChoseLandmark else { return }
+        if let recognition, recognition.isConfident, let top = recognition.top {
+            setLandmark(top.name, confidence: top.confidence)
+        } else {
+            setLandmark(nil, confidence: nil)
+        }
+    }
+
+    private static func score(_ result: RecognitionResult) -> Double {
+        result.isOther ? -1 : result.top?.confidence ?? -1
+    }
+
+    private func setLandmark(_ name: String?, confidence: Double?) {
+        landmark = name
+        landmarkConfidence = name == nil ? nil : confidence
+        // Link the planned activity at this landmark, unless the user linked one themselves
+        if linkedActivityID == nil || linkedActivityID == autoLinkedActivityID {
+            let activity = name.flatMap { LandmarkCatalogue.activity(for: $0, in: activitiesOnDay) }
+            linkedActivityID = activity?.id
+            autoLinkedActivityID = activity?.id
         }
     }
 
@@ -234,6 +342,7 @@ final class MemoryFormViewModel {
     func removeNewPhoto(at index: Int) {
         guard newPhotos.indices.contains(index) else { return }
         newPhotos.remove(at: index)
+        refreshLandmark()
     }
 
     // Voice recording
@@ -343,6 +452,9 @@ final class MemoryFormViewModel {
         memory.photos = existingPhotos
         memory.linkedActivity = linkedActivity.map(Self.label)
         memory.isVisited = linkedActivity != nil && markVisited
+        memory.landmark = landmark
+        memory.landmarkConfidence = landmarkConfidence
+        memory.sceneTags = sceneTags
         memory.transcript = text.trimmed
         if memory.transcriptUnavailable && !text.trimmed.isEmpty {
             memory.transcriptUnavailable = false

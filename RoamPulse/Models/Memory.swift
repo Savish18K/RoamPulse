@@ -111,8 +111,8 @@ enum LandmarkStatus: Hashable {
     case notVisited
 }
 
+// A landmark from the catalogue with what the user has done there
 struct Landmark: Identifiable, Hashable {
-    let id = UUID()
     var name: String
     var location: String
     var category: LandmarkCategory
@@ -121,6 +121,8 @@ struct Landmark: Identifiable, Hashable {
     var tripName: String?
     var photoCount = 0
     var voiceCount = 0
+
+    var id: String { name }
 
     var isFound: Bool {
         switch status {
@@ -142,19 +144,48 @@ struct LandmarkCandidate: Identifiable, Hashable {
     var id: String { name }
 }
 
-// Fake model output for now
+// What the landmark model and Vision found in one photo
 struct RecognitionResult: Hashable {
-    static let threshold = 0.7
-    static let otherLabel = "Other (not a landmark)"
+    // Used if the model has no threshold in its metadata
+    static let defaultThreshold = 0.7
+    // The model's class for photos that show none of the landmarks
+    static let otherLabel = "Other"
+    // Vision labels too general to be useful as tags
+    static let ignoredScenes: Set<String> = ["structure", "material", "document", "people", "adult"]
 
+    // Best first, at most three
     var candidates: [LandmarkCandidate]
     var sceneTags: [String]
+    // Chosen from the validation results when the model was trained
+    var threshold = defaultThreshold
 
     var top: LandmarkCandidate? { candidates.first }
 
+    var isOther: Bool { top?.name == Self.otherLabel }
+
+    // Sure enough to label the photo without asking
     var isConfident: Bool {
         guard let top else { return false }
-        return top.confidence >= Self.threshold && top.name != Self.otherLabel
+        return !isOther && top.confidence >= threshold
+    }
+
+    // Landmarks to offer when the model isn't sure
+    var suggestions: [LandmarkCandidate] {
+        candidates.filter { $0.name != Self.otherLabel }
+    }
+}
+
+extension RecognitionResult {
+    // Raw labels from Vision: the landmark model's classes and the built-in scene classifier
+    init(labels: [(name: String, confidence: Double)], scenes: [(name: String, confidence: Double)], threshold: Double) {
+        candidates = labels.sorted { $0.confidence > $1.confidence }
+            .prefix(3)
+            .map { LandmarkCandidate(name: $0.name, confidence: $0.confidence) }
+        sceneTags = scenes.filter { $0.confidence >= 0.3 && !Self.ignoredScenes.contains($0.name) }
+            .sorted { $0.confidence > $1.confidence }
+            .prefix(4)
+            .map { $0.name.replacingOccurrences(of: "_", with: " ").capitalized }
+        self.threshold = threshold
     }
 }
 

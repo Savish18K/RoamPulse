@@ -19,6 +19,8 @@ final class AppDependencies {
     let location: LocationService
     let geofences: GeofenceService
     let places: PlaceSearching
+    // My Create ML landmark model, run with Vision
+    let landmarkRecognizer: LandmarkRecognizing
     let notificationDelegate = NotificationDelegate()
 
     init(clock: Clock, auth: AuthService, sync: SyncService, isCloudAvailable: Bool,
@@ -30,6 +32,7 @@ final class AppDependencies {
          transcriber: SpeechTranscribing = OnDeviceTranscriber(),
          regionMonitor: RegionMonitoring = NoRegionMonitor(),
          places: PlaceSearching = NoPlaceSearch(),
+         landmarkRecognizer: LandmarkRecognizing = VisionLandmarkRecognizer(),
          defaults: UserDefaults = .standard) {
         self.clock = clock
         self.auth = auth
@@ -48,6 +51,7 @@ final class AppDependencies {
         self.geofences = GeofenceService(monitor: regionMonitor, location: location, reminders: reminders,
                                          defaults: defaults, clock: clock)
         self.places = places
+        self.landmarkRecognizer = landmarkRecognizer
     }
 
     // Real services used by the app

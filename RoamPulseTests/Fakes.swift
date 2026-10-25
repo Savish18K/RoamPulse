@@ -343,3 +343,20 @@ final class FakePlaceSearch: PlaceSearching, @unchecked Sendable {
         return results[query] ?? []
     }
 }
+
+// Gives back prepared results in order, one per photo, instead of running the model
+final class FakeLandmarkRecognizer: LandmarkRecognizing, @unchecked Sendable {
+    var results: [RecognitionResult]
+    var error: Error?
+    private(set) var calls = 0
+
+    init(_ results: [RecognitionResult] = []) {
+        self.results = results
+    }
+
+    func recognize(_ imageData: Data) async throws -> RecognitionResult {
+        calls += 1
+        if let error { throw error }
+        return results.isEmpty ? RecognitionResult(candidates: [], sceneTags: []) : results.removeFirst()
+    }
+}

@@ -1,0 +1,18 @@
+{
+  "Inputs" : {
+    "features" : {
+      "MLFeatureShortDescription" : ""
+    }
+  },
+  "Outputs" : {
+    "target" : {
+      "MLFeatureShortDescription" : ""
+    },
+    "targetProbability" : {
+      "MLFeatureShortDescription" : ""
+    }
+  },
+  "TrainingInputs" : {
+
+  }
+}

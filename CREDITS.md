@@ -20,6 +20,8 @@ Stored in `RoamPulse/Assets.xcassets/Photos`, resized to 1200 px wide. Used unde
 | `dambulla` | [Dambulla Cave 1.jpg](https://commons.wikimedia.org/wiki/File:Dambulla_Cave_1.jpg) | Philip Nalangan | CC BY 4.0 |
 | `ruwanwelisaya` | [SL Anuradhapura asv2020-01 img11 Ruwanwelisaya Stupa.jpg](https://commons.wikimedia.org/wiki/File:SL_Anuradhapura_asv2020-01_img11_Ruwanwelisaya_Stupa.jpg) | A.Savin | FAL |
 | `sriPada` | [Sri Pada(Addams Peak)View from Fishing hut2.jpg](https://commons.wikimedia.org/wiki/File:Sri_Pada(Addams_Peak)View_from_Fishing_hut2.jpg) | Harshamc00 | CC BY-SA 4.0 |
+| `galVihara` | [Gal Viharaya 02.jpg](https://commons.wikimedia.org/wiki/File:Gal_Viharaya_02.jpg) | Bernard Gagnon | CC BY-SA 3.0 |
+| `gangaramaya` | [Gangaramaya Temple (Burning Incense).jpg](https://commons.wikimedia.org/wiki/File:Gangaramaya_Temple_(Burning_Incense).jpg) | Dan arndt | CC BY-SA 4.0 |
 | `nibmColombo` | [NIBM COL.jpg](https://commons.wikimedia.org/wiki/File:NIBM_COL.jpg) | ErandiRathnayaka | CC BY-SA 4.0 |
 | `coconutTreeHill` | [Beauty of Coconut Tree Hills.jpg](https://commons.wikimedia.org/wiki/File:Beauty_of_Coconut_Tree_Hills.jpg) | Amila Jayasinghe | CC BY-SA 4.0 |
 
@@ -27,3 +29,13 @@ Stored in `RoamPulse/Assets.xcassets/Photos`, resized to 1200 px wide. Used unde
 
 `avatar_savishka`, `avatar_samee`, `avatar_suu` and `avatar_suresha` in `RoamPulse/Assets.xcassets/Avatars`
 come from the RoamPulse Figma prototype.
+
+## Landmark model
+
+`RoamPulse/ML/LandmarkClassifier.mlpackage` was trained for this project with Create ML Components (see `MLTraining/`).
+
+- **Training photos:** openly licensed photos (CC0, CC BY, CC BY-SA) from Wikimedia Commons and Openverse.
+  The source page, author and licence of every photo is listed in `MLTraining/dataset_log.csv`.
+- **Image encoder:** `RoamPulse/ML/MobileCLIPImageEncoder.mlpackage` is Apple's MobileCLIP-S0 image encoder
+  (Vasu et al., 2024, "MobileCLIP: Fast Image-Text Models through Multi-Modal Reinforced Training"), Core ML
+  version from huggingface.co/apple/coreml-mobileclip. Apple Sample Code License.

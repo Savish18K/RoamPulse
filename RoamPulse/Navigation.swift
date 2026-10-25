@@ -12,7 +12,7 @@ enum AppRoute: Hashable {
     case analytics(UUID)
     case weather(UUID)
     case map(UUID, activityID: UUID? = nil)
-    case landmark(UUID)
+    case landmark(String)
     case statistics
     case settings
 }
@@ -164,11 +164,13 @@ struct SheetContent: View {
             ExpenseFormView(viewModel: ExpenseFormViewModel(tripID: tripID, expenseID: expenseID, store: store, clock: clock))
         case .newMemory(let tripID, let start, let activityID):
             MemoryFormView(viewModel: MemoryFormViewModel(tripID: tripID, activityID: activityID, store: store, clock: clock,
-                                                          recorder: dependencies.recorder, voice: dependencies.voice),
+                                                          recorder: dependencies.recorder, voice: dependencies.voice,
+                                                          recognizer: dependencies.landmarkRecognizer),
                            start: start)
         case .editMemory(let id):
             MemoryFormView(viewModel: MemoryFormViewModel(memoryID: id, store: store, clock: clock,
-                                                          recorder: dependencies.recorder, voice: dependencies.voice))
+                                                          recorder: dependencies.recorder, voice: dependencies.voice,
+                                                          recognizer: dependencies.landmarkRecognizer))
         case .memory(let id):
             MemoryDetailView(memoryID: id)
         case .typeNote(let id):

@@ -7,8 +7,6 @@ import Observation
 final class TripStore {
     private(set) var trips: [Trip] = []
     private(set) var memories: [Memory] = []
-    // Sample data until the Core ML model is added
-    var landmarks: [Landmark] = SampleData.landmarks
     private(set) var profile = SampleData.profile
     private(set) var me = SampleData.me
     // nil when signed out
@@ -73,6 +71,9 @@ final class TripStore {
     var upcomingTrips: [Trip] { sections.upcoming }
 
     var completedTrips: [Trip] { sections.completed }
+
+    // The catalogue landmarks with what the user has done at each (photos, voice notes, plans)
+    var landmarks: [Landmark] { LandmarkCatalogue.landmarks(memories: memories, trips: trips, now: now) }
 
     // Trip used for the quick actions
     var currentTrip: Trip? { activeTrip ?? upcomingTrips.first ?? completedTrips.first }

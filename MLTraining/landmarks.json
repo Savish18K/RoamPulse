@@ -1,0 +1,238 @@
+{
+  "maxPerClass": 70,
+  "otherMax": 150,
+  "classes": [
+    {
+      "label": "Nine Arch Bridge",
+      "aliases": [
+        "nine arch",
+        "nine arches",
+        "demodara bridge"
+      ],
+      "commonsCategories": [
+        "Category:Nine Arches Bridge, Demodara"
+      ],
+      "openverse": [
+        "nine arch bridge ella"
+      ]
+    },
+    {
+      "label": "Sigiriya Rock Fortress",
+      "aliases": [
+        "sigiriya",
+        "sigiri",
+        "lion rock"
+      ],
+      "commonsCategories": [
+        "Category:Sigiriya"
+      ],
+      "includeSubcategories": true,
+      "openverse": [
+        "sigiriya rock",
+        "sigiriya lion rock",
+        "sigiriya fortress"
+      ],
+      "commonsSearches": [
+        "intitle:\"Sigiriya rock\"",
+        "intitle:\"Lion Rock\" Sigiriya",
+        "intitle:\"Sigiriya\" fortress"
+      ]
+    },
+    {
+      "label": "Temple of the Tooth",
+      "aliases": [
+        "temple of the tooth",
+        "dalada maligawa",
+        "tooth relic",
+        "sri dalada"
+      ],
+      "commonsCategories": [
+        "Category:Sri Dalada Maligawa"
+      ],
+      "includeSubcategories": true,
+      "openverse": [
+        "temple of the tooth kandy"
+      ]
+    },
+    {
+      "label": "Galle Fort Lighthouse",
+      "aliases": [
+        "galle lighthouse",
+        "galle fort lighthouse",
+        "galle fort"
+      ],
+      "commonsCategories": [
+        "Category:Galle lighthouse"
+      ],
+      "openverse": [
+        "galle lighthouse",
+        "galle fort lighthouse"
+      ]
+    },
+    {
+      "label": "Lotus Tower",
+      "aliases": [
+        "lotus tower",
+        "nelum kuluna"
+      ],
+      "commonsCategories": [
+        "Category:Lotus Tower"
+      ],
+      "openverse": [
+        "lotus tower colombo",
+        "colombo lotus tower",
+        "lotus tower sri lanka"
+      ],
+      "commonsSearches": [
+        "intitle:\"Lotus Tower\" Colombo",
+        "intitle:\"Colombo Lotus Tower\"",
+        "\"Lotus Tower\" Colombo skyline"
+      ]
+    },
+    {
+      "label": "Dambulla Cave Temple",
+      "aliases": [
+        "dambulla",
+        "golden temple"
+      ],
+      "commonsCategories": [
+        "Category:Dambulla cave temple"
+      ],
+      "includeSubcategories": true,
+      "openverse": [
+        "dambulla cave temple"
+      ]
+    },
+    {
+      "label": "Ruwanwelisaya",
+      "aliases": [
+        "ruwanwelisaya",
+        "ruwanweliseya",
+        "ruwanveli",
+        "mahathupa"
+      ],
+      "commonsCategories": [
+        "Category:Ruwanwelisaya Stupa",
+        "Category:Ruwanwelisaya Stupa at night"
+      ],
+      "openverse": [
+        "ruwanwelisaya"
+      ]
+    },
+    {
+      "label": "Sri Pada (Adam's Peak)",
+      "aliases": [
+        "sri pada",
+        "adam's peak",
+        "adams peak",
+        "sripada",
+        "samanala"
+      ],
+      "commonsCategories": [
+        "Category:Adam's Peak"
+      ],
+      "includeSubcategories": true,
+      "openverse": [
+        "adam's peak sri lanka",
+        "sri pada",
+        "adams peak",
+        "sri pada sunrise"
+      ]
+    },
+    {
+      "label": "Nallur Kandaswamy Kovil",
+      "aliases": [
+        "nallur"
+      ],
+      "commonsCategories": [
+        "Category:Nallur Kandaswamy temple"
+      ],
+      "commonsSearches": [
+        "intitle:Nallur Kandaswamy",
+        "intitle:Nallur kovil",
+        "intitle:Nallur temple"
+      ],
+      "openverse": [
+        "nallur kovil",
+        "nallur kandaswamy",
+        "nallur temple jaffna",
+        "nallur"
+      ]
+    },
+    {
+      "label": "Coconut Tree Hill",
+      "aliases": [
+        "coconut tree hill",
+        "coconut hill"
+      ],
+      "commonsSearches": [
+        "\"Coconut Tree Hill\""
+      ],
+      "openverse": [
+        "coconut tree hill",
+        "coconut tree hill mirissa",
+        "mirissa coconut hill"
+      ]
+    },
+    {
+      "label": "Gal Vihara",
+      "aliases": [
+        "gal vihara",
+        "gal viharaya",
+        "galvihara"
+      ],
+      "commonsCategories": [
+        "Category:Gal Viharaya"
+      ],
+      "openverse": [
+        "gal vihara polonnaruwa",
+        "gal vihara",
+        "gal viharaya"
+      ]
+    },
+    {
+      "label": "Gangaramaya Temple",
+      "aliases": [
+        "gangaramaya",
+        "seema malaka"
+      ],
+      "commonsCategories": [
+        "Category:Gangaramaya Temple"
+      ],
+      "openverse": [
+        "gangaramaya temple colombo",
+        "gangaramaya",
+        "gangaramaya temple"
+      ]
+    }
+  ],
+  "other": {
+    "label": "Other",
+    "openverse": [
+      "sri lanka street",
+      "colombo street",
+      "kandy town",
+      "sri lanka market",
+      "sri lanka food",
+      "rice and curry",
+      "hoppers sri lanka",
+      "sri lanka beach",
+      "unawatuna beach",
+      "sri lanka temple",
+      "hindu temple sri lanka",
+      "buddha statue sri lanka",
+      "sri lanka tea plantation",
+      "sri lanka elephant",
+      "sri lanka train",
+      "tuk tuk sri lanka",
+      "sri lanka waterfall",
+      "sri lanka bridge",
+      "sri lanka mountains",
+      "sri lanka hotel",
+      "sri lanka village",
+      "sri lanka bus",
+      "sri lanka river",
+      "sri lanka church"
+    ]
+  }
+}

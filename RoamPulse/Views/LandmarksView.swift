@@ -137,7 +137,7 @@ struct LandmarkCard: View {
 }
 
 struct LandmarkDetailView: View {
-    let landmarkID: UUID
+    let landmarkID: String
 
     @Environment(TripStore.self) private var store
     @Environment(AppRouter.self) private var router
@@ -298,6 +298,6 @@ struct LandmarkDetailView: View {
 }
 
 #Preview {
-    NavigationStack { LandmarkDetailView(landmarkID: SampleData.landmarks[0].id) }
+    NavigationStack { LandmarkDetailView(landmarkID: "Nine Arch Bridge") }
         .previewEnvironment(.preview())
 }

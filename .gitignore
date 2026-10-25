@@ -15,3 +15,8 @@ build/
 
 # macOS
 .DS_Store
+
+# Landmark model training images (rebuilt with MLTraining/collect_dataset.py)
+MLTraining/Raw/
+MLTraining/Dataset/
+MLTraining/Sheets/

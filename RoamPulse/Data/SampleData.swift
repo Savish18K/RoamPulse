@@ -252,24 +252,6 @@ enum SampleData {
                 shares: ExpenseCalculator.equalShares(of: amount, between: splitWith), date: date)
     }
 
-    static let landmarks: [Landmark] = [
-        Landmark(name: "Nine Arch Bridge", location: "Demodara, Ella", category: .bridge, photo: .nineArchBridge,
-                 status: .recognised(confidence: 0.94), tripName: "Hill Country Explorer", photoCount: 2, voiceCount: 1),
-        Landmark(name: "Sigiriya Rock Fortress", location: "Sigiriya, Matale", category: .mountain, photo: .sigiriya,
-                 status: .recognised(confidence: 0.91), tripName: "Sigiriya & Dambulla", photoCount: 4),
-        Landmark(name: "Lotus Tower", location: "Colombo", category: .city, photo: .colomboSkyline,
-                 status: .confirmedByUser, tripName: "Colombo City Break", photoCount: 1),
-        Landmark(name: "Temple of the Tooth", location: "Kandy", category: .temple, photo: .templeOfTooth,
-                 status: .voiceOnly, tripName: "Hill Country Explorer", voiceCount: 1),
-        Landmark(name: "Nallur Kandaswamy Kovil", location: "Jaffna", category: .temple, photo: .jaffnaKovil,
-                 status: .planned(trip: "Jaffna Heritage Tour")),
-        Landmark(name: "Galle Fort Lighthouse", location: "Galle", category: .beach, photo: .galleFort, status: .notVisited),
-        Landmark(name: "Dambulla Cave Temple", location: "Dambulla", category: .temple, photo: .dambulla, status: .notVisited),
-        Landmark(name: "Ruwanwelisaya", location: "Anuradhapura", category: .temple, photo: .ruwanwelisaya, status: .notVisited),
-        Landmark(name: "Sri Pada (Adam's Peak)", location: "Nallathanni", category: .mountain, photo: .sriPada, status: .notVisited),
-        Landmark(name: "Coconut Tree Hill", location: "Mirissa", category: .beach, photo: .coconutTreeHill, status: .notVisited),
-    ]
-
 }
 
 // Images are in Assets.xcassets/Photos (credits in CREDITS.md)
@@ -277,7 +259,7 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
     case nineArchBridge, blueTrainBridge, trainWindow, hillTrain, teaEstate, mistyHills
     case sigiriya, colomboSkyline, galleFort, jaffnaKovil
     case templeOfTooth, dambulla, ruwanwelisaya, sriPada, coconutTreeHill
-    case nibmColombo
+    case galVihara, gangaramaya, nibmColombo
 
     var id: String { rawValue }
 
@@ -298,6 +280,8 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         case .ruwanwelisaya: [Color(hex: 0x4F7AA5), Color(hex: 0xB5C4D4), Color(hex: 0xE8E4DA)]
         case .sriPada: [Color(hex: 0x2A3550), Color(hex: 0x5A6A8A), Color(hex: 0xE6A86A)]
         case .coconutTreeHill: [Color(hex: 0x1E6B6B), Color(hex: 0x3FA7A0), Color(hex: 0xF2D49B)]
+        case .galVihara: [Color(hex: 0x5A5A52), Color(hex: 0x9A968A), Color(hex: 0xD8D2C4)]
+        case .gangaramaya: [Color(hex: 0x3A2E22), Color(hex: 0xB08A4A), Color(hex: 0xE8E2D4)]
         case .nibmColombo: [Color(hex: 0x1B2F6B), Color(hex: 0x2F5BB7), Color(hex: 0xDDE6F2)]
         }
     }
@@ -311,50 +295,8 @@ enum SamplePhoto: String, CaseIterable, Identifiable, Hashable {
         case .sigiriya, .sriPada: "mountain.2.fill"
         case .colomboSkyline: "building.2.fill"
         case .galleFort, .coconutTreeHill: "beach.umbrella.fill"
-        case .jaffnaKovil, .templeOfTooth, .dambulla, .ruwanwelisaya: "building.columns.fill"
+        case .jaffnaKovil, .templeOfTooth, .dambulla, .ruwanwelisaya, .galVihara, .gangaramaya: "building.columns.fill"
         case .nibmColombo: "graduationcap.fill"
-        }
-    }
-
-    // Fake model result for now, some are under 70% to show the confirm flow
-    var recognition: RecognitionResult {
-        switch self {
-        case .nineArchBridge:
-            RecognitionResult(
-                candidates: [.init(name: "Nine Arch Bridge", confidence: 0.94), .init(name: RecognitionResult.otherLabel, confidence: 0.04)],
-                sceneTags: ["Bridge", "Mountain", "Forest", "Outdoor"])
-        case .blueTrainBridge:
-            RecognitionResult(
-                candidates: [.init(name: "Nine Arch Bridge", confidence: 0.81), .init(name: RecognitionResult.otherLabel, confidence: 0.12)],
-                sceneTags: ["Train", "Bridge", "Mountain"])
-        case .colomboSkyline:
-            RecognitionResult(
-                candidates: [.init(name: "Galle Fort Lighthouse", confidence: 0.44), .init(name: "Lotus Tower", confidence: 0.38), .init(name: RecognitionResult.otherLabel, confidence: 0.12)],
-                sceneTags: ["Beach", "City", "Sunset"])
-        case .sigiriya:
-            RecognitionResult(
-                candidates: [.init(name: "Sigiriya Rock Fortress", confidence: 0.91), .init(name: RecognitionResult.otherLabel, confidence: 0.05)],
-                sceneTags: ["Rock", "Forest", "Outdoor"])
-        case .jaffnaKovil:
-            RecognitionResult(
-                candidates: [.init(name: "Nallur Kandaswamy Kovil", confidence: 0.88), .init(name: RecognitionResult.otherLabel, confidence: 0.07)],
-                sceneTags: ["Temple", "Sunset", "Crowd"])
-        case .galleFort:
-            RecognitionResult(
-                candidates: [.init(name: "Galle Fort Lighthouse", confidence: 0.86), .init(name: RecognitionResult.otherLabel, confidence: 0.09)],
-                sceneTags: ["Beach", "Lighthouse", "Ocean"])
-        case .templeOfTooth:
-            RecognitionResult(
-                candidates: [.init(name: "Temple of the Tooth", confidence: 0.89), .init(name: RecognitionResult.otherLabel, confidence: 0.06)],
-                sceneTags: ["Temple", "Lake", "Architecture"])
-        case .coconutTreeHill:
-            RecognitionResult(
-                candidates: [.init(name: "Coconut Tree Hill", confidence: 0.52), .init(name: "Galle Fort Lighthouse", confidence: 0.21), .init(name: RecognitionResult.otherLabel, confidence: 0.18)],
-                sceneTags: ["Beach", "Palm Trees", "Ocean"])
-        default:
-            RecognitionResult(
-                candidates: [.init(name: RecognitionResult.otherLabel, confidence: 0.58), .init(name: "Nine Arch Bridge", confidence: 0.21), .init(name: "Sri Pada (Adam's Peak)", confidence: 0.12)],
-                sceneTags: ["Mountain", "Forest", "Outdoor"])
         }
     }
 }
@@ -366,7 +308,7 @@ extension SamplePhoto {
             ("ella", .nineArchBridge), ("kandy", .templeOfTooth), ("galle", .galleFort),
             ("unawatuna", .galleFort), ("hikkaduwa", .galleFort), ("mirissa", .coconutTreeHill),
             ("jaffna", .jaffnaKovil), ("sigiriya", .sigiriya), ("dambulla", .dambulla),
-            ("nibm", .nibmColombo), ("colombo", .colomboSkyline), ("anuradhapura", .ruwanwelisaya), ("adam", .sriPada),
+            ("nibm", .nibmColombo), ("colombo", .colomboSkyline), ("polonnaruwa", .galVihara), ("anuradhapura", .ruwanwelisaya), ("adam", .sriPada),
             ("nuwara", .teaEstate), ("haputale", .teaEstate),
         ]
         return covers.first { place.contains($0.keyword) }?.photo ?? .mistyHills
