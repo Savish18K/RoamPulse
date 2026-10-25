@@ -165,22 +165,48 @@ struct FloatingActionBar: View {
     }
 }
 
+extension EnvironmentValues {
+    // True for the first screen of the iPad detail column, where there's nothing to go back to
+    @Entry var isDetailRoot = false
+}
+
+extension View {
+    // These screens draw their own header, so the bar is hidden on iPhone. At the top of the iPad
+    // detail column it stays, because it holds the button that shows the sidebar again
+    func navigationBarHiddenOnPhone() -> some View {
+        modifier(PhoneOnlyHiddenBar())
+    }
+}
+
+private struct PhoneOnlyHiddenBar: ViewModifier {
+    @Environment(\.isDetailRoot) private var isDetailRoot
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar(isDetailRoot ? .visible : .hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 struct BackActionBar: View {
     let actionTitle: String
     let action: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isDetailRoot) private var isDetailRoot
 
     var body: some View {
         HStack {
-            Button {
-                dismiss()
-            } label: {
-                Label("Back", systemImage: "chevron.left")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 10)
+            if !isDetailRoot {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             Spacer()
             Button(actionTitle, action: action)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
@@ -410,6 +436,7 @@ struct HeroHeader<Content: View>: View {
     var topInset: CGFloat
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isDetailRoot) private var isDetailRoot
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -426,16 +453,18 @@ struct HeroHeader<Content: View>: View {
         .frame(height: height + topInset)
         .overlay(alignment: .top) {
             HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(.black.opacity(0.4), in: Circle())
+                if !isDetailRoot {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.4), in: Circle())
+                    }
+                    .accessibilityLabel("Back")
                 }
-                .accessibilityLabel("Back")
                 Spacer()
                 if let pill {
                     GlassPill(pill)

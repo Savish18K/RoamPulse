@@ -94,7 +94,7 @@ The project uses Xcode folder-synced groups, so any file added to these folders 
 
 ## Current state
 
-Increments 1–16 are done:
+Increments 1–16 and 18 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -139,6 +139,11 @@ Increments 1–16 are done:
   tapping it opens a new memory already linked to that activity. While the app is open, each location update
   is also checked against the same circles. Location never leaves the iPhone.
 
+- **iPad layout:** on a wide window the tab bar becomes a sidebar split view (`NavigationSplitView`): the app's
+  sections plus every trip grouped into happening now, upcoming and completed. When there's room (landscape, or
+  with the sidebar hidden) a trip shows its day plan and a live map of the same day side by side; tapping an
+  activity highlights it on the map. Lists keep a readable width instead of stretching. Narrow windows (iPhone,
+  Slide Over, split screen) keep the iPhone tabs, and the router keeps both layouts on the same screen.
 - **Landmark recognition (Vision + my own Core ML model):** photos added to a memory are recognised on the
   iPhone by a Create ML image classifier trained on 12 famous Sri Lankan landmarks plus "Other" (dataset,
   training and evaluation in [MLTraining/](MLTraining/README.md)). Vision also adds general scene tags. When the
@@ -161,6 +166,8 @@ Journal memories, voice notes and photos are never uploaded.
 - **Landmark recognition:** the Simulator's Photos library has a few test photos the model never saw in training.
   Tap *Add Photos* on a memory and pick one; the landmark appears in a few seconds. Photos it isn't sure about
   show its top three guesses instead.
+- **iPad:** run on an iPad simulator. To try it without signing in, edit the scheme (Run → Arguments) and add
+  `-sampleData` (debug builds only), which opens the app with the sample trips.
 - **Sharing:** sign in with two accounts on two simulators (e.g. iPhone 17 and iPhone Air).
 - **Map and arrival alerts:** *Settings → Add NIBM test trip* adds a one-day trip for today around NIBM,
   Colombo 7 (lectures at NIBM, Independence Square, the National Museum, Viharamahadevi Park) and opens its map.

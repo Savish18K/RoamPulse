@@ -33,7 +33,7 @@ struct HomeView: View {
         }
         .background(Theme.background)
         .navigationTitle("Home")
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarHiddenOnPhone()
         .task(id: viewModel.featuredTrip?.id) { await viewModel.loadWeather() }
         .refreshable { await viewModel.loadWeather() }
         .safeAreaInset(edge: .bottom) {

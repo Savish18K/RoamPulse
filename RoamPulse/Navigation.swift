@@ -1,8 +1,34 @@
 import SwiftUI
 import Observation
 
-enum AppTab: Hashable {
+enum AppTab: Hashable, CaseIterable {
     case home, trips, journal, insights, profile
+
+    var title: String {
+        switch self {
+        case .home: "Home"
+        case .trips: "Trips"
+        case .journal: "Journal"
+        case .insights: "Insights"
+        case .profile: "Profile"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home: "house"
+        case .trips: "safari"
+        case .journal: "book"
+        case .insights: "chart.xyaxis.line"
+        case .profile: "person"
+        }
+    }
+}
+
+// What's selected in the iPad sidebar: one of the app's sections, or a trip
+enum SidebarItem: Hashable {
+    case section(AppTab)
+    case trip(UUID)
 }
 
 enum AppRoute: Hashable {
@@ -62,7 +88,25 @@ enum MemoryFormStart: Hashable {
 
 @Observable
 final class AppRouter {
-    var selectedTab: AppTab = .home
+    // iPhone tab bar. Changing it also moves the iPad sidebar, so "Open Journal" works on both
+    var selectedTab: AppTab = .home {
+        didSet {
+            if sidebarSelection != .section(selectedTab) {
+                sidebarSelection = .section(selectedTab)
+            }
+        }
+    }
+    // iPad sidebar. Picking a section there keeps the tab in step for when the window gets narrow
+    var sidebarSelection: SidebarItem? = .section(.home) {
+        didSet {
+            if case .section(let tab) = sidebarSelection, tab != selectedTab {
+                selectedTab = tab
+            }
+            detailPath = []
+        }
+    }
+    // Screens pushed in the iPad detail column
+    var detailPath: [AppRoute] = []
     var activeSheet: AppSheet?
     // Kept here so a notification can open a trip
     var tripsPath: [AppRoute] = []
@@ -73,6 +117,7 @@ final class AppRouter {
         selectedTab = .home
         activeSheet = nil
         tripsPath = []
+        detailPath = []
     }
 
     func searchInsights(for text: String) {
@@ -85,6 +130,8 @@ final class AppRouter {
         activeSheet = nil
         selectedTab = .trips
         tripsPath = [.tripDetail(id)]
+        // On iPad the trip opens straight from the sidebar
+        sidebarSelection = .trip(id)
     }
 
     func recordMemory(tripID: UUID, activityID: UUID) {

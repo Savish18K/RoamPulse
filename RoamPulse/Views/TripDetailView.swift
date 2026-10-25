@@ -2,7 +2,15 @@ import SwiftUI
 
 struct TripDetailView: View {
     @State private var viewModel: TripDetailViewModel
+    // The map next to the plan on iPad, made when it's first shown
+    @State private var mapViewModel: TripMapViewModel?
+    @State private var showsSideMap = false
+    // Below this the map column would be too narrow to read, so the plan uses the whole width
+    private static let sideMapMinWidth: CGFloat = 760
     @Environment(AppRouter.self) private var router
+    @Environment(AppDependencies.self) private var dependencies
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.isDetailRoot) private var isDetailRoot
     @Environment(\.dismiss) private var dismiss
 
     init(viewModel: TripDetailViewModel) {
@@ -11,9 +19,40 @@ struct TripDetailView: View {
 
     var body: some View {
         if let trip = viewModel.trip {
-            content(trip)
+            // iPad with room to spare: the day plan and a map of the same day side by side
+            GeometryReader { proxy in
+                let sideBySide = sizeClass == .regular && proxy.size.width >= Self.sideMapMinWidth
+                Group {
+                    if sideBySide {
+                        HStack(spacing: 0) {
+                            content(trip)
+                                .frame(width: min(proxy.size.width * 0.5, 560))
+                            Divider()
+                            dayMap(trip)
+                        }
+                    } else {
+                        content(trip)
+                    }
+                }
+                .onChange(of: sideBySide, initial: true) { _, isOn in showsSideMap = isOn }
+            }
         } else {
             ContentUnavailableView("Trip not found", systemImage: "suitcase")
+        }
+    }
+
+    @ViewBuilder
+    private func dayMap(_ trip: Trip) -> some View {
+        if let mapViewModel {
+            TripMapView(viewModel: mapViewModel, showsDayPicker: false)
+                .onChange(of: viewModel.selectedDay, initial: true) { _, day in
+                    mapViewModel.selectedDay = day
+                }
+        } else {
+            Color.clear.onAppear {
+                mapViewModel = TripMapViewModel(tripID: trip.id, store: dependencies.store, clock: dependencies.clock,
+                                                places: dependencies.places)
+            }
         }
     }
 
@@ -70,8 +109,9 @@ struct TripDetailView: View {
             }
         }
         .background(Theme.background)
-        .navigationTitle("Trip Details")
-        .toolbar(.hidden, for: .navigationBar)
+        // On iPad the trip's name is already in the header, so the bar only shows the sidebar button
+        .navigationTitle(isDetailRoot ? "" : "Trip Details")
+        .navigationBarHiddenOnPhone()
         .toolbar(.hidden, for: .tabBar)
         .task { await viewModel.loadWeather() }
         .confirmationDialog("\(viewModel.deleteTitle)?", isPresented: $viewModel.showDeleteConfirmation, titleVisibility: .visible) {
@@ -210,32 +250,19 @@ struct TripDetailView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(activity.isDone ? "Mark as not done" : "Mark as done")
 
-            NavigationLink(value: AppRoute.map(trip.id, activityID: activity.id)) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(viewModel.statusText(for: activity))
-                            .foregroundStyle(isNext ? .blue : .secondary)
-                            .fontWeight(isNext ? .semibold : .regular)
-                        if activity.isOutdoor {
-                            tag("Outdoor")
-                        }
-                        if activity.effort == .high {
-                            tag("High effort")
-                        }
+            Group {
+                // iPad shows the activity on the map next to the plan; iPhone opens the map
+                if let mapViewModel, showsSideMap {
+                    Button {
+                        withAnimation { mapViewModel.selectedActivityID = activity.id }
+                    } label: {
+                        activityLabel(activity, isNext: isNext)
                     }
-                    .font(.subheadline)
-                    Text(activity.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-                    if let advisory = viewModel.advisory(for: activity) {
-                        Label(advisory.message, systemImage: advisory.icon)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                } else {
+                    NavigationLink(value: AppRoute.map(trip.id, activityID: activity.id)) {
+                        activityLabel(activity, isNext: isNext)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -251,6 +278,34 @@ struct TripDetailView: View {
             return withAnimation { viewModel.moveActivity(id, onto: activity) }
         }
         .contextMenu { activityMenu(activity, trip: trip) }
+    }
+
+    private func activityLabel(_ activity: Activity, isNext: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(viewModel.statusText(for: activity))
+                    .foregroundStyle(isNext ? .blue : .secondary)
+                    .fontWeight(isNext ? .semibold : .regular)
+                if activity.isOutdoor {
+                    tag("Outdoor")
+                }
+                if activity.effort == .high {
+                    tag("High effort")
+                }
+            }
+            .font(.subheadline)
+            Text(activity.title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+            if let advisory = viewModel.advisory(for: activity) {
+                Label(advisory.message, systemImage: advisory.icon)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private func tag(_ text: String) -> some View {

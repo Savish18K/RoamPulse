@@ -3,8 +3,18 @@ import SwiftUI
 @main
 struct RoamPulseApp: App {
     // live() sets up Firebase before anything uses it
-    @State private var dependencies = AppDependencies.live()
+    @State private var dependencies = Self.makeDependencies()
     @State private var router = AppRouter()
+
+    private static func makeDependencies() -> AppDependencies {
+        #if DEBUG
+        // Launch with -sampleData to try the app (e.g. on an iPad simulator) without signing in
+        if ProcessInfo.processInfo.arguments.contains("-sampleData") {
+            return .preview()
+        }
+        #endif
+        return .live()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -70,7 +80,7 @@ struct RootView: View {
                     AuthView(viewModel: AuthViewModel(session: session))
                         .transition(.opacity)
                 case .signedIn(let user):
-                    MainTabView()
+                    MainView()
                         // New account gets fresh screens
                         .id(user.uid)
                         .blur(radius: appLock.isLocked ? 20 : 0)
@@ -151,6 +161,19 @@ struct RootView: View {
                 Task { await geofences.update(trips: store.trips) }
             default: break
             }
+        }
+    }
+}
+
+// Tabs on iPhone, a sidebar split view when the window is wide (iPad)
+struct MainView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    var body: some View {
+        if sizeClass == .regular {
+            MainSplitView()
+        } else {
+            MainTabView()
         }
     }
 }

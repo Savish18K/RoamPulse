@@ -101,7 +101,7 @@ struct ProfileView: View {
         }
         .background(Theme.background)
         .navigationTitle("Profile")
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarHiddenOnPhone()
         .confirmationDialog("Sign out of RoamPulse?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign Out", role: .destructive) {
                 session.signOut()

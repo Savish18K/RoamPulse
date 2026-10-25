@@ -29,8 +29,12 @@ struct TripMapView: View {
     @AppStorage("mapStyle") private var mapStyle: MapStyleChoice = .standard
     @State private var route: MKRoute?
 
-    init(viewModel: TripMapViewModel) {
+    // False when the map sits next to the day plan on iPad, which has its own day tabs
+    private let showsDayPicker: Bool
+
+    init(viewModel: TripMapViewModel, showsDayPicker: Bool = true) {
         _viewModel = State(initialValue: viewModel)
+        self.showsDayPicker = showsDayPicker
     }
 
     var body: some View {
@@ -74,9 +78,11 @@ struct TripMapView: View {
             MapScaleView()
         }
         .safeAreaInset(edge: .top) {
-            SegmentedTabs(options: viewModel.dayTitles, selection: $viewModel.selectedDayIndex)
-                .padding(.horizontal)
-                .padding(.top, 6)
+            if showsDayPicker {
+                SegmentedTabs(options: viewModel.dayTitles, selection: $viewModel.selectedDayIndex)
+                    .padding(.horizontal)
+                    .padding(.top, 6)
+            }
         }
         .safeAreaInset(edge: .bottom) {
             Group {
