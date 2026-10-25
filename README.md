@@ -94,7 +94,7 @@ The project uses Xcode folder-synced groups, so any file added to these folders 
 
 ## Current state
 
-Increments 1–16 and 18 are done:
+Increments 1–16, 18 and 19 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -152,6 +152,13 @@ Increments 1–16 and 18 are done:
   no landmark, the form shows its top three guesses and the user chooses; a guess is never saved silently. If
   the note names a different landmark than the photo shows, the form asks which is right. The Landmarks tab in
   Insights and the Statistics screen show what was recognised, chosen, mentioned in a voice note or planned.
+- **Accessibility (iPhone and iPad):** every screen works up to the largest accessibility text size. Rows that
+  sit side by side (budget and weather cards, settings values, date pickers, Day/Time, card footers) stack
+  instead of squashing, the trip tiles go to one per row, photo headers grow with their text, and the big
+  numbers (temperatures, totals, countdown, timer) scale with `@ScaledMetric`. The floating bars and day tabs
+  stop growing at a size that still fits and show the Large Content Viewer when held instead. VoiceOver reads
+  section titles as headings, skips decorative icons, reads each card or row as one item, and says which days
+  have a weather warning. Reduce Motion swaps the spinning weather icon for a plain progress indicator.
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator
@@ -168,6 +175,9 @@ Journal memories, voice notes and photos are never uploaded.
   show its top three guesses instead.
 - **iPad:** run on an iPad simulator. To try it without signing in, edit the scheme (Run → Arguments) and add
   `-sampleData` (debug builds only), which opens the app with the sample trips.
+- **Accessibility:** *Settings → Accessibility → Display & Text Size → Larger Text* in the Simulator, or
+  `xcrun simctl ui booted content_size accessibility-extra-extra-extra-large` (set back with `large`).
+  VoiceOver can be checked with Xcode's Accessibility Inspector (*Xcode → Open Developer Tool*).
 - **Sharing:** sign in with two accounts on two simulators (e.g. iPhone 17 and iPhone Air).
 - **Map and arrival alerts:** *Settings → Add NIBM test trip* adds a one-day trip for today around NIBM,
   Colombo 7 (lectures at NIBM, Independence Square, the National Museum, Viharamahadevi Park) and opens its map.

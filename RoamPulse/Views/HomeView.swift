@@ -64,6 +64,8 @@ struct HomeView: View {
             } label: {
                 Text(viewModel.myInitials)
                     .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .frame(width: 44, height: 44)
                     .background(Theme.card, in: Circle())
                     .overlay(Circle().strokeBorder(Theme.stroke))
@@ -88,7 +90,7 @@ struct HomeView: View {
                 .foregroundStyle(.white)
                 .padding(20)
             }
-            .frame(height: 260)
+            .frame(minHeight: 260)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .accessibilityElement(children: .combine)
 
@@ -143,7 +145,7 @@ struct HomeView: View {
 
         advisoryCard(trip)
 
-        HStack(spacing: 12) {
+        AdaptiveStack(spacing: 12) {
             NavigationLink(value: AppRoute.weather(trip.id)) { weatherCard(trip) }
             NavigationLink(value: AppRoute.expenses(trip.id)) { budgetCard(trip) }
         }
@@ -212,9 +214,9 @@ struct HomeView: View {
                 Text(trip.name).font(.title2.bold())
                 Text(trip.routeText).foregroundStyle(.white.opacity(0.75))
                 if let next = viewModel.nextActivity(in: trip) {
-                    HStack(spacing: 8) {
+                    AdaptiveStack(spacing: 8) {
                         Text(next.countdown).bold()
-                        Text(next.detail).lineLimit(1)
+                        Text(next.detail).lineLimit(2)
                     }
                     .font(.subheadline)
                     .padding(.top, 4)
@@ -222,8 +224,11 @@ struct HomeView: View {
             }
             .foregroundStyle(.white)
             .padding()
+            // Leaves room for the status pills when large text makes the card taller
+            .padding(.top, 44)
         }
-        .frame(height: 230)
+        // Grows with large text instead of cutting off the trip's name
+        .frame(minHeight: 230)
         .overlay(alignment: .topLeading) {
             HStack {
                 GlassPill(viewModel.statusText(for: trip))
@@ -269,7 +274,7 @@ struct HomeView: View {
             Text("\(trip.mainPlace) Weather").font(.subheadline.weight(.semibold)).lineLimit(1)
             Spacer(minLength: 0)
             if let weather = viewModel.weather {
-                Text("\(weather.temperature)°").font(.system(size: 52, weight: .bold))
+                Text("\(weather.temperature)°").scaledFont(size: 52, weight: .bold).lineLimit(1).minimumScaleFactor(0.5)
                 Text(weather.condition).font(.subheadline).lineLimit(1)
                 Text(weather.isOffline ? "Offline • from \(weather.updatedAt)" : "H \(weather.high)° L \(weather.low)°")
                     .font(.caption)
@@ -486,7 +491,7 @@ struct HomeView: View {
                 LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.countdownText(for: trip))
-                        .font(.system(size: 40, weight: .bold))
+                        .scaledFont(size: 40, weight: .bold)
                         .contentTransition(.numericText())
                     Text(trip.name).font(.title2.bold())
                     Text("\(trip.routeText) • \(trip.dateRangeText)").foregroundStyle(.white.opacity(0.75))
@@ -494,7 +499,7 @@ struct HomeView: View {
                 .foregroundStyle(.white)
                 .padding()
             }
-            .frame(height: 250)
+            .frame(minHeight: 250)
             .overlay(alignment: .topLeading) {
                 GlassPill("Upcoming trip", icon: "airplane.departure").font(.caption).padding(12)
             }

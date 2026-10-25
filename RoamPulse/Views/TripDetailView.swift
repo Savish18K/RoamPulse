@@ -11,6 +11,7 @@ struct TripDetailView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.isDetailRoot) private var isDetailRoot
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.dismiss) private var dismiss
 
     init(viewModel: TripDetailViewModel) {
@@ -154,7 +155,11 @@ struct TripDetailView: View {
     }
 
     private func tiles(_ trip: Trip) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
+        // One tile per row at very large text so the values aren't cut off
+        let columns = typeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 12), GridItem(.flexible())]
+        return LazyVGrid(columns: columns, spacing: 12) {
             NavigationLink(value: AppRoute.packing(trip.id)) {
                 StatTile(icon: "bag", tint: .green, title: "Packing", value: viewModel.packingText(for: trip))
             }
@@ -182,12 +187,14 @@ struct TripDetailView: View {
 
         return VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Schedule").font(.title2.bold())
+                AdaptiveStack {
+                    Text("Schedule")
+                        .font(.title2.bold())
+                        .accessibilityAddTraits(.isHeader)
                     Text(viewModel.selectedDateText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Spacer()
+                    Spacer(minLength: 0)
                     if let intensity = viewModel.intensity {
                         Label(intensity.title, systemImage: intensity.icon)
                             .font(.caption.weight(.semibold))
@@ -407,7 +414,7 @@ struct ActivityFormView: View {
                         await viewModel.searchPlaces()
                     }
 
-                    HStack(alignment: .top, spacing: 12) {
+                    AdaptiveStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("Day")
                             Picker("Day", selection: $viewModel.day) {

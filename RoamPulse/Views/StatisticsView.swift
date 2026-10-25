@@ -119,7 +119,8 @@ struct StatisticsView: View {
                 }
             }
             Text(stats.totalSpent.lkr)
-                .font(.system(size: 40, weight: .bold))
+                .scaledFont(size: 40, weight: .bold)
+                .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
             Text("~ USD \((stats.totalSpent / usdRate).grouped) • \(stats.averagePerDay.lkr) a day")

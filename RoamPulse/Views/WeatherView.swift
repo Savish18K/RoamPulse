@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WeatherView: View {
     @State private var viewModel: WeatherViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(viewModel: WeatherViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -35,10 +36,15 @@ struct WeatherView: View {
                 Button {
                     Task { await viewModel.load(refresh: true) }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
-                        .animation(viewModel.isLoading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
-                                   value: viewModel.isLoading)
+                    // A spinning icon is constant motion, so with Reduce Motion on a plain progress view is shown
+                    if reduceMotion && viewModel.isLoading {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                            .animation(viewModel.isLoading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
+                                       value: viewModel.isLoading)
+                    }
                 }
                 .accessibilityLabel("Refresh forecast")
             }
@@ -133,7 +139,7 @@ struct WeatherView: View {
                     Text(weather.condition).font(.title3)
                 }
                 Spacer()
-                Text("\(weather.temperature)°").font(.system(size: 76, weight: .bold))
+                Text("\(weather.temperature)°").scaledFont(size: 76, weight: .bold).lineLimit(1).minimumScaleFactor(0.5)
             }
             HStack {
                 Text("H\(weather.high) L\(weather.low)")
@@ -156,7 +162,7 @@ struct WeatherView: View {
     private func metric(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            Text(value).font(.title3.bold())
+            Text(value).font(.title3.bold()).lineLimit(1).minimumScaleFactor(0.5)
         }
         .card(padding: 14, cornerRadius: 16)
     }

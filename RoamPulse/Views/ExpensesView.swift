@@ -102,15 +102,17 @@ struct ExpensesView: View {
     private func budgetCard(_ trip: Trip) -> some View {
         let status = viewModel.budgetStatus
         return VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            AdaptiveStack {
                 Text("SPENT BUDGET").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Spacer()
+                Spacer(minLength: 0)
                 NavigationLink("View Analytics", value: AppRoute.analytics(trip.id))
                     .font(.subheadline)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            AdaptiveStack(spacing: 6) {
                 Text(viewModel.headline)
                     .font(.title.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .foregroundStyle(status == .overBudget ? .red : .primary)
                 Text(viewModel.headlineCaption).font(.subheadline).foregroundStyle(.secondary)
             }
@@ -411,7 +413,7 @@ struct ExpenseFormView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("LKR").font(.title.bold()).foregroundStyle(.secondary)
                 Text(viewModel.text(for: .total))
-                    .font(.system(size: 56, weight: .bold))
+                    .scaledFont(size: 56, weight: .bold)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                     .contentTransition(.numericText())

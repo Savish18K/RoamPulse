@@ -188,15 +188,15 @@ struct MemoryCard: View {
                 }
             }
 
-            HStack(spacing: 8) {
+            AdaptiveStack(spacing: 8) {
                 if !memory.people.isEmpty {
                     AvatarStack(members: memory.people, size: 24)
                 }
                 Text(footerText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer()
+                    .lineLimit(2)
+                Spacer(minLength: 0)
                 if let mood = memory.mood {
                     MoodBadge(mood: mood)
                 }
@@ -663,7 +663,7 @@ struct MemoryFormView: View {
                     LevelMeterView(levels: viewModel.recordingLevels)
                         .frame(height: 70)
                     Text(viewModel.recordingElapsed.timerText)
-                        .font(.system(size: 40, weight: .light, design: .rounded))
+                        .scaledFont(size: 40, weight: .light, design: .rounded)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                         .accessibilityLabel("Recording, \(viewModel.recordingElapsed) seconds")
@@ -771,16 +771,27 @@ struct MemoryFormView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 Divider().padding(.leading, 16)
-                DatePicker(selection: $viewModel.date, in: viewModel.dateRange) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("When")
-                        Text(viewModel.dayText).font(.caption).foregroundStyle(.secondary)
+                // Label beside the picker, or above it when large text leaves no room
+                ViewThatFits(in: .horizontal) {
+                    DatePicker(selection: $viewModel.date, in: viewModel.dateRange) { whenLabel }
+                    VStack(alignment: .leading, spacing: 8) {
+                        whenLabel
+                        DatePicker("When", selection: $viewModel.date, in: viewModel.dateRange)
+                            .labelsHidden()
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
             .card(padding: 0, fill: Theme.raised, cornerRadius: 14)
+        }
+    }
+
+    private var whenLabel: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("When")
+            Text(viewModel.dayText).font(.caption).foregroundStyle(.secondary)
         }
     }
 

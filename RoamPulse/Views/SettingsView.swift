@@ -140,8 +140,17 @@ struct SettingsView: View {
                 .padding(.vertical, 8)
                 .disabled(!reminders.settings.tripReminders)
                 Divider().padding(.leading, 56)
-                DatePicker(selection: packingTime(reminders), displayedComponents: .hourAndMinute) {
-                    Label("Packing reminder", systemImage: "bag")
+                // Label goes above the time when large text leaves no room beside it
+                ViewThatFits(in: .horizontal) {
+                    DatePicker(selection: packingTime(reminders), displayedComponents: .hourAndMinute) {
+                        Label("Packing reminder", systemImage: "bag")
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Packing reminder", systemImage: "bag")
+                        DatePicker("Packing reminder", selection: packingTime(reminders), displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -509,6 +518,7 @@ struct DeleteAccountView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 44))
+                        .accessibilityHidden(true)
                         .foregroundStyle(.red)
                         .frame(maxWidth: .infinity)
                         .accessibilityHidden(true)

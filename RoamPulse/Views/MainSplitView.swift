@@ -116,16 +116,20 @@ extension View {
 private struct SidebarTripRow: View {
     let trip: Trip
     let now: Date
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(spacing: 12) {
-            TripCoverView(trip: trip, thumbnail: true, showsSymbol: false)
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            // At very large text the photo gives its room to the trip name
+            if !typeSize.isAccessibilitySize {
+                TripCoverView(trip: trip, thumbnail: true, showsSymbol: false)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(trip.name)
                     .font(.headline)
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                 Text(trip.statusText(at: now))
                     .font(.caption)
                     .foregroundStyle(.secondary)

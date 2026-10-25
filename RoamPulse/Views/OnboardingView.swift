@@ -72,7 +72,8 @@ struct OnboardingView: View {
             LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
             VStack(spacing: 8) {
                 Text("RoamPulse")
-                    .font(.system(size: 44, weight: .bold))
+                    .scaledFont(size: 44, weight: .bold)
+                    .accessibilityAddTraits(.isHeader)
                 Text("Plan the trip, share the costs, keep the memories.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.8))

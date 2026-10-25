@@ -147,6 +147,7 @@ struct SettingsRow<Trailing: View>: View {
     var titleColor: Color = .primary
     var showsChevron = true
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(spacing: 14) {
@@ -154,9 +155,19 @@ struct SettingsRow<Trailing: View>: View {
                 .font(.body)
                 .foregroundStyle(iconColor)
                 .frame(width: 26)
-            Text(title).foregroundStyle(titleColor)
-            Spacer()
-            trailing
+                .accessibilityHidden(true)
+            // Very large text puts the value under the title instead of squashing both into one line
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).foregroundStyle(titleColor)
+                    trailing
+                }
+                Spacer(minLength: 0)
+            } else {
+                Text(title).foregroundStyle(titleColor)
+                Spacer()
+                trailing
+            }
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
@@ -191,6 +202,7 @@ struct AboutView: View {
                 VStack(spacing: 18) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                         .font(.system(size: 40, weight: .semibold))
+                        .accessibilityHidden(true)
                         .foregroundStyle(.white)
                         .frame(width: 96, height: 96)
                         .background(Theme.accentGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))

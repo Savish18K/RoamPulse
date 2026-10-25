@@ -47,6 +47,8 @@ struct SectionLabel: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // VoiceOver users can jump between sections with the headings rotor
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -67,6 +69,7 @@ struct StatTile: View {
     let tint: Color
     let title: String
     let value: String
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(spacing: 12) {
@@ -74,6 +77,7 @@ struct StatTile: View {
                 .font(.title3)
                 .foregroundStyle(tint)
                 .frame(width: 28)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
@@ -81,7 +85,7 @@ struct StatTile: View {
                 Text(value)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                     .minimumScaleFactor(0.75)
             }
         }
@@ -153,15 +157,20 @@ struct FloatingActionBar: View {
         HStack(spacing: 6) {
             Button(primaryTitle, action: primaryAction)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 42))
+                .accessibilityShowsLargeContentViewer()
             if let secondaryTitle, let secondaryAction {
                 Button(secondaryTitle, action: secondaryAction)
                     .buttonStyle(SecondaryButtonStyle(fullWidth: false, height: 42))
+                    .accessibilityShowsLargeContentViewer()
             }
         }
         .padding(5)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.stroke))
         .padding(.bottom, 8)
+        // Floats over the content, so like the tab bar it stops growing at large text sizes.
+        // Holding a button shows its title in the Large Content Viewer instead
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 }
 
@@ -210,6 +219,7 @@ struct BackActionBar: View {
             Spacer()
             Button(actionTitle, action: action)
                 .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 44))
+                .accessibilityShowsLargeContentViewer()
         }
         .padding(.leading, 22)
         .padding(.trailing, 8)
@@ -218,6 +228,7 @@ struct BackActionBar: View {
         .overlay(Capsule().strokeBorder(Theme.stroke))
         .padding(.horizontal)
         .padding(.bottom, 4)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 }
 
@@ -280,6 +291,8 @@ struct GlassPill: View {
         .font(.subheadline.weight(.semibold))
         .lineLimit(1)
         .minimumScaleFactor(0.8)
+        // Sits on top of photos with little room
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
@@ -326,7 +339,7 @@ struct FlowLayout: Layout {
         var widest: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = Self.size(of: subview, maxWidth: maxWidth)
             if x > 0 && x + size.width > maxWidth {
                 x = 0
                 y += rowHeight + spacing
@@ -336,7 +349,14 @@ struct FlowLayout: Layout {
             rowHeight = max(rowHeight, size.height)
             widest = max(widest, x - spacing)
         }
-        return CGSize(width: widest, height: y + rowHeight)
+        return CGSize(width: min(widest, maxWidth), height: y + rowHeight)
+    }
+
+    // A chip wider than the whole row (very large text) gets the row's width instead of overflowing
+    private static func size(of subview: LayoutSubview, maxWidth: CGFloat) -> CGSize {
+        let ideal = subview.sizeThatFits(.unspecified)
+        guard ideal.width > maxWidth else { return ideal }
+        return subview.sizeThatFits(ProposedViewSize(width: maxWidth, height: nil))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
@@ -345,7 +365,7 @@ struct FlowLayout: Layout {
         var rowHeight: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = Self.size(of: subview, maxWidth: bounds.width)
             if x > bounds.minX && x + size.width > bounds.maxX {
                 x = bounds.minX
                 y += rowHeight + spacing
@@ -439,19 +459,23 @@ struct HeroHeader<Content: View>: View {
     @Environment(\.isDetailRoot) private var isDetailRoot
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            if let trip {
-                TripCoverView(trip: trip, showsSymbol: false)
-            } else {
-                PhotoView(photo: photo, showsSymbol: false)
+        content
+            .foregroundStyle(.white)
+            .padding(20)
+            // Large text makes the header taller instead of running under the back button
+            .padding(.top, topInset + 52)
+            .frame(maxWidth: .infinity, minHeight: height + topInset, alignment: .bottomLeading)
+            .background {
+                ZStack {
+                    if let trip {
+                        TripCoverView(trip: trip, showsSymbol: false)
+                    } else {
+                        PhotoView(photo: photo, showsSymbol: false)
+                    }
+                    LinearGradient(colors: [.black.opacity(0.35), .clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                }
             }
-            LinearGradient(colors: [.black.opacity(0.35), .clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-            content
-                .foregroundStyle(.white)
-                .padding(20)
-        }
-        .frame(height: height + topInset)
-        .overlay(alignment: .top) {
+            .overlay(alignment: .top) {
             HStack {
                 if !isDetailRoot {
                     Button {
@@ -494,6 +518,8 @@ struct SegmentedTabs: View {
         }
         .background(Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .sensoryFeedback(.selection, trigger: selection)
+        // Segments share one row, so very large text would cut every title. Holding one shows it full size
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var row: some View {
@@ -526,6 +552,9 @@ struct SegmentedTabs: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == index ? .isSelected : [])
+                // The orange dot is colour only, so say it too
+                .accessibilityValue(dots.contains(index) ? "Weather warning" : "")
+                .accessibilityShowsLargeContentViewer()
                 .modifier(DropTarget(index: index, onDrop: onDrop))
             }
         }
@@ -598,5 +627,44 @@ extension View {
             .environment(dependencies.geofences)
             .environment(AppRouter())
             .preferredColorScheme(.dark)
+    }
+}
+
+// HStack normally, VStack at the accessibility text sizes, where side by side items run out of room
+struct AdaptiveStack<Content: View>: View {
+    var alignment: VerticalAlignment = .center
+    var spacing: CGFloat? = nil
+    @ViewBuilder var content: Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: alignment, spacing: spacing))
+        layout { content }
+    }
+}
+
+// A system font at a fixed design size that still grows and shrinks with the user's text size
+private struct ScaledSystemFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    let weight: Font.Weight
+    let design: Font.Design
+
+    init(size: CGFloat, weight: Font.Weight, design: Font.Design, relativeTo style: Font.TextStyle) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+        self.weight = weight
+        self.design = design
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: design))
+    }
+}
+
+extension View {
+    func scaledFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default,
+                    relativeTo style: Font.TextStyle = .largeTitle) -> some View {
+        modifier(ScaledSystemFont(size: size, weight: weight, design: design, relativeTo: style))
     }
 }

@@ -14,6 +14,7 @@ struct ShareTripView: View {
                 VStack(spacing: 20) {
                     Image(systemName: "person.2.badge.plus")
                         .font(.system(size: 40))
+                        .accessibilityHidden(true)
                         .foregroundStyle(.white)
                         .frame(width: 90, height: 90)
                         .background(Theme.accentGradient, in: Circle())
@@ -76,7 +77,9 @@ struct ShareTripView: View {
         VStack(spacing: 14) {
             Text("Invite code").font(.subheadline).foregroundStyle(.secondary)
             Text(viewModel.formattedCode)
-                .font(.system(size: 40, weight: .bold, design: .monospaced))
+                .scaledFont(size: 40, weight: .bold, design: .monospaced)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
                 .textSelection(.enabled)
                 .accessibilityLabel("Invite code \(viewModel.formattedCode.map { String($0) }.joined(separator: " "))")
             Text(viewModel.expiryText).font(.footnote).foregroundStyle(.secondary)
@@ -233,6 +236,7 @@ struct JoinTripView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
+                .accessibilityHidden(true)
                 .foregroundStyle(.green)
                 .symbolEffect(.bounce, value: tripName)
             Text("You've joined \(tripName)").font(.title2.bold())
