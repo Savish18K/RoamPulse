@@ -1,10 +1,12 @@
 # RoamPulse IOS app
-Offline trip planner for iPhone. Plan day-by-day itineraries, pack, split group expenses, get weather advisories for outdoor activities, and keep a private travel journal. It turns voice memories into searchable text and recognises Sri Lankan landmarks in photos, all on the device. Trips are backed up to your account with Firebase. SwiftUI, Core Data, Firebase Auth, Cloud Firestore, Speech, Natural Language, Vision, Core ML.
+Offline trip planner for iPhone and iPad. Plan day-by-day itineraries, pack, split group expenses, get weather advisories for outdoor activities, and keep a private travel journal. It turns voice memories into searchable text and recognises Sri Lankan landmarks in photos, all on the device. Trips are backed up to your account with Firebase, and a Home Screen widget shows the next stop. SwiftUI, Core Data, Firebase Auth, Cloud Firestore, Speech, Natural Language, Vision, Core ML, MapKit, WidgetKit.
 
 ## Running
 
 Open `RoamPulse.xcodeproj` in Xcode 26, pick an iPhone simulator and press Run. Requires iOS 26 or later (on-device SpeechAnalyzer needs it).
-To run on a real iPhone, choose your team under *Signing & Capabilities*.
+To run on a real iPhone or iPad, choose your team under *Signing & Capabilities* for both the **RoamPulse** and
+**RoamPulseWidgetExtension** targets. Both use the App Group `group.com.savishka.RoamPulse` (that's how the widget
+reads the app's data); with automatic signing Xcode registers it the first time.
 
 Xcode downloads the Firebase iOS SDK (Swift Package Manager, 12.x) the first time; this takes a few minutes.
 Without `GoogleService-Info.plist` the app still builds and runs, but the sign-in screen says sign-in isn't set up.
@@ -69,6 +71,7 @@ RoamPulse/
 │   ├── Location/              LocationService (Core Location), GeofencePlanner + GeofenceService (CLMonitor),
 │   │                          PlaceSearch (MapKit search for activity places)
 │   ├── Landmarks/             LandmarkRecognizer (Vision + my Core ML model), LandmarkCatalogue (names, other names, status)
+│   ├── Widget/                WidgetPlanner (which trip and stops) and WidgetService (saves them, reloads the widget)
 │   └── Voice/                 AudioRecorder (AVFoundation), Transcriber (Speech), JournalAnalyzer (Natural Language),
 │                              VoiceJournalService (the pipeline), RecordingFiles (where audio is kept)
 ├── ML/                       MobileCLIP image encoder (Apple) + my landmark classifier (Create ML), see MLTraining/
@@ -82,10 +85,15 @@ RoamPulse/
 ├── ViewModels/                One view model per screen, mirroring Views/
 ├── Components/
 │   ├── Theme.swift            Colours, gradient, formatters
-│   ├── Components.swift       Cards, buttons, chips, avatars, photos, segmented tabs
+│   ├── Components.swift       Cards, buttons, chips, avatars, photos, segmented tabs, Reduce Motion helpers
+│   ├── Device.swift           "iPhone" or "iPad" for messages
 │   └── TripCoverView.swift    A trip's own cover photo (from Core Data) or its sample photo, with a cache
 ├── Views/                     SwiftUI screens
 └── Assets.xcassets
+Shared/                        Compiled into the app and the widget
+├── WidgetSnapshot.swift       What the widget shows (saved as JSON in the App Group), its timeline maths, widget links
+└── NextStopView.swift         The widget's layout for each size
+RoamPulseWidget/               Widget extension: timeline provider, widget and bundle (WidgetKit)
 RoamPulseTests/                Swift Testing suites (run with ⌘U), plus Fakes.swift (fake auth and sync)
 firestore.rules                Firestore security rules (paste into the console)
 ```
@@ -94,7 +102,7 @@ The project uses Xcode folder-synced groups, so any file added to these folders 
 
 ## Current state
 
-Increments 1–16, 18 and 19 are done:
+Increments 1–19 are done:
 
 - **Architecture:** MVVM with a view model per screen; storage, time, weather, sign-in, sync, notifications and
   Face ID sit behind protocols and are injected, so tests use fakes, an in-memory repository and a fixed clock.
@@ -152,13 +160,22 @@ Increments 1–16, 18 and 19 are done:
   no landmark, the form shows its top three guesses and the user chooses; a guess is never saved silently. If
   the note names a different landmark than the photo shows, the form asks which is right. The Landmarks tab in
   Insights and the Statistics screen show what was recognised, chosen, mentioned in a voice note or planned.
+- **Home Screen widget (WidgetKit):** *Next Stop* in small and medium sizes, plus Lock Screen (rectangular and
+  inline). It shows today's trip (or the next one), the day, the next planned stop and the same weather warning
+  the app gives for it, and the current forecast. The app saves a small snapshot into a shared App Group
+  whenever trips or the forecast change, so the widget never needs the database or the network; its timeline
+  moves on by itself as each stop starts and at midnight. Tapping it opens the trip; the medium size also has a
+  Record button that starts a voice memory. Signing out empties it, and on the Lock Screen the stop is hidden
+  while the device is locked.
 - **Accessibility (iPhone and iPad):** every screen works up to the largest accessibility text size. Rows that
   sit side by side (budget and weather cards, settings values, date pickers, Day/Time, card footers) stack
   instead of squashing, the trip tiles go to one per row, photo headers grow with their text, and the big
   numbers (temperatures, totals, countdown, timer) scale with `@ScaledMetric`. The floating bars and day tabs
   stop growing at a size that still fits and show the Large Content Viewer when held instead. VoiceOver reads
   section titles as headings, skips decorative icons, reads each card or row as one item, and says which days
-  have a weather warning. Reduce Motion swaps the spinning weather icon for a plain progress indicator.
+  have a weather warning. With Reduce Motion on, every animation in the app is turned off (map moves, list
+changes, sliding tabs, button presses) and the spinning weather icon becomes a plain progress indicator. Small
+buttons have a 44 pt tap area, and messages say iPhone or iPad to match the device.
 Journal memories, voice notes and photos are never uploaded.
 
 ## Testing on the Simulator
@@ -178,8 +195,11 @@ Journal memories, voice notes and photos are never uploaded.
 - **Accessibility:** *Settings → Accessibility → Display & Text Size → Larger Text* in the Simulator, or
   `xcrun simctl ui booted content_size accessibility-extra-extra-extra-large` (set back with `large`).
   VoiceOver can be checked with Xcode's Accessibility Inspector (*Xcode → Open Developer Tool*).
+- **Widget:** run the app once (so it saves a snapshot), go to the Home Screen, touch and hold an empty spot →
+  *Edit* → *Add Widget* → RoamPulse → *Next Stop*. With `-sampleData` the sample trip appears straight away.
+  The widget gallery shows a sample until the app has saved a real trip.
 - **Sharing:** sign in with two accounts on two simulators (e.g. iPhone 17 and iPhone Air).
-- **Map and arrival alerts:** *Settings → Add NIBM test trip* adds a one-day trip for today around NIBM,
+- **Map and arrival alerts:** *Settings → Add NIBM test trip* (debug builds only) adds a one-day trip for today around NIBM,
   Colombo 7 (lectures at NIBM, Independence Square, the National Museum, Viharamahadevi Park) and opens its map.
   Turn on *Settings → Notifications → Arrival alerts* and allow location (*Always*). Then move the Simulator:
   *Features → Location → Custom Location…* with latitude `6.90639`, longitude `79.87083`, or in Terminal:
