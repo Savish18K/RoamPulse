@@ -217,4 +217,37 @@ struct TripStoreTests {
         #expect(AmountInput.apply(".", to: "12.5") == "12.5")
         #expect(AmountInput.apply("7", to: "0") == "7")
     }
+
+    @Test func aBudgetKeepsItsDecimals() throws {
+        #expect(AmountInput.value(of: "1500.50", locale: Locale(identifier: "en_LK")) == 1500.5)
+        #expect(AmountInput.value(of: "90,000", locale: Locale(identifier: "en_LK")) == 90_000)
+        #expect(AmountInput.value(of: "1,500.50", locale: Locale(identifier: "en_LK")) == 1500.5)
+        #expect(AmountInput.value(of: "1500,50", locale: Locale(identifier: "de_DE")) == 1500.5)
+        #expect(AmountInput.text(for: 33.5) == "33.5", "was \"33.\" when editing")
+
+        let store = makeStore()
+        let form = TripFormViewModel(store: store, clock: FixedClock(now: now))
+        form.name = "Galle weekend"
+        form.destination = "Galle"
+        form.budgetText = "1500.50"
+        #expect(form.save())
+        let saved = try #require(store.trips.first)
+        #expect(saved.budget == 1500.5, "not 150,050")
+
+        // Editing shows it the same way
+        #expect(TripFormViewModel(tripID: saved.id, store: store, clock: FixedClock(now: now)).budgetText == "1500.5")
+    }
+
+    @Test func everyActiveTripGetsItsOwnWeather() async {
+        var ella = trip("Ella", startsIn: 0, days: 3)
+        ella.destination = "Kandy to Ella"
+        var galle = trip("Galle", startsIn: -1, days: 3)
+        galle.destination = "Galle"
+        let clock = FixedClock(now: now)
+        let list = TripsListViewModel(store: makeStore([ella, galle]), clock: clock, weather: MockWeatherService(clock: clock))
+
+        await list.loadWeather()
+        #expect(list.weather[ella.id]?.location == "Ella")
+        #expect(list.weather[galle.id]?.location == "Galle")
+    }
 }

@@ -338,10 +338,25 @@ enum AmountInput {
         return parts.count > 1 ? "\(whole).\(parts[1])" : whole
     }
 
+    // Typed amounts, e.g. "90,000" -> 90000 and "1500.50" -> 1500.5. Commas group thousands,
+    // unless the phone's region writes decimals with a comma
+    static func value(of text: String, locale: Locale = .current) -> Double {
+        let decimalMark: Character = locale.decimalSeparator == "," ? "," : "."
+        var cleaned = ""
+        for character in text {
+            if character.isNumber {
+                cleaned.append(character)
+            } else if character == decimalMark, !cleaned.contains(".") {
+                cleaned.append(".")
+            }
+        }
+        return Double(cleaned) ?? 0
+    }
+
     // e.g. 6200 -> "6200", 33.5 -> "33.5"
     static func text(for amount: Double) -> String {
         let cents = ExpenseCalculator.toCents(amount)
         if cents % 100 == 0 { return String(cents / 100) }
-        return String(format: "%.2f", amount).replacingOccurrences(of: ".?0+$", with: "", options: .regularExpression)
+        return String(format: "%.2f", amount).replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
     }
 }

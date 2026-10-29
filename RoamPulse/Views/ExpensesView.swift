@@ -91,11 +91,13 @@ struct ExpensesView: View {
                 presenting: viewModel.expensePendingDelete
             ) { expense in
                 Button("Delete \(expense.title)", role: .destructive) {
-                    withAnimation { viewModel.confirmDelete() }
+                    withMotion { viewModel.confirmDelete() }
                 }
             } message: { _ in
                 Text("Balances and the settle-up plan will be worked out again.")
             }
+        } else {
+            TripMissingView()
         }
     }
 
@@ -205,9 +207,9 @@ struct ExpenseAnalyticsView: View {
 
                     if mode == 0 {
                         categoryCard
+                    } else {
+                        dailyCard
                     }
-                    SectionLabel("Daily Spent")
-                    dailyCard
 
                     Text("Settle-up Suggestions")
                         .font(.title3.bold())
@@ -237,6 +239,8 @@ struct ExpenseAnalyticsView: View {
             }
             .background(Theme.background)
             .navigationTitle("Analytics")
+        } else {
+            TripMissingView()
         }
     }
 
@@ -275,22 +279,38 @@ struct ExpenseAnalyticsView: View {
         .card(padding: 20)
     }
 
+    @ViewBuilder
     private var dailyCard: some View {
-        Chart(viewModel.dailyTotals) { total in
-            BarMark(
-                x: .value("Day", total.date.text("EEE d")),
-                y: .value("Spent", total.amount),
-                width: .fixed(56)
-            )
-            .foregroundStyle(mode == 1 ? AnyShapeStyle(Theme.accentGradient) : AnyShapeStyle(Color.primary))
-            .cornerRadius(8)
-            .annotation(position: .top) {
-                Text(total.amount.grouped).font(.caption).foregroundStyle(.secondary)
+        if viewModel.dailyTotals.isEmpty {
+            Text("No expenses recorded yet.")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .card(padding: 20)
+        } else {
+            // Plotted by date, so two days with the same weekday and number stay apart
+            Chart(viewModel.dailyTotals) { total in
+                BarMark(
+                    x: .value("Day", total.date, unit: .day),
+                    y: .value("Spent", total.amount),
+                    width: .ratio(0.6)
+                )
+                .foregroundStyle(Theme.accentGradient)
+                .cornerRadius(8)
+                .annotation(position: .top) {
+                    Text(total.amount.compact).font(.caption).foregroundStyle(.secondary)
+                }
+                .accessibilityLabel(total.date.text("EEEE d MMMM"))
+                .accessibilityValue(total.amount.lkr)
             }
+            .chartXAxis {
+                AxisMarks(values: viewModel.dailyTotals.map(\.date)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated).day(), centered: true)
+                }
+            }
+            .chartYAxis(.hidden)
+            .frame(height: 260)
+            .card(padding: 20)
         }
-        .chartYAxis(.hidden)
-        .frame(height: mode == 1 ? 260 : 170)
-        .card(padding: 20)
     }
 
     private func settlementRow(_ settlement: Settlement) -> some View {
@@ -307,7 +327,7 @@ struct ExpenseAnalyticsView: View {
             .padding(.leading, 4)
             Spacer()
             Button("Settle") {
-                withAnimation { viewModel.settle(settlement) }
+                withMotion { viewModel.settle(settlement) }
             }
             .buttonStyle(SecondaryButtonStyle(fullWidth: false, height: 36))
             .accessibilityLabel("Mark \(settlement.from.name) paid \(settlement.to.name) \(settlement.amount.lkr)")
@@ -326,9 +346,10 @@ struct ExpenseAnalyticsView: View {
             }
             Spacer()
             Button("Undo") {
-                withAnimation { viewModel.undo(payment) }
+                withMotion { viewModel.undo(payment) }
             }
             .font(.subheadline)
+            .tapTarget()
         }
         .padding(14)
     }

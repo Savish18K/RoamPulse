@@ -16,7 +16,7 @@ struct TripsListView: View {
                     sectionTitle(viewModel.activeTrips.count == 1 ? "Active Trip" : "Active Trips")
                     ForEach(viewModel.activeTrips) { trip in
                         NavigationLink(value: AppRoute.tripDetail(trip.id)) {
-                            ActiveTripCard(trip: trip, statusText: viewModel.statusText(for: trip), weather: viewModel.weather)
+                            ActiveTripCard(trip: trip, statusText: viewModel.statusText(for: trip), weather: viewModel.weather[trip.id])
                         }
                         .buttonStyle(.plain)
                         .contextMenu { tripMenu(trip) }
@@ -70,12 +70,12 @@ struct TripsListView: View {
             presenting: viewModel.tripPendingDelete
         ) { trip in
             Button("Delete \(trip.name)", role: .destructive) {
-                withAnimation { viewModel.confirmDelete() }
+                withMotion { viewModel.confirmDelete() }
             }
         } message: { _ in
-            Text("Its itinerary, packing list, expenses and memories will be removed from this iPhone.")
+            Text("Its itinerary, packing list, expenses and memories will be removed from this \(Device.name).")
         }
-        .task(id: viewModel.activeTrips.first?.id) { await viewModel.loadWeather() }
+        .task(id: viewModel.activeTrips.map(\.id)) { await viewModel.loadWeather() }
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -249,7 +249,7 @@ struct TripFormView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("Dates")
                             Button {
-                                withAnimation { showDatePickers.toggle() }
+                                withMotion { showDatePickers.toggle() }
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(viewModel.dateRangeText).font(.headline).foregroundStyle(.primary)
@@ -265,7 +265,7 @@ struct TripFormView: View {
                             HStack(spacing: 6) {
                                 Text("LKR").foregroundStyle(.secondary)
                                 TextField("90,000", text: $viewModel.budgetText)
-                                    .keyboardType(.numberPad)
+                                    .keyboardType(.decimalPad)
                                     .font(.headline)
                             }
                             .padding(.vertical, 8)
@@ -334,7 +334,7 @@ struct TripFormView: View {
                 presenting: memberToRemove
             ) { member in
                 Button("Remove \(member.name)", role: .destructive) {
-                    withAnimation { viewModel.remove(member) }
+                    withMotion { viewModel.remove(member) }
                 }
             }
         }
@@ -365,7 +365,7 @@ struct TripFormView: View {
                     if viewModel.hasCustomCover {
                         Button("Use the default photo", role: .destructive) {
                             pickedCover = nil
-                            withAnimation { viewModel.removeCoverPhoto() }
+                            withMotion { viewModel.removeCoverPhoto() }
                         }
                         .font(.subheadline)
                     }
@@ -376,7 +376,7 @@ struct TripFormView: View {
             if let problem = viewModel.coverProblem {
                 Text(problem).font(.caption).foregroundStyle(.red)
             } else {
-                Text("Kept on this iPhone only. Your other devices show a photo of the destination.")
+                Text("Kept on this \(Device.name) only. Your other devices show a photo of the destination.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

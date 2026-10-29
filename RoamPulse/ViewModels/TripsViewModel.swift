@@ -10,7 +10,8 @@ final class TripsListViewModel {
 
     var searchText = ""
     var tripPendingDelete: Trip?
-    private(set) var weather: WeatherSnapshot?
+    // Per active trip
+    private(set) var weather: [UUID: WeatherSnapshot] = [:]
 
     init(store: TripStore, clock: Clock, weather: WeatherService) {
         self.store = store
@@ -65,12 +66,13 @@ final class TripsListViewModel {
         tripPendingDelete = nil
     }
 
+    // Each active trip gets its own forecast
     func loadWeather() async {
-        guard let trip = activeTrips.first else {
-            weather = nil
-            return
+        var loaded: [UUID: WeatherSnapshot] = [:]
+        for trip in activeTrips {
+            loaded[trip.id] = try? await weatherService.forecast(for: trip)
         }
-        weather = try? await weatherService.forecast(for: trip)
+        weather = loaded
     }
 }
 
@@ -136,7 +138,7 @@ final class TripFormViewModel {
             destination = trip.destination
             startDate = trip.startDate
             endDate = trip.endDate
-            budgetText = trip.budget > 0 ? String(Int(trip.budget)) : ""
+            budgetText = trip.budget > 0 ? AmountInput.text(for: trip.budget) : ""
             remindersOn = trip.remindersOn
             companions = trip.members
             originalDestination = trip.destination
@@ -214,7 +216,7 @@ final class TripFormViewModel {
     var dayCount: Int { Calendar.trip.days(from: startDate, to: endDate) + 1 }
 
     // Digits only so "90,000" works too
-    var budget: Double { Double(budgetText.filter(\.isNumber)) ?? 0 }
+    var budget: Double { AmountInput.value(of: budgetText) }
 
     var canSave: Bool {
         datesAreValid && !name.trimmed.isEmpty && !destination.trimmed.isEmpty
