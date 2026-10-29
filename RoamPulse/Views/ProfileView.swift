@@ -107,7 +107,7 @@ struct ProfileView: View {
                 session.signOut()
             }
         } message: {
-            Text("Your trips stay backed up to your account. Journal memories stay on this iPhone and come back when you sign in again.")
+            Text("Your trips stay backed up to your account. Journal memories stay on this \(Device.name) and come back when you sign in again.")
         }
         .safeAreaInset(edge: .bottom) {
             if let trip = store.currentTrip {
@@ -217,7 +217,7 @@ struct AboutView: View {
                         aboutRow("person", "Designed and developed by Savishka Kuruppu")
                         aboutRow("graduationcap", "NIBM • BSc (Hons) Computing • iOS Application Development")
                         aboutRow("icloud", "Trips are backed up to your account with Firebase and work offline.")
-                        aboutRow("lock.shield", "Voice memories, transcripts and photos never leave this iPhone.")
+                        aboutRow("lock.shield", "Voice memories, transcripts and photos never leave this \(Device.name).")
                         aboutRow("cpu", "Speech, Natural Language, Vision and Core ML run on the device.")
                     }
                     .card()

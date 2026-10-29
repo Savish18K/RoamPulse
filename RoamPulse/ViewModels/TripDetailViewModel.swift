@@ -178,12 +178,12 @@ final class TripDetailViewModel {
 
     func deleteMessage(for trip: Trip) -> String {
         if !canDeleteForEveryone {
-            return "\(trip.name) will be removed from this iPhone. It stays for the rest of the group."
+            return "\(trip.name) will be removed from this \(Device.name). It stays for the rest of the group."
         }
         if trip.isShared {
-            return "It will be deleted for everyone on the trip. Your journal memories for it are removed from this iPhone."
+            return "It will be deleted for everyone on the trip. Your journal memories for it are removed from this \(Device.name)."
         }
-        return "Its itinerary, packing list, expenses and memories will be removed from this iPhone and your cloud backup."
+        return "Its itinerary, packing list, expenses and memories will be removed from this \(Device.name) and your cloud backup."
     }
 
     func loadWeather() async {

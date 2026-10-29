@@ -53,7 +53,7 @@ struct OnboardingView: View {
         .background(Theme.background)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 14) {
-                Text("Sign in to back up and share your trips. Voice notes, photos, transcripts and your location never leave this iPhone.")
+                Text("Sign in to back up and share your trips. Voice notes, photos, transcripts and your location never leave this \(Device.name).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -106,7 +106,7 @@ struct LockView: View {
                 .accessibilityHidden(true)
             Text("RoamPulse is locked")
                 .font(.title2.bold())
-            Text("Your memories, photos and expenses\nstay private on this iPhone.")
+            Text("Your memories, photos and expenses\nstay private on this \(Device.name).")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -133,7 +133,7 @@ struct LockView: View {
             }
             .buttonStyle(PrimaryButtonStyle())
             .disabled(appLock.isAuthenticating)
-            Text("If \(appLock.biometry.name) doesn't work, you can use your iPhone passcode.")
+            Text("If \(appLock.biometry.name) doesn't work, you can use your \(Device.name) passcode.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

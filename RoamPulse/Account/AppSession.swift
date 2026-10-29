@@ -89,7 +89,7 @@ final class AppSession {
         do {
             try deleteLocalData(user.uid)
         } catch {
-            store.errorMessage = "Your account was deleted, but some data couldn't be removed from this iPhone. \(error.localizedDescription)"
+            store.errorMessage = "Your account was deleted, but some data couldn't be removed from this \(Device.name). \(error.localizedDescription)"
         }
     }
 
@@ -109,7 +109,7 @@ final class AppSession {
         do {
             store.open(repository: try openRepository(user.uid), user: user)
         } catch {
-            store.errorMessage = "Couldn't open your trips on this iPhone. \(error.localizedDescription)"
+            store.errorMessage = "Couldn't open your trips on this \(Device.name). \(error.localizedDescription)"
         }
         // Start sync first so the sample trips get uploaded too
         store.sync = sync

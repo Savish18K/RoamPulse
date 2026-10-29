@@ -11,7 +11,7 @@ enum LandmarkRecognitionError: LocalizedError {
     case modelUnavailable
 
     var errorDescription: String? {
-        "The landmark model couldn't be loaded on this iPhone."
+        "The landmark model couldn't be loaded on this device."
     }
 }
 

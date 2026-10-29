@@ -125,7 +125,7 @@ struct JoinTripView: View {
                     }
                 }
                 .padding(20)
-                .animation(.snappy, value: viewModel.step)
+                .motionAnimation(.snappy, value: viewModel.step)
             }
             .background(Theme.card)
             .navigationTitle("Join a Trip")

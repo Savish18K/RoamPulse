@@ -148,6 +148,8 @@ struct TravelStats: Equatable {
     struct TripSpending: Identifiable, Equatable {
         let id: UUID
         let name: String
+        // Unique chart label, trips with the same name get their dates added
+        let label: String
         let byCategory: [ExpenseCategory: Double]
         var total: Double { byCategory.values.reduce(0, +) }
     }
@@ -185,6 +187,7 @@ struct TravelStats: Equatable {
         let memories = allMemories.filter { tripIDs.contains($0.tripID) }
 
         var byCategory: [ExpenseCategory: Double] = [:]
+        let nameCounts = Dictionary(trips.map { ($0.name, 1) }, uniquingKeysWith: +)
         let byTrip = trips.map { trip in
             var spending: [ExpenseCategory: Double] = [:]
             for category in ExpenseCategory.allCases {
@@ -192,7 +195,8 @@ struct TravelStats: Equatable {
                 spending[category] = amount
                 byCategory[category, default: 0] += amount
             }
-            return TripSpending(id: trip.id, name: trip.name, byCategory: spending)
+            let label = nameCounts[trip.name, default: 0] > 1 ? "\(trip.name) (\(trip.compactDateRange))" : trip.name
+            return TripSpending(id: trip.id, name: trip.name, label: label, byCategory: spending)
         }
         let budgeted = trips.filter { $0.budget > 0 }
 

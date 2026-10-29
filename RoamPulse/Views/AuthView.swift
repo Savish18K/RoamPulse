@@ -75,11 +75,11 @@ struct AuthView: View {
                             Task { await viewModel.sendPasswordReset() }
                         }
                         .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(viewModel.isWorking)
                     }
 
-                    Label("Your trips are backed up to your account. Voice notes, photos and transcripts stay on this iPhone.",
+                    Label("Your trips are backed up to your account. Voice notes, photos and transcripts stay on this \(Device.name).",
                           systemImage: "lock.shield")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -88,8 +88,8 @@ struct AuthView: View {
                 .padding(.horizontal, 24)
             }
             .padding(.bottom, 32)
-            .animation(.snappy, value: viewModel.mode)
-            .animation(.snappy, value: viewModel.errorMessage)
+            .motionAnimation(.snappy, value: viewModel.mode)
+            .motionAnimation(.snappy, value: viewModel.errorMessage)
         }
         .ignoresSafeArea(edges: .top)
         .scrollDismissesKeyboard(.interactively)

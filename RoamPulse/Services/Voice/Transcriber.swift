@@ -16,7 +16,7 @@ enum TranscriptionError: LocalizedError, Equatable {
         case .languageNotSupported(let language):
             "\(language) can't be written down on this device yet. The recording is saved."
         case .notInSimulator:
-            "The Simulator can't write recordings down; this works on a real iPhone. The recording is saved."
+            "The Simulator can't write recordings down; this works on a real iPhone or iPad. The recording is saved."
         case .nothingHeard:
             "No speech was heard in the recording."
         case .failed(let reason):

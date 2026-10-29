@@ -9,7 +9,7 @@ struct LandmarkRecognitionSection: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel("Landmark")
             if viewModel.isRecognising {
-                Label("Recognising the landmark on your iPhone…", systemImage: "viewfinder")
+                Label("Recognising the landmark on your \(Device.name)…", systemImage: "viewfinder")
                     .foregroundStyle(.secondary)
                     .symbolEffect(.pulse)
             } else if let info = viewModel.landmarkInfo {
@@ -64,7 +64,7 @@ struct LandmarkRecognitionSection: View {
             HStack(spacing: 18) {
                 Button("Change") { showsChooser = true }
                 Button("Not a landmark", role: .destructive) {
-                    withAnimation { viewModel.rejectLandmark() }
+                    withMotion { viewModel.rejectLandmark() }
                 }
             }
             .font(.subheadline.bold())
@@ -81,7 +81,7 @@ struct LandmarkRecognitionSection: View {
                 .font(.subheadline)
             ForEach(result.suggestions) { candidate in
                 Button {
-                    withAnimation { viewModel.chooseLandmark(candidate.name) }
+                    withMotion { viewModel.chooseLandmark(candidate.name) }
                 } label: {
                     HStack {
                         Text(candidate.name)
@@ -98,7 +98,7 @@ struct LandmarkRecognitionSection: View {
             HStack(spacing: 18) {
                 Button("Something else") { showsChooser = true }
                 Button("Not a landmark") {
-                    withAnimation { viewModel.rejectLandmark() }
+                    withMotion { viewModel.rejectLandmark() }
                 }
             }
             .font(.subheadline.bold())
@@ -114,8 +114,8 @@ struct LandmarkRecognitionSection: View {
                   systemImage: "questionmark.circle")
                 .font(.subheadline)
             HStack(spacing: 18) {
-                Button(named) { withAnimation { viewModel.chooseLandmark(named) } }
-                Button(photo) { withAnimation { viewModel.keepPhotoLandmark() } }
+                Button(named) { withMotion { viewModel.chooseLandmark(named) } }
+                Button(photo) { withMotion { viewModel.keepPhotoLandmark() } }
             }
             .font(.subheadline.bold())
         }

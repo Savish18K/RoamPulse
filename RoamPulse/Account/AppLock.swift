@@ -31,7 +31,7 @@ enum AppLockError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .noPasscode: "Set a passcode in the iPhone's Settings to use App Lock."
+        case .noPasscode: "Set a device passcode in Settings to use App Lock."
         case .cancelled: nil
         case .failed(let message): message
         }

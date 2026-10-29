@@ -107,7 +107,9 @@ struct PrimaryButtonStyle: ButtonStyle {
             .background(Capsule().fill(Theme.accentGradient))
             .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .motionAnimation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
     }
 }
 
@@ -124,7 +126,9 @@ struct SecondaryButtonStyle: ButtonStyle {
             .background(Capsule().fill(Theme.fill))
             .overlay(Capsule().strokeBorder(Theme.stroke))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .motionAnimation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
     }
 }
 
@@ -526,7 +530,7 @@ struct SegmentedTabs: View {
         HStack(spacing: 4) {
             ForEach(options.indices, id: \.self) { index in
                 Button {
-                    withAnimation(.snappy(duration: 0.25)) { selection = index }
+                    withMotion(.snappy(duration: 0.25)) { selection = index }
                 } label: {
                     HStack(spacing: 5) {
                         Text(options[index])
@@ -596,7 +600,7 @@ struct ProgressRing: View {
                 .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .animation(.spring, value: progress)
+        .motionAnimation(.spring, value: progress)
     }
 }
 
@@ -627,6 +631,45 @@ extension View {
             .environment(dependencies.geofences)
             .environment(AppRouter())
             .preferredColorScheme(.dark)
+    }
+}
+
+// withAnimation that skips the movement when Reduce Motion is on
+@MainActor
+func withMotion<Result>(_ animation: Animation? = .default, _ body: () throws -> Result) rethrows -> Result {
+    try withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : animation, body)
+}
+
+private struct MotionAnimation<Value: Equatable>: ViewModifier {
+    let animation: Animation?
+    let value: Value
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+extension View {
+    // .animation that turns off with Reduce Motion
+    func motionAnimation<Value: Equatable>(_ animation: Animation?, value: Value) -> some View {
+        modifier(MotionAnimation(animation: animation, value: value))
+    }
+
+    // Grows the tappable area to Apple's 44 pt minimum without changing how it looks
+    func tapTarget(_ size: CGFloat = 44) -> some View {
+        frame(minWidth: size, minHeight: size)
+            .contentShape(Rectangle())
+    }
+}
+
+// Shown when the trip a screen was opened for no longer exists, e.g. deleted on another device
+struct TripMissingView: View {
+    var body: some View {
+        ContentUnavailableView("Trip not found", systemImage: "suitcase",
+                               description: Text("It may have been deleted or left on another device."))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
     }
 }
 
