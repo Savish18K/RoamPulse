@@ -92,7 +92,7 @@ struct MemorySearchView: View {
                     Button {
                         viewModel.query = ""
                     } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).tapTarget()
                     }
                     .accessibilityLabel("Clear search")
                 }

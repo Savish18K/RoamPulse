@@ -7,8 +7,6 @@ struct StatisticsView: View {
     @Environment(AppRouter.self) private var router
     @State private var range = 0
 
-    // Rough LKR to USD rate
-    private let usdRate = 300.3
 
     private var thisYear: Int { Calendar.trip.component(.year, from: store.now) }
 
@@ -123,7 +121,7 @@ struct StatisticsView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
-            Text("~ USD \((stats.totalSpent / usdRate).grouped) • \(stats.averagePerDay.lkr) a day")
+            Text("\(stats.averagePerDay.lkr) a day")
                 .foregroundStyle(.secondary)
 
             if categories.isEmpty {
@@ -164,7 +162,7 @@ struct StatisticsView: View {
             Chart(stats.byTrip) { trip in
                 ForEach(ExpenseCategory.allCases) { category in
                     BarMark(x: .value("Spent", trip.byCategory[category] ?? 0),
-                            y: .value("Trip", trip.name))
+                            y: .value("Trip", trip.label))
                         .foregroundStyle(by: .value("Category", category.rawValue))
                 }
             }

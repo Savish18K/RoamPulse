@@ -165,4 +165,14 @@ struct InsightsTests {
         #expect(home.weatherError == WeatherError.offline.errorDescription)
         #expect(!home.isLoadingWeather)
     }
+
+    @Test func tripsWithTheSameNameAreCountedSeparately() {
+        let first = trip("Ella", from: calendar.date(2026, 3, 1), days: 2)
+        let second = trip("Ella", from: calendar.date(2026, 8, 1), days: 2)
+
+        let stats = TravelStats.make(trips: [first, second], memories: [], now: now, period: .allTime)
+        #expect(stats.tripCount == 2)
+        #expect(stats.byTrip.count == 2)
+        #expect(Set(stats.byTrip.map(\.label)).count == 2, "each gets its own bar in the chart")
+    }
 }

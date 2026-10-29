@@ -48,14 +48,16 @@ struct SettingsView: View {
         .task(id: scenePhase) {
             if scenePhase == .active { await reminders.refreshPermission() }
         }
-        .task(id: store.trips) { exportURL = try? DataExporter.writeFile(store: store, now: store.now) }
+        .task(id: ExportInputs(trips: store.trips, memories: store.memories, profile: store.profile)) {
+            exportURL = try? DataExporter.writeFile(store: store, now: store.now)
+        }
         .confirmationDialog("Delete all trips?", isPresented: $confirmDeleteData, titleVisibility: .visible) {
             Button("Delete All Trips", role: .destructive) {
                 store.deleteAllData()
                 router.selectedTab = .home
             }
         } message: {
-            Text("This removes every trip, expense, memory and photo from this iPhone and deletes your trips from the cloud backup. Your account stays. It can't be undone.")
+            Text("This removes every trip, expense, memory and photo from this \(Device.name) and deletes your trips from the cloud backup. Your account stays. It can't be undone.")
         }
         .alert("Check your email", isPresented: Binding(get: { passwordResetMessage != nil },
                                                         set: { if !$0 { passwordResetMessage = nil } })) {
@@ -329,7 +331,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .accessibilityHint("Opens RoamPulse in the iPhone's Settings")
+        .accessibilityHint("Opens RoamPulse in the \(Device.name)'s Settings")
     }
 
     private func openSystemSettings() {
@@ -379,6 +381,8 @@ struct SettingsView: View {
                     }
                     Divider().padding(.leading, 56)
                 }
+                #if DEBUG
+                // Only in debug builds, for demoing arrival alerts in the Simulator
                 Button {
                     // Straight to its map, ready to move the Simulator to NIBM
                     if let id = store.addNIBMTrip() {
@@ -389,6 +393,7 @@ struct SettingsView: View {
                     SettingsRow(icon: "mappin.and.ellipse", title: "Add NIBM test trip (map & arrivals)")
                 }
                 Divider().padding(.leading, 56)
+                #endif
                 Button {
                     confirmDeleteData = true
                 } label: {
@@ -526,7 +531,7 @@ struct DeleteAccountView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Your account (\(store.profile.email))", systemImage: "person.crop.circle")
                         Label("Your trips, plans and expenses in the cloud backup", systemImage: "icloud")
-                        Label("Everything on this iPhone: trips, journal memories and photos", systemImage: "iphone")
+                        Label("Everything on this \(Device.name): trips, journal memories and photos", systemImage: Device.symbol)
                     }
                     .font(.subheadline)
                     Text("Trips other people shared with you stay for them; you are removed from them.")
@@ -586,7 +591,14 @@ struct DeleteAccountView: View {
     }
 }
 
-// Exports everything on the phone as JSON
+// The export file is written again when any of these change
+private struct ExportInputs: Equatable {
+    var trips: [Trip]
+    var memories: [Memory]
+    var profile: UserProfile
+}
+
+// Exports everything on the device as JSON
 enum DataExporter {
     struct Export: Encodable {
         var app = "RoamPulse"
