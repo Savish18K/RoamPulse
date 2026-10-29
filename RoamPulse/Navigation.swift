@@ -36,7 +36,8 @@ enum AppRoute: Hashable {
     case packing(UUID)
     case expenses(UUID)
     case analytics(UUID)
-    case weather(UUID)
+    // fromTrip: opened from that trip's screen, so "View Day" goes back instead of opening it again
+    case weather(UUID, fromTrip: Bool = false)
     case map(UUID, activityID: UUID? = nil)
     case landmark(String)
     case statistics
@@ -112,6 +113,13 @@ final class AppRouter {
     var tripsPath: [AppRoute] = []
     // Opens Insights with this search
     var insightsSearch: String?
+    // Asks the trip screen underneath to show a day, e.g. from the weather screen
+    var dayRequest: DayRequest?
+
+    struct DayRequest: Equatable {
+        let tripID: UUID
+        let day: Int
+    }
 
     func reset() {
         selectedTab = .home
@@ -132,6 +140,14 @@ final class AppRouter {
         tripsPath = [.tripDetail(id)]
         // On iPad the trip opens straight from the sidebar
         sidebarSelection = .trip(id)
+    }
+
+    // Taps on the Home Screen widget
+    func open(_ link: WidgetLink) {
+        switch link {
+        case .trip(let id): openTrip(id)
+        case .recordMemory(let id): activeSheet = .newMemory(tripID: id, start: .recording)
+        }
     }
 
     func recordMemory(tripID: UUID, activityID: UUID) {
@@ -171,8 +187,8 @@ private struct AppDestinations: ViewModifier {
             ExpensesView(viewModel: ExpensesViewModel(tripID: id, store: store))
         case .analytics(let id):
             ExpenseAnalyticsView(viewModel: ExpenseAnalyticsViewModel(tripID: id, store: store, clock: clock))
-        case .weather(let id):
-            WeatherView(viewModel: WeatherViewModel(tripID: id, store: store, weather: weather))
+        case .weather(let id, let fromTrip):
+            WeatherView(viewModel: WeatherViewModel(tripID: id, store: store, weather: weather), fromTrip: fromTrip)
         case .map(let id, let activityID):
             TripMapView(viewModel: TripMapViewModel(tripID: id, activityID: activityID, store: store, clock: clock,
                                                     places: dependencies.places))

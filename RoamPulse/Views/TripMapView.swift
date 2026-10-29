@@ -27,7 +27,8 @@ struct TripMapView: View {
 
     @State private var position: MapCameraPosition = .automatic
     @AppStorage("mapStyle") private var mapStyle: MapStyleChoice = .standard
-    @State private var route: MKRoute?
+    // Kept with the stop it was worked out for, so a slow answer can't show on another pin
+    @State private var directions: (activityID: UUID, route: MKRoute)?
 
     // False when the map sits next to the day plan on iPad, which has its own day tabs
     private let showsDayPicker: Bool
@@ -41,7 +42,7 @@ struct TripMapView: View {
         if let trip = viewModel.trip {
             content(trip)
         } else {
-            ContentUnavailableView("Trip not found", systemImage: "map")
+            TripMissingView()
         }
     }
 
@@ -119,10 +120,27 @@ struct TripMapView: View {
         .onDisappear { location.stopUpdating(for: "map") }
         .onChange(of: viewModel.selectedDay) { moveCamera(animated: true) }
         .onChange(of: viewModel.pinned.count) { moveCamera(animated: true) }
+        // Tapping a pin (or a stop in the iPad plan) brings it into view
+        .onChange(of: viewModel.selectedActivityID) { _, id in
+            if id != nil { focusOnSelected() }
+        }
         // Only worked out again when the stop changes or the first location fix comes in
         .task(id: "\(viewModel.selectedActivityID?.uuidString ?? "")-\(location.current != nil)") {
-            route = await directions(to: viewModel.selectedActivity)
+            guard let activity = viewModel.selectedActivity else {
+                directions = nil
+                return
+            }
+            let found = await route(to: activity)
+            // Another pin was picked while this one was loading
+            guard !Task.isCancelled, viewModel.selectedActivityID == activity.id else { return }
+            directions = found.map { (activity.id, $0) }
         }
+    }
+
+    // Directions for the selected stop only
+    private var route: MKRoute? {
+        guard let directions, directions.activityID == viewModel.selectedActivityID else { return nil }
+        return directions.route
     }
 
     private func color(for activity: Activity) -> Color {
@@ -147,13 +165,14 @@ struct TripMapView: View {
                 }
                 Spacer(minLength: 0)
                 Button {
-                    withAnimation { viewModel.selectedActivityID = nil }
+                    withMotion { viewModel.selectedActivityID = nil }
                 } label: {
                     Image(systemName: "xmark")
                         .font(.subheadline.bold())
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                         .background(Theme.fill, in: Circle())
+                        .tapTarget()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
@@ -186,7 +205,7 @@ struct TripMapView: View {
 
                 CircleIconButton(systemImage: activity.isDone ? "checkmark.circle.fill" : "checkmark.circle", size: 44,
                                  label: activity.isDone ? "Mark as not visited" : "Mark as visited") {
-                    withAnimation { viewModel.toggleVisited(activity) }
+                    withMotion { viewModel.toggleVisited(activity) }
                 }
                 .foregroundStyle(activity.isDone ? .green : .primary)
             }
@@ -211,6 +230,7 @@ struct TripMapView: View {
                         Task { await viewModel.locateMissing() }
                     }
                     .font(.subheadline.bold())
+                    .tapTarget()
                     .disabled(viewModel.isLocating)
                 }
             }
@@ -244,6 +264,7 @@ struct TripMapView: View {
                 Spacer()
                 Button("Turn on") { turnOnArrivalAlerts() }
                     .font(.subheadline.bold())
+                    .tapTarget()
             }
         } else if !trip.remindersOn {
             Label("Reminders are off for this trip, so arrivals aren't watched.", systemImage: "bell.slash")
@@ -276,8 +297,8 @@ struct TripMapView: View {
     }
 
     // Walking for nearby stops, driving for further ones. Needs a connection, nil offline
-    private func directions(to activity: Activity?) async -> MKRoute? {
-        guard let activity, let destination = activity.coordinate, let current = location.current else { return nil }
+    private func route(to activity: Activity) async -> MKRoute? {
+        guard let destination = activity.coordinate, let current = location.current else { return nil }
         let target = CLLocation(latitude: destination.latitude, longitude: destination.longitude)
         let request = MKDirections.Request()
         request.source = MKMapItem.forCurrentLocation()
@@ -302,10 +323,16 @@ struct TripMapView: View {
         }
         guard let target else { return }
         if animated {
-            withAnimation { position = target }
+            withMotion { position = target }
         } else {
             position = target
         }
+    }
+
+    private func focusOnSelected() {
+        guard let coordinate = viewModel.selectedActivity?.coordinate else { return }
+        let region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 1_500, longitudinalMeters: 1_500)
+        withMotion { position = .region(region) }
     }
 }
 

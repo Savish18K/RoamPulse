@@ -5,6 +5,8 @@ struct TripDetailView: View {
     // The map next to the plan on iPad, made when it's first shown
     @State private var mapViewModel: TripMapViewModel?
     @State private var showsSideMap = false
+    // Set from the context menu, deleted only after the user confirms
+    @State private var activityPendingDelete: Activity?
     // Below this the map column would be too narrow to read, so the plan uses the whole width
     private static let sideMapMinWidth: CGFloat = 760
     @Environment(AppRouter.self) private var router
@@ -36,9 +38,15 @@ struct TripDetailView: View {
                     }
                 }
                 .onChange(of: sideBySide, initial: true) { _, isOn in showsSideMap = isOn }
+                // The weather screen on top asked for a day, show it before going back
+                .onChange(of: router.dayRequest) { _, request in
+                    guard let request, request.tripID == trip.id else { return }
+                    viewModel.selectedDay = min(max(request.day, 1), trip.dayCount)
+                    router.dayRequest = nil
+                }
             }
         } else {
-            ContentUnavailableView("Trip not found", systemImage: "suitcase")
+            TripMissingView()
         }
     }
 
@@ -89,7 +97,7 @@ struct TripDetailView: View {
                         dots: viewModel.advisoryDayIndexes,
                         onDrop: { index, items in
                             guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-                            return withAnimation { viewModel.moveActivity(id, toDayIndex: index) }
+                            return withMotion { viewModel.moveActivity(id, toDayIndex: index) }
                         }
                     )
                     .padding(.horizontal)
@@ -121,6 +129,21 @@ struct TripDetailView: View {
             }
         } message: {
             Text(viewModel.deleteMessage(for: trip))
+        }
+        .confirmationDialog(
+            "Delete this activity?",
+            isPresented: Binding(
+                get: { activityPendingDelete != nil },
+                set: { if !$0 { activityPendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: activityPendingDelete
+        ) { activity in
+            Button("Delete \(activity.title)", role: .destructive) {
+                withMotion { viewModel.delete(activity) }
+            }
+        } message: { _ in
+            Text("Its reminder and map pin are removed too.")
         }
     }
 
@@ -166,7 +189,7 @@ struct TripDetailView: View {
             NavigationLink(value: AppRoute.expenses(trip.id)) {
                 StatTile(icon: "creditcard", tint: .blue, title: "Expenses", value: viewModel.budgetText(for: trip))
             }
-            NavigationLink(value: AppRoute.weather(trip.id)) {
+            NavigationLink(value: AppRoute.weather(trip.id, fromTrip: true)) {
                 StatTile(icon: "cloud.sun.rain", tint: .cyan, title: "Weather", value: viewModel.weatherText(for: trip))
             }
             Button {
@@ -248,11 +271,15 @@ struct TripDetailView: View {
     private func activityRow(_ activity: Activity, trip: Trip, isNext: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Button {
-                withAnimation { viewModel.toggleDone(activity) }
+                withMotion { viewModel.toggleDone(activity) }
             } label: {
                 Image(systemName: activity.isDone ? "checkmark.circle" : "circle")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(activity.isDone ? .green : (isNext ? .blue : .secondary))
+                    // Taller tap area without pushing the row's text down
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .padding(.vertical, -10)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(activity.isDone ? "Mark as not done" : "Mark as done")
@@ -261,7 +288,7 @@ struct TripDetailView: View {
                 // iPad shows the activity on the map next to the plan; iPhone opens the map
                 if let mapViewModel, showsSideMap {
                     Button {
-                        withAnimation { mapViewModel.selectedActivityID = activity.id }
+                        withMotion { mapViewModel.selectedActivityID = activity.id }
                     } label: {
                         activityLabel(activity, isNext: isNext)
                     }
@@ -282,7 +309,7 @@ struct TripDetailView: View {
         }
         .dropDestination(for: String.self) { items, _ in
             guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-            return withAnimation { viewModel.moveActivity(id, onto: activity) }
+            return withMotion { viewModel.moveActivity(id, onto: activity) }
         }
         .contextMenu { activityMenu(activity, trip: trip) }
     }
@@ -333,21 +360,21 @@ struct TripDetailView: View {
             Label("Edit", systemImage: "pencil")
         }
         Button {
-            withAnimation { viewModel.toggleDone(activity) }
+            withMotion { viewModel.toggleDone(activity) }
         } label: {
             Label(activity.isDone ? "Mark as not done" : "Mark as done",
                   systemImage: activity.isDone ? "circle" : "checkmark.circle")
         }
         if viewModel.canMoveUp(activity) {
             Button {
-                withAnimation { viewModel.moveUp(activity) }
+                withMotion { viewModel.moveUp(activity) }
             } label: {
                 Label("Move earlier", systemImage: "arrow.up")
             }
         }
         if viewModel.canMoveDown(activity) {
             Button {
-                withAnimation { viewModel.moveDown(activity) }
+                withMotion { viewModel.moveDown(activity) }
             } label: {
                 Label("Move later", systemImage: "arrow.down")
             }
@@ -356,7 +383,7 @@ struct TripDetailView: View {
             Menu {
                 ForEach(viewModel.otherDays(for: activity), id: \.self) { day in
                     Button("Day \(day)") {
-                        withAnimation { viewModel.move(activity, toDay: day) }
+                        withMotion { viewModel.move(activity, toDay: day) }
                     }
                 }
             } label: {
@@ -365,7 +392,7 @@ struct TripDetailView: View {
         }
         Divider()
         Button(role: .destructive) {
-            withAnimation { viewModel.delete(activity) }
+            activityPendingDelete = activity
         } label: {
             Label("Delete", systemImage: "trash")
         }
@@ -512,6 +539,7 @@ struct ActivityFormView: View {
                 }
                 Spacer()
                 Button("Remove") { viewModel.removePin() }
+                    .tapTarget()
             }
             .font(.caption)
         } else if !viewModel.placeResults.isEmpty {
@@ -575,7 +603,7 @@ struct PackingView: View {
                         ContentUnavailableView {
                             Label("Nothing to pack yet", systemImage: "bag")
                         } actions: {
-                            Button("Use the default list") { withAnimation { viewModel.resetToTemplate() } }
+                            Button("Use the default list") { withMotion { viewModel.resetToTemplate() } }
                         }
                     }
                 }
@@ -608,18 +636,20 @@ struct PackingView: View {
             .alert("Add to \(addItemCategory)", isPresented: $showAddItem) {
                 TextField("Item name", text: $newItemName)
                 Button("Add") {
-                    withAnimation { viewModel.addItem(named: newItemName, category: addItemCategory) }
+                    withMotion { viewModel.addItem(named: newItemName, category: addItemCategory) }
                     newItemName = ""
                 }
                 Button("Cancel", role: .cancel) { newItemName = "" }
             }
             .confirmationDialog("Reset the packing list?", isPresented: $confirmReset, titleVisibility: .visible) {
                 Button("Reset List", role: .destructive) {
-                    withAnimation { viewModel.resetToTemplate() }
+                    withMotion { viewModel.resetToTemplate() }
                 }
             } message: {
                 Text("The list goes back to the default items, all unpacked. Items you added are removed.")
             }
+        } else {
+            TripMissingView()
         }
     }
 
@@ -648,7 +678,7 @@ struct PackingView: View {
                     }
                     Spacer(minLength: 0)
                     Button("+ Add") {
-                        withAnimation { viewModel.add(suggestion) }
+                        withMotion { viewModel.add(suggestion) }
                     }
                     .buttonStyle(PrimaryButtonStyle(fullWidth: false, height: 34))
                     .accessibilityLabel("Add \(suggestion.item)")
@@ -669,7 +699,7 @@ struct PackingView: View {
                 .padding(.bottom, 6)
             ForEach(items) { item in
                 Button {
-                    withAnimation(.snappy) { viewModel.toggle(item) }
+                    withMotion(.snappy) { viewModel.toggle(item) }
                 } label: {
                     HStack {
                         Text(item.name)
@@ -686,7 +716,7 @@ struct PackingView: View {
                 .accessibilityValue(item.isPacked ? "Packed" : "Not packed")
                 .contextMenu {
                     Button(role: .destructive) {
-                        withAnimation { viewModel.delete(item) }
+                        withMotion { viewModel.delete(item) }
                     } label: {
                         Label("Remove from list", systemImage: "trash")
                     }

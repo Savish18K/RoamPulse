@@ -2,10 +2,15 @@ import SwiftUI
 
 struct WeatherView: View {
     @State private var viewModel: WeatherViewModel
+    @Environment(AppRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Opened from the trip's own screen, so its schedule is one step back
+    private let fromTrip: Bool
 
-    init(viewModel: WeatherViewModel) {
+    init(viewModel: WeatherViewModel, fromTrip: Bool = false) {
         _viewModel = State(initialValue: viewModel)
+        self.fromTrip = fromTrip
     }
 
     var body: some View {
@@ -96,7 +101,7 @@ struct WeatherView: View {
             }
         }
 
-        if viewModel.activityAdvisories.count > 1 {
+        if !viewModel.activityAdvisories.isEmpty {
             SectionLabel("Plans at risk").padding(.top, 6)
             VStack(spacing: 0) {
                 ForEach(viewModel.activityAdvisories, id: \.advisory.activityID) { item in
@@ -174,8 +179,19 @@ struct WeatherView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(advisory.title).font(.headline).foregroundStyle(.orange)
                 Text(advisory.message).font(.subheadline).foregroundStyle(.secondary)
-                NavigationLink("View Day \(advisory.day) Schedule", value: AppRoute.tripDetail(viewModel.tripID, day: advisory.day))
-                    .font(.subheadline.bold())
+                Group {
+                    if fromTrip {
+                        Button("View Day \(advisory.day) Schedule") {
+                            router.dayRequest = .init(tripID: viewModel.tripID, day: advisory.day)
+                            dismiss()
+                        }
+                    } else {
+                        NavigationLink("View Day \(advisory.day) Schedule",
+                                       value: AppRoute.tripDetail(viewModel.tripID, day: advisory.day))
+                    }
+                }
+                .font(.subheadline.bold())
+                .frame(minHeight: 44)
             }
         }
         .padding(16)

@@ -15,20 +15,19 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
-                    switch viewModel.state {
-                    case .noTrips:
+                    if let trip = viewModel.featuredTrip {
+                        switch trip.status(at: viewModel.now) {
+                        case .active: activeContent(trip)
+                        case .upcoming: upcomingContent(trip)
+                        case .completed: completedContent(trip)
+                        }
+                    } else {
                         welcome
-                    case .active(let id):
-                        if let trip = store.trip(id) { activeContent(trip) }
-                    case .upcoming(let id):
-                        if let trip = store.trip(id) { upcomingContent(trip) }
-                    case .completed(let id):
-                        if let trip = store.trip(id) { completedContent(trip) }
                     }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 24)
-                .animation(.snappy, value: viewModel.state)
+                .motionAnimation(.snappy, value: viewModel.state)
             }
         }
         .background(Theme.background)
@@ -106,9 +105,10 @@ struct HomeView: View {
                     .buttonStyle(SecondaryButtonStyle())
                 }
                 Button("Explore with sample trips") {
-                    withAnimation { store.loadSampleData() }
+                    withMotion { store.loadSampleData() }
                 }
                 .font(.subheadline.weight(.semibold))
+                .tapTarget()
                 .padding(.top, 4)
             }
 
@@ -116,7 +116,7 @@ struct HomeView: View {
                 featureRow("calendar", .blue, "Plan day by day", "Activities, effort levels and a packing list that works offline.")
                 featureRow("cloud.sun.rain", .cyan, "Weather that knows the plan", "Warnings name the outdoor activity at risk and a better time.")
                 featureRow("rectangle.split.2x1", .green, "Split costs fairly", "Balances and the fewest payments to settle up.")
-                featureRow("book", .purple, "Keep the memories", "Notes and photos linked to each day, kept on this iPhone.")
+                featureRow("book", .purple, "Keep the memories", "Notes and photos linked to each day, kept on this \(Device.name).")
             }
             .card(padding: 18)
         }
@@ -342,6 +342,7 @@ struct HomeView: View {
                         router.activeSheet = .addActivity(tripID: trip.id, day: trip.dayNumber(at: viewModel.now) ?? 1)
                     }
                     .font(.subheadline.bold())
+                    .tapTarget()
                 }
             } else {
                 ForEach(activities.prefix(4)) { activity in
@@ -477,6 +478,7 @@ struct HomeView: View {
                     Spacer()
                     Button("Add Expense") { router.activeSheet = .addExpense(tripID: trip.id) }
                         .font(.subheadline.bold())
+                        .tapTarget()
                 }
             }
         }
