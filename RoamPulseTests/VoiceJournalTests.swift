@@ -271,4 +271,16 @@ struct VoiceJournalTests {
         store.deleteTrip(trip.id)
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
+
+    @Test func aVoiceMemoryThatCantBeSavedSaysWhy() async {
+        let store = TripStore(repository: InMemoryTripRepository(trips: [trip]), clock: FixedClock(now: now))
+        let recorder = FakeRecorder()
+        recorder.failsToStop = true
+        let form = makeForm(store, recorder: recorder)
+
+        await form.startRecording()
+        #expect(!form.save())
+        #expect(form.saveProblem != nil, "shown as an alert instead of Save doing nothing")
+        #expect(store.memories.isEmpty)
+    }
 }

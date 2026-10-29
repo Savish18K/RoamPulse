@@ -107,6 +107,8 @@ final class MemoryFormViewModel {
     private(set) var newRecordingDuration = 0
     private(set) var removesSavedRecording = false
     private(set) var recordingProblem: String?
+    // Why Save didn't work, shown as an alert so it can't be missed below the fold
+    var saveProblem: String?
 
     init(memoryID: UUID? = nil, tripID: UUID? = nil, activityID: UUID? = nil, store: TripStore, clock: Clock,
          recorder: AudioRecording? = nil, voice: VoiceJournalService? = nil,
@@ -385,7 +387,10 @@ final class MemoryFormViewModel {
     func stopRecording() {
         guard let recorder, recorder.isRecording else { return }
         let seconds = Int(recorder.elapsed.rounded())
-        guard let file = recorder.stop() else { return }
+        guard let file = recorder.stop() else {
+            recordingProblem = "The recording couldn't be finished. Try recording again."
+            return
+        }
         // New take replaces the old one
         if let previous = newRecording {
             try? FileManager.default.removeItem(at: previous)
@@ -437,7 +442,11 @@ final class MemoryFormViewModel {
         if isRecording {
             stopRecording()
         }
-        guard canSave, let trip else { return false }
+        saveProblem = nil
+        guard canSave, let trip else {
+            saveProblem = recordingProblem ?? problem ?? "The memory couldn't be saved."
+            return false
+        }
         let existing = existingMemory
         var memory = existing ?? Memory(tripID: trip.id, title: "", date: date, day: day, place: "",
                                         transcript: "", duration: 0, people: [])
@@ -473,6 +482,7 @@ final class MemoryFormViewModel {
                 keptFile = try store.keepRecording(newRecording, for: memory.id)
             } catch {
                 recordingProblem = "The recording couldn't be saved. \(error.localizedDescription)"
+                saveProblem = recordingProblem
                 return false
             }
             self.newRecording = nil

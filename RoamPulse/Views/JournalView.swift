@@ -45,7 +45,7 @@ struct JournalView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
-            .animation(.snappy, value: viewModel.memories)
+            .motionAnimation(.snappy, value: viewModel.memories)
         }
         .background(Theme.background)
         .navigationTitle("Journal")
@@ -67,10 +67,10 @@ struct JournalView: View {
             presenting: viewModel.memoryPendingDelete
         ) { memory in
             Button("Delete “\(memory.title)”", role: .destructive) {
-                withAnimation { viewModel.confirmDelete() }
+                withMotion { viewModel.confirmDelete() }
             }
         } message: { _ in
-            Text("Its text and photos will be removed from this iPhone. It can't be undone.")
+            Text("Its text and photos will be removed from this \(Device.name). It can't be undone.")
         }
     }
 
@@ -96,7 +96,7 @@ struct JournalView: View {
             ContentUnavailableView {
                 Label("No memories yet", systemImage: "book.closed")
             } description: {
-                Text("Write down what happened, add photos and tag who was there. They stay on this iPhone.")
+                Text("Write down what happened, add photos and tag who was there. They stay on this \(Device.name).")
             } actions: {
                 Button("Write a Memory") {
                     router.activeSheet = .newMemory(tripID: viewModel.tripForNewMemory, start: .writing)
@@ -158,6 +158,7 @@ struct MemoryCard: View {
                         .foregroundStyle(.secondary)
                     Button("Type it myself") { router.activeSheet = .typeNote(memory.id) }
                         .font(.subheadline.bold())
+                        .tapTarget()
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,7 +170,7 @@ struct MemoryCard: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             } else if voice.isTranscribing(memory.id) {
-                Label("Writing it down on your iPhone…", systemImage: "waveform")
+                Label("Writing it down on your \(Device.name)…", systemImage: "waveform")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -409,7 +410,7 @@ struct MemoryDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(memory.hasVoice ? "Full Transcript" : "What happened")
                     if voice.isTranscribing(memory.id) {
-                        Label("Writing it down on your iPhone…", systemImage: "waveform")
+                        Label("Writing it down on your \(Device.name)…", systemImage: "waveform")
                             .foregroundStyle(.secondary)
                             .symbolEffect(.variableColor.iterative)
                     } else if memory.transcriptUnavailable || voice.problem(for: memory.id) != nil {
@@ -420,14 +421,17 @@ struct MemoryDetailView: View {
                             if !(voice.problem(for: memory.id)?.isPermanent ?? memory.transcriptUnavailable),
                                store.recordingURL(for: memory) != nil {
                                 Button("Try Again") { Task { await voice.transcribe(memory.id) } }
+                                    .tapTarget()
                             }
                             Button("Type it myself") { router.activeSheet = .typeNote(memory.id) }
+                                .tapTarget()
                         }
                         .font(.subheadline.bold())
                     } else if !memory.hasText && memory.hasVoice && store.recordingURL(for: memory) != nil {
                         Text("Not written down yet.").foregroundStyle(.secondary)
                         Button("Write It Down") { Task { await voice.transcribe(memory.id) } }
                             .font(.subheadline.bold())
+                            .tapTarget()
                     } else if !memory.hasText {
                         Text(memory.photos.isEmpty ? "No text yet." : "Photo memory, no text.")
                             .foregroundStyle(.secondary)
@@ -479,7 +483,7 @@ struct MemoryDetailView: View {
                 if store.deleteMemory(memory.id) { dismiss() }
             }
         } message: {
-            Text("Its text, photos and recording will be removed from this iPhone. It can't be undone.")
+            Text("Its text, photos and recording will be removed from this \(Device.name). It can't be undone.")
         }
     }
 
@@ -630,6 +634,14 @@ struct MemoryFormView: View {
                     .disabled(!viewModel.canSave)
                 }
             }
+            .alert("Couldn't save the memory", isPresented: Binding(
+                get: { viewModel.saveProblem != nil },
+                set: { if !$0 { viewModel.saveProblem = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.saveProblem ?? "")
+            }
             .photosPicker(isPresented: $showsPhotoPicker, selection: $pickedPhotos,
                           maxSelectionCount: max(viewModel.remainingPhotoSlots, 1),
                           matching: .images, preferredItemEncoding: .compatible)
@@ -668,7 +680,7 @@ struct MemoryFormView: View {
                         .contentTransition(.numericText())
                         .accessibilityLabel("Recording, \(viewModel.recordingElapsed) seconds")
                     Button {
-                        withAnimation { viewModel.stopRecording() }
+                        withMotion { viewModel.stopRecording() }
                     } label: {
                         Label("Stop", systemImage: "stop.fill")
                     }
@@ -700,16 +712,16 @@ struct MemoryFormView: View {
                             }
                             Button(role: .destructive) {
                                 playback.stop()
-                                withAnimation { viewModel.removeRecording() }
+                                withMotion { viewModel.removeRecording() }
                             } label: {
                                 Label("Remove Recording", systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis.circle").font(.title2)
+                            Image(systemName: "ellipsis.circle").font(.title2).tapTarget()
                         }
                         .accessibilityLabel("Recording options")
                     }
-                    Text("It's written down on this iPhone after you save.")
+                    Text("It's written down on this \(Device.name) after you save.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -726,7 +738,7 @@ struct MemoryFormView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Start recording")
-                    Text("Tap to record. Recordings and transcripts stay on this iPhone.")
+                    Text("Tap to record. Recordings and transcripts stay on this \(Device.name).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -833,7 +845,7 @@ struct MemoryFormView: View {
                         thumbnail {
                             MemoryPhotoView(photo: photo, thumbnail: true)
                         } remove: {
-                            withAnimation { viewModel.removeExistingPhoto(photo) }
+                            withMotion { viewModel.removeExistingPhoto(photo) }
                         }
                     }
                     ForEach(Array(viewModel.newPhotos.enumerated()), id: \.offset) { index, photo in
@@ -842,7 +854,7 @@ struct MemoryFormView: View {
                                 Image(uiImage: image).resizable().scaledToFill()
                             }
                         } remove: {
-                            withAnimation { viewModel.removeNewPhoto(at: index) }
+                            withMotion { viewModel.removeNewPhoto(at: index) }
                         }
                     }
                 }
@@ -851,7 +863,7 @@ struct MemoryFormView: View {
             if let problem = viewModel.photoProblem {
                 Text(problem).font(.caption).foregroundStyle(.red)
             } else {
-                Text("Only the photos you pick are shared with RoamPulse. They're resized and kept on this iPhone.")
+                Text("Only the photos you pick are shared with RoamPulse. They're resized and kept on this \(Device.name).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -868,8 +880,8 @@ struct MemoryFormView: View {
                         .font(.title3)
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, .black.opacity(0.6))
+                        .tapTarget()
                 }
-                .padding(4)
                 .accessibilityLabel("Remove photo")
             }
     }
@@ -996,7 +1008,7 @@ struct LevelMeterView: View {
             }
         }
         .frame(maxHeight: .infinity)
-        .animation(.linear(duration: 0.05), value: levels)
+        .motionAnimation(.linear(duration: 0.05), value: levels)
         .accessibilityHidden(true)
     }
 }
