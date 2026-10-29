@@ -42,6 +42,7 @@ struct RoamPulseApp: App {
 
 // Picks onboarding / sign in / main app and shows all the sheets
 struct RootView: View {
+    @Environment(AppDependencies.self) private var dependencies
     @Environment(AppRouter.self) private var router
     @Environment(TripStore.self) private var store
     @Environment(AppSession.self) private var session
@@ -68,7 +69,7 @@ struct RootView: View {
         Group {
             if !hasOnboarded {
                 OnboardingView {
-                    withAnimation { hasOnboarded = true }
+                    withMotion { hasOnboarded = true }
                 }
             } else {
                 switch session.state {
@@ -99,8 +100,8 @@ struct RootView: View {
                 PrivacyCover()
             }
         }
-        .animation(.default, value: session.state)
-        .animation(.default, value: appLock.isLocked)
+        .motionAnimation(.default, value: session.state)
+        .motionAnimation(.default, value: appLock.isLocked)
         // Don't lock right after a password sign in
         .onAppear {
             if session.user != nil { appLock.lockOnLaunch() }
@@ -112,6 +113,7 @@ struct RootView: View {
             router.reset()
             if uid == nil {
                 appLock.reset()
+                dependencies.widgets.clear()
                 Task {
                     await reminders.removeAll()
                     await geofences.removeAll()
@@ -136,6 +138,7 @@ struct RootView: View {
             }
             await reminders.reschedule(trips: store.trips)
             await geofences.update(trips: store.trips)
+            await dependencies.widgets.update(trips: store.trips)
         }
         // Arrivals are also checked from live updates while the app is open
         .task(id: geofences.isOn && scenePhase == .active && session.user != nil) {
@@ -144,6 +147,11 @@ struct RootView: View {
             } else {
                 location.stopUpdating(for: "arrivals")
             }
+        }
+        // roampulse:// links from the widget, once signed in and only for trips that still exist
+        .onOpenURL { url in
+            guard session.user != nil, let link = WidgetLink(url: url), store.trip(link.tripID) != nil else { return }
+            router.open(link)
         }
         .sheet(item: $router.activeSheet) { sheet in
             SheetContent(sheet: sheet)
@@ -158,7 +166,10 @@ struct RootView: View {
             case .active:
                 appLock.didBecomeActive()
                 // The plan moves on to a new day overnight
-                Task { await geofences.update(trips: store.trips) }
+                Task {
+                    await geofences.update(trips: store.trips)
+                    await dependencies.widgets.update(trips: store.trips)
+                }
             default: break
             }
         }

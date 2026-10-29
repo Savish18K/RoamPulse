@@ -264,6 +264,8 @@ final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
 @MainActor
 final class FakeRecorder: AudioRecording {
     var allowsMicrophone = true
+    // Stopping gives no file, like a recording that couldn't be finished
+    var failsToStop = false
     private(set) var isRecording = false
     var elapsed: TimeInterval = 0
     var levels: [Double] = [0.2, 0.5]
@@ -279,6 +281,7 @@ final class FakeRecorder: AudioRecording {
     func stop() -> URL? {
         guard isRecording else { return nil }
         isRecording = false
+        if failsToStop { return nil }
         let file = FileManager.default.temporaryDirectory.appending(path: "fake-recording-\(UUID().uuidString).m4a")
         try? Data("fake audio".utf8).write(to: file)
         return file
@@ -358,5 +361,14 @@ final class FakeLandmarkRecognizer: LandmarkRecognizing, @unchecked Sendable {
         calls += 1
         if let error { throw error }
         return results.isEmpty ? RecognitionResult(candidates: [], sceneTags: []) : results.removeFirst()
+    }
+}
+
+// Keeps what the widget would have been sent instead of writing to the App Group
+final class FakeWidgetStore: WidgetStoring {
+    private(set) var saves: [WidgetSnapshot?] = []
+
+    func save(_ snapshot: WidgetSnapshot?) throws {
+        saves.append(snapshot)
     }
 }

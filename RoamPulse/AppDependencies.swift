@@ -21,6 +21,8 @@ final class AppDependencies {
     let places: PlaceSearching
     // My Create ML landmark model, run with Vision
     let landmarkRecognizer: LandmarkRecognizing
+    // Home Screen widget
+    let widgets: WidgetService
     let notificationDelegate = NotificationDelegate()
 
     init(clock: Clock, auth: AuthService, sync: SyncService, isCloudAvailable: Bool,
@@ -33,6 +35,7 @@ final class AppDependencies {
          regionMonitor: RegionMonitoring = NoRegionMonitor(),
          places: PlaceSearching = NoPlaceSearch(),
          landmarkRecognizer: LandmarkRecognizing = VisionLandmarkRecognizer(),
+         widgetStore: WidgetStoring = AppGroupWidgetStore(),
          defaults: UserDefaults = .standard) {
         self.clock = clock
         self.auth = auth
@@ -52,6 +55,7 @@ final class AppDependencies {
                                          defaults: defaults, clock: clock)
         self.places = places
         self.landmarkRecognizer = landmarkRecognizer
+        self.widgets = WidgetService(storage: widgetStore, weather: weather, clock: clock)
     }
 
     // Real services used by the app
@@ -91,11 +95,15 @@ final class AppDependencies {
             Task { await geofences.checkArrival(at: location) }
         }
 
-        // Send a weather alert when a new forecast puts an activity at risk
+        // Send a weather alert when a new forecast puts an activity at risk, and update the widget's warnings
         if let liveWeather = dependencies.weather as? OpenWeatherMapService {
             let reminders = dependencies.reminders
+            let widgets = dependencies.widgets
             liveWeather.onNewForecast = { trip, snapshot in
-                Task { await reminders.sendWeatherAlerts(for: trip, snapshot: snapshot) }
+                Task {
+                    await reminders.sendWeatherAlerts(for: trip, snapshot: snapshot)
+                    await widgets.update(trips: store.trips)
+                }
             }
         }
         if !FirebaseBootstrap.isRunningTests {

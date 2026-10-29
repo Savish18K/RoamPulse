@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		8A1000000000000000000033 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1000000000000000000031 /* FirebaseAuth */; };
 		8A1000000000000000000034 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 8A1000000000000000000032 /* FirebaseFirestore */; };
+		8A100000000000000000004D /* RoamPulseWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8A1000000000000000000040 /* RoamPulseWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -19,22 +20,77 @@
 			remoteGlobalIDString = 8A1000000000000000000006;
 			remoteInfo = RoamPulse;
 		};
+		8A100000000000000000004A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8A1000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A1000000000000000000046;
+			remoteInfo = RoamPulseWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8A100000000000000000004C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8A100000000000000000004D /* RoamPulseWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		8A1000000000000000000001 /* RoamPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RoamPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A1000000000000000000011 /* RoamPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoamPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A1000000000000000000040 /* RoamPulseWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RoamPulseWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8A100000000000000000004E /* Exceptions for "RoamPulseWidget" folder in "RoamPulseWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8A1000000000000000000046 /* RoamPulseWidgetExtension */;
+		};
+		8A100000000000000000004F /* Exceptions for "RoamPulse" folder in "RoamPulse" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8A1000000000000000000006 /* RoamPulse */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		8A1000000000000000000002 /* RoamPulse */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8A100000000000000000004F /* Exceptions for "RoamPulse" folder in "RoamPulse" target */,
+			);
 			path = RoamPulse;
 			sourceTree = "<group>";
 		};
 		8A1000000000000000000012 /* RoamPulseTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RoamPulseTests;
+			sourceTree = "<group>";
+		};
+		8A1000000000000000000041 /* RoamPulseWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8A100000000000000000004E /* Exceptions for "RoamPulseWidget" folder in "RoamPulseWidgetExtension" target */,
+			);
+			path = RoamPulseWidget;
+			sourceTree = "<group>";
+		};
+		8A1000000000000000000042 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -56,6 +112,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A1000000000000000000044 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -63,6 +126,8 @@
 			isa = PBXGroup;
 			children = (
 				8A1000000000000000000002 /* RoamPulse */,
+				8A1000000000000000000042 /* Shared */,
+				8A1000000000000000000041 /* RoamPulseWidget */,
 				8A1000000000000000000012 /* RoamPulseTests */,
 				8A1000000000000000000005 /* Products */,
 			);
@@ -73,6 +138,7 @@
 			children = (
 				8A1000000000000000000001 /* RoamPulse.app */,
 				8A1000000000000000000011 /* RoamPulseTests.xctest */,
+				8A1000000000000000000040 /* RoamPulseWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,13 +153,16 @@
 				8A1000000000000000000007 /* Sources */,
 				8A1000000000000000000003 /* Frameworks */,
 				8A1000000000000000000008 /* Resources */,
+				8A100000000000000000004C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8A100000000000000000004B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8A1000000000000000000002 /* RoamPulse */,
+				8A1000000000000000000042 /* Shared */,
 			);
 			name = RoamPulse;
 			packageProductDependencies = (
@@ -127,6 +196,29 @@
 			productReference = 8A1000000000000000000011 /* RoamPulseTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		8A1000000000000000000046 /* RoamPulseWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A1000000000000000000047 /* Build configuration list for PBXNativeTarget "RoamPulseWidgetExtension" */;
+			buildPhases = (
+				8A1000000000000000000043 /* Sources */,
+				8A1000000000000000000044 /* Frameworks */,
+				8A1000000000000000000045 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8A1000000000000000000041 /* RoamPulseWidget */,
+				8A1000000000000000000042 /* Shared */,
+			);
+			name = RoamPulseWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = RoamPulseWidgetExtension;
+			productReference = 8A1000000000000000000040 /* RoamPulseWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -143,6 +235,9 @@
 					8A1000000000000000000010 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 8A1000000000000000000006;
+					};
+					8A1000000000000000000046 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
@@ -165,6 +260,7 @@
 			targets = (
 				8A1000000000000000000006 /* RoamPulse */,
 				8A1000000000000000000010 /* RoamPulseTests */,
+				8A1000000000000000000046 /* RoamPulseWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -178,6 +274,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		8A1000000000000000000015 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A1000000000000000000045 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -201,6 +304,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A1000000000000000000043 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -208,6 +318,11 @@
 			isa = PBXTargetDependency;
 			target = 8A1000000000000000000006 /* RoamPulse */;
 			targetProxy = 8A100000000000000000001A /* PBXContainerItemProxy */;
+		};
+		8A100000000000000000004B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A1000000000000000000046 /* RoamPulseWidgetExtension */;
+			targetProxy = 8A100000000000000000004A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -336,16 +451,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RoamPulse/RoamPulse.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoamPulse/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "RoamPulse uses Face ID to keep your memories, photos and expenses private.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on this iPhone.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on this iPhone.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on your device.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on your device.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RoamPulse records short voice memories for your travel journal.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on this iPhone.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -369,16 +486,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RoamPulse/RoamPulse.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoamPulse/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "RoamPulse uses Face ID to keep your memories, photos and expenses private.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on this iPhone.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on this iPhone.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "RoamPulse alerts you when you reach a place on today's plan, even when the app is closed. Your location stays on your device.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RoamPulse shows where you are on your trip map and how far the next stop is. Your location stays on your device.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RoamPulse records short voice memories for your travel journal.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on this iPhone.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "RoamPulse transcribes your voice memories on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -433,6 +552,58 @@
 			};
 			name = Release;
 		};
+		8A1000000000000000000048 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = RoamPulseWidget/RoamPulseWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoamPulseWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.savishka.RoamPulse.RoamPulseWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8A1000000000000000000049 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = RoamPulseWidget/RoamPulseWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RoamPulseWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.savishka.RoamPulse.RoamPulseWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -459,6 +630,15 @@
 			buildConfigurations = (
 				8A1000000000000000000017 /* Debug */,
 				8A1000000000000000000018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A1000000000000000000047 /* Build configuration list for PBXNativeTarget "RoamPulseWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A1000000000000000000048 /* Debug */,
+				8A1000000000000000000049 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

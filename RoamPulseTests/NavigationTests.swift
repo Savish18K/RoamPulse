@@ -37,4 +37,15 @@ struct NavigationTests {
         #expect(router.sidebarSelection == .section(.insights))
         #expect(router.insightsSearch == "Ella")
     }
+
+    @Test func widgetTapsOpenTheTripOrStartARecording() {
+        let router = AppRouter()
+        let id = UUID()
+        router.open(.trip(id))
+        #expect(router.tripsPath == [.tripDetail(id)])
+        #expect(router.sidebarSelection == .trip(id))
+
+        router.open(.recordMemory(id))
+        #expect(router.activeSheet?.id == AppSheet.newMemory(tripID: id, start: .recording).id)
+    }
 }
