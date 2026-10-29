@@ -4,90 +4,116 @@
     "total": 10,
     "train": 7,
     "validation": 2,
-    "test": 1
+    "test": 1,
+    "authors": 7,
+    "splitBy": "author"
   },
   {
     "label": "Dambulla Cave Temple",
     "total": 65,
     "train": 45,
     "validation": 10,
-    "test": 10
+    "test": 10,
+    "authors": 24,
+    "splitBy": "author"
   },
   {
     "label": "Gal Vihara",
     "total": 64,
     "train": 45,
     "validation": 10,
-    "test": 9
+    "test": 9,
+    "authors": 33,
+    "splitBy": "author"
   },
   {
     "label": "Galle Fort Lighthouse",
     "total": 80,
     "train": 56,
     "validation": 12,
-    "test": 12
+    "test": 12,
+    "authors": 57,
+    "splitBy": "author"
   },
   {
     "label": "Gangaramaya Temple",
     "total": 30,
     "train": 21,
     "validation": 5,
-    "test": 4
+    "test": 4,
+    "authors": 18,
+    "splitBy": "author"
   },
   {
     "label": "Lotus Tower",
     "total": 30,
     "train": 21,
     "validation": 5,
-    "test": 4
+    "test": 4,
+    "authors": 11,
+    "splitBy": "author"
   },
   {
     "label": "Nallur Kandaswamy Kovil",
     "total": 43,
     "train": 30,
     "validation": 7,
-    "test": 6
+    "test": 6,
+    "authors": 24,
+    "splitBy": "author"
   },
   {
     "label": "Nine Arch Bridge",
     "total": 96,
     "train": 67,
     "validation": 15,
-    "test": 14
+    "test": 14,
+    "authors": 58,
+    "splitBy": "author"
   },
   {
     "label": "Other",
     "total": 150,
     "train": 105,
     "validation": 23,
-    "test": 22
+    "test": 22,
+    "authors": 80,
+    "splitBy": "author"
   },
   {
     "label": "Ruwanwelisaya",
     "total": 71,
     "train": 50,
     "validation": 11,
-    "test": 10
+    "test": 10,
+    "authors": 47,
+    "splitBy": "author"
   },
   {
     "label": "Sigiriya Rock Fortress",
     "total": 40,
     "train": 28,
     "validation": 6,
-    "test": 6
+    "test": 6,
+    "authors": 37,
+    "splitBy": "author"
   },
   {
     "label": "Sri Pada (Adam's Peak)",
     "total": 16,
     "train": 11,
     "validation": 3,
-    "test": 2
+    "test": 2,
+    "authors": 15,
+    "splitBy": "author"
   },
   {
     "label": "Temple of the Tooth",
     "total": 62,
     "train": 44,
     "validation": 9,
-    "test": 9
+    "test": 9,
+    "authors": 33,
+    "splitBy": "author"
   }
 ]

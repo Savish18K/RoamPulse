@@ -23,7 +23,7 @@ is also used mirrored.
 | Sri Pada (Adam's Peak) | 11 | 3 | 2 |
 | Temple of the Tooth | 44 | 9 | 9 |
 
-All of one author's photos are in the same set, so near-duplicates can't inflate the test results.
+Every class was split by author (the smallest has 7 authors), so all of one author's photos are in the same set and near-duplicates can't inflate the test results.
 
 ## Accuracy
 
@@ -50,6 +50,8 @@ All of one author's photos are in the same set, so near-duplicates can't inflate
 | Sigiriya Rock Fortress | 6 | 100.0% | 100.0% |
 | Sri Pada (Adam's Peak) | 2 | 100.0% | 50.0% |
 | Temple of the Tooth | 9 | 100.0% | 77.8% |
+
+Coconut Tree Hill (1 test photo), Gangaramaya Temple (4 test photos), Lotus Tower (4 test photos), Sri Pada (Adam's Peak) (2 test photos) have too few test photos for their precision and recall to mean much. The overall test accuracy is the more reliable figure.
 
 ## Confusion matrix (test set)
 
@@ -95,5 +97,6 @@ precision or better on the validation set.
 | 0.85 | 96.6% | 88.4% |
 | 0.90 | 96.5% | 87.4% |
 
-Chosen threshold: **0.60**. On the test set it gives 97.5%
+Chosen threshold: **0.60**, saved as `confidenceThreshold` in
+`RoamPulse/ML/LandmarkModel.json`, which the app reads when it loads the model. On the test set it gives 97.5%
 precision, and 90.8% of landmark photos are labelled without asking.

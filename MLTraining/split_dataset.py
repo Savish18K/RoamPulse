@@ -68,7 +68,10 @@ def main():
 
         # With only a couple of authors, group by author can't make three sets,
         # so fall back to a shuffled split (fixed seed, so it is repeatable)
-        if len(groups) < 6:
+        author_count = len(groups)
+        split_by = "author"
+        if author_count < 6:
+            split_by = "shuffled"
             shuffled = files[:]
             random.Random(15).shuffle(shuffled)
             groups = {(f"chunk{i}",): shuffled[i::10] for i in range(10)}
@@ -79,12 +82,14 @@ def main():
             os.makedirs(target, exist_ok=True)
             for file in chosen:
                 shutil.copy(os.path.join(folder, file), os.path.join(target, file))
-        summary.append((label, len(files), len(sets["train"]), len(sets["validation"]), len(sets["test"])))
+        summary.append((label, len(files), len(sets["train"]), len(sets["validation"]), len(sets["test"]),
+                        author_count, split_by))
 
+    keys = ["label", "total", "train", "validation", "test", "authors", "splitBy"]
     with open(os.path.join(HERE, "split_summary.json"), "w") as file:
-        json.dump([dict(zip(["label", "total", "train", "validation", "test"], row)) for row in summary], file, indent=2)
+        json.dump([dict(zip(keys, row)) for row in summary], file, indent=2)
     for row in summary:
-        print("{:<28} total {:>3}  train {:>3}  validation {:>3}  test {:>3}".format(*row))
+        print("{:<28} total {:>3}  train {:>3}  validation {:>3}  test {:>3}  authors {:>3}  split by {}".format(*row))
 
 
 if __name__ == "__main__":

@@ -127,6 +127,23 @@ try JSONEncoder().encode(settings).write(to: appFolder.appending(path: "Landmark
 
 // Report
 let labelsSorted = classes.sorted()
+
+// split_dataset.py says which classes it could split by author
+struct SplitRow: Decodable {
+    let label: String
+    let authors: Int?
+    let splitBy: String?
+}
+let splitRows = (try? JSONDecoder().decode([SplitRow].self,
+                                           from: Data(contentsOf: here.appending(path: "split_summary.json")))) ?? []
+let shuffledClasses = splitRows.filter { $0.splitBy == "shuffled" }.map(\.label)
+let fewestAuthors = splitRows.compactMap(\.authors).min() ?? 0
+let splitNote = shuffledClasses.isEmpty
+    ? "Every class was split by author (the smallest has \(fewestAuthors) authors), so all of one author's photos are in the "
+        + "same set and near-duplicates can't inflate the test results."
+    : "Classes were split by author, so near-duplicates can't inflate the test results, except "
+        + shuffledClasses.joined(separator: ", ") + ": with fewer than 6 authors they were shuffled instead, so "
+        + "similar photos by one author may be in more than one set."
 let accuracy = { (set: [Prediction]) in Double(set.filter(\.isCorrect).count) / Double(max(set.count, 1)) }
 let short = Dictionary(uniqueKeysWithValues: labelsSorted.map { label in
     // Initials for the matrix, e.g. "Nine Arch Bridge" -> "NAB"
@@ -154,7 +171,7 @@ for label in labelsSorted {
 }
 report += """
 
-All of one author's photos are in the same set, so near-duplicates can't inflate the test results.
+\(splitNote)
 
 ## Accuracy
 
@@ -176,6 +193,15 @@ for label in labelsSorted {
     let actual = test.filter { $0.truth == label }.count
     report += "| \(label) | \(actual) | \(predicted == 0 ? "–" : percent(Double(truePositives) / Double(predicted))) | "
         + "\(actual == 0 ? "–" : percent(Double(truePositives) / Double(actual))) |\n"
+}
+// A class with one or two test photos is right or wrong by chance
+let smallTestClasses = labelsSorted.compactMap { label -> String? in
+    let count = test.filter { $0.truth == label }.count
+    return count < 5 ? "\(label) (\(count) test \(count == 1 ? "photo" : "photos"))" : nil
+}
+if !smallTestClasses.isEmpty {
+    report += "\n" + smallTestClasses.joined(separator: ", ") + " have too few test photos for their precision and "
+        + "recall to mean much. The overall test accuracy is the more reliable figure.\n"
 }
 report += "\n## Confusion matrix (test set)\n\nRows are the real landmark, columns what the model said.\n\n"
 report += "| | " + labelsSorted.map { short[$0]! }.joined(separator: " | ") + " |\n"
@@ -203,7 +229,8 @@ for result in validationResults {
 }
 report += """
 
-Chosen threshold: **\(String(format: "%.2f", chosen.threshold))**. On the test set it gives \(percent(testAtThreshold.precision))
+Chosen threshold: **\(String(format: "%.2f", chosen.threshold))**, saved as `confidenceThreshold` in
+`RoamPulse/ML/LandmarkModel.json`, which the app reads when it loads the model. On the test set it gives \(percent(testAtThreshold.precision))
 precision, and \(percent(testAtThreshold.coverage)) of landmark photos are labelled without asking.
 
 """

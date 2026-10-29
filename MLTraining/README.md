@@ -25,7 +25,7 @@ openly licensed photos of them and they appear in the sample trips.
 |---|---|---|
 | 1. Collect | `python3 collect_dataset.py` | Downloads openly licensed photos (Wikimedia Commons and Openverse) into `Raw/<label>/`, and records the source page, author and licence of every photo in `dataset_log.csv`. |
 | 2. Review | `swift contact_sheet.swift "<label>"` then `python3 exclude.py "<label>" "<reason>" <numbers>` | Makes numbered contact sheets in `Sheets/` so every photo is checked by eye (running it again later only shows photos added since). Photos that don't show the landmark (views from the top, museum objects, animals, other buildings, old prints) go into `excluded.csv` with the reason. Excluded photos don't count towards a class, so running step 1 again tops it back up. |
-| 3. Split | `python3 split_dataset.py` | Copies the reviewed photos into `Dataset/train`, `validation` and `test` (about 70/15/15). All photos by one author go into the same set, so near-duplicates can't make the test results look better than they are. |
+| 3. Split | `python3 split_dataset.py` | Copies the reviewed photos into `Dataset/train`, `validation` and `test` (about 70/15/15). All photos by one author go into the same set, so near-duplicates can't make the test results look better than they are. A class with fewer than 6 authors can't be split that way and gets a shuffled split instead; `split_summary.json` records the author count and split used for each class. With the current photos every class has at least 7 authors, so all of them were split by author. |
 | 4. Train and evaluate | `swift train_model.swift` | Runs every photo through MobileCLIP with Vision, trains the classifier, evaluates it on the validation and test sets, picks the confidence threshold, saves the classifier into the app and writes `EvaluationReport.md`. Takes a few minutes. |
 
 `Raw/` and `Dataset/` aren't committed (they're large and can be rebuilt with steps 1–3).
@@ -52,15 +52,18 @@ wrong labels, the app only labels a photo by itself when the model's confidence 
 threshold. Otherwise it shows the top three guesses and the user chooses (or says it isn't a landmark).
 
 The threshold is the lowest one that keeps automatic labels at least 95% correct on the **validation**
-set. It's then checked on the **test** set and saved in the model's metadata (`confidenceThreshold`),
-which the app reads when it loads the model. See `EvaluationReport.md` for the numbers.
+set. It's then checked on the **test** set and saved by `train_model.swift` as `confidenceThreshold` in
+`RoamPulse/ML/LandmarkModel.json`, which the app reads when it loads the model. The chosen value is
+**0.60**. The 0.7 in `RecognitionResult.defaultThreshold` is only a fallback for when that file can't be read.
+See `EvaluationReport.md` for the numbers.
 
 ## Limits
 
 - Coconut Tree Hill (10 photos) and Sri Pada (16) have few openly licensed photos that actually show them, so
-  they're the least reliable classes. Ravana Falls was dropped for the same reason (only 3 usable photos).
+  they're the least reliable classes. Their test sets have only 1 and 2 photos, so their per-class figures in
+  `EvaluationReport.md` say very little. Ravana Falls was dropped for the same reason (only 3 usable photos).
 
-- Only these 13 landmarks are known. Anything else falls back to Vision's general scene tags and the
+- Only these 12 landmarks (plus Other) are known. Anything else falls back to Vision's general scene tags and the
   user's own choice.
 - Photos come from public sources, so they're mostly daytime tourist views. Night, close-up or
   unusual angles are recognised less reliably.

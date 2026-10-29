@@ -146,7 +146,7 @@ struct LandmarkCandidate: Identifiable, Hashable {
 
 // What the landmark model and Vision found in one photo
 struct RecognitionResult: Hashable {
-    // Used if the model has no threshold in its metadata
+    // Only used if LandmarkModel.json (0.60, chosen in training) can't be read
     static let defaultThreshold = 0.7
     // The model's class for photos that show none of the landmarks
     static let otherLabel = "Other"
