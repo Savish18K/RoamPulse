@@ -454,6 +454,7 @@
 				CODE_SIGN_ENTITLEMENTS = RoamPulse/RoamPulse.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TUHVT8Q399;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RoamPulse/Info.plist;
@@ -489,6 +490,7 @@
 				CODE_SIGN_ENTITLEMENTS = RoamPulse/RoamPulse.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TUHVT8Q399;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RoamPulse/Info.plist;
@@ -558,6 +560,7 @@
 				CODE_SIGN_ENTITLEMENTS = RoamPulseWidget/RoamPulseWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TUHVT8Q399;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RoamPulseWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
@@ -584,6 +587,7 @@
 				CODE_SIGN_ENTITLEMENTS = RoamPulseWidget/RoamPulseWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TUHVT8Q399;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RoamPulseWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RoamPulse;
