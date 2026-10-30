@@ -32,7 +32,8 @@ struct ShareTripView: View {
                         ProgressView("Making a code…").padding(.vertical, 30)
                     case .failed(let message):
                         ContentUnavailableView {
-                            Label("Couldn't make a code", systemImage: "wifi.exclamationmark")
+                            Label("Couldn't make a code",
+                                  systemImage: viewModel.failedOffline ? "wifi.exclamationmark" : "exclamationmark.icloud")
                         } description: {
                             Text(message)
                         } actions: {

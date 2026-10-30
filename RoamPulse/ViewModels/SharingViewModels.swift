@@ -14,6 +14,8 @@ final class ShareTripViewModel {
     private let store: TripStore
     private let sync: SyncService
     private(set) var state: State = .creating
+    // Picks the icon when it fails: no connection, or the cloud said no
+    private(set) var failedOffline = false
 
     init(tripID: UUID, store: TripStore, sync: SyncService) {
         self.tripID = tripID
@@ -44,6 +46,7 @@ final class ShareTripViewModel {
         do {
             state = .ready(try await sync.createInvite(for: trip, ownerName: store.profile.fullName))
         } catch {
+            failedOffline = (error as? SharingError) == .offline
             state = .failed(error.localizedDescription)
         }
     }

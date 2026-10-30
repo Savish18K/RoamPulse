@@ -98,7 +98,8 @@ final class FirestoreSyncService: SyncService {
         case .createTrip(let id, let record):
             try batch.setData(from: record, forDocument: tripDocument(id))
         case .updateTrip(let id, let record):
-            try batch.setData(from: record, forDocument: tripDocument(id), mergeFields: TripRecord.contentFields)
+            batch.setData(try Self.mergeData(for: record), forDocument: tripDocument(id),
+                          mergeFields: TripRecord.contentFields)
         case .setItem(let tripID, let key, let item):
             let document = tripDocument(tripID).collection(key.collection.rawValue).document(key.id)
             switch item {
@@ -113,6 +114,16 @@ final class FirestoreSyncService: SyncService {
         }
     }
 
+    // Firestore throws (and the app crashes) if a merged field isn't in the data, which happened for trips
+    // without coordinates (e.g. upcoming ones). Missing fields are deleted on the server instead.
+    static func mergeData(for record: TripRecord) throws -> [String: Any] {
+        var data = try Firestore.Encoder().encode(record)
+        for field in TripRecord.contentFields where data[field] == nil {
+            data[field] = FieldValue.delete()
+        }
+        return data
+    }
+
     private var invites: CollectionReference { db.collection("invites") }
 
     func createInvite(for trip: Trip, ownerName: String) async throws -> TripInvite {
@@ -121,8 +132,12 @@ final class FirestoreSyncService: SyncService {
                                            accountID: accountID, now: clock.now)
         let data = try Firestore.Encoder().encode(InviteRecord(invite))
         let document = invites.document(invite.code)
-        try await withTimeout {
-            try await document.setData(data)
+        do {
+            try await withTimeout {
+                try await document.setData(data)
+            }
+        } catch {
+            throw sharingError(for: error)
         }
         return invite
     }
@@ -138,7 +153,7 @@ final class FirestoreSyncService: SyncService {
         } catch let error as SharingError {
             throw error
         } catch {
-            throw SharingError.offline
+            throw Self.isRefused(error) ? SharingError.refused : SharingError.offline
         }
         guard snapshot.exists, let invite = try? snapshot.data(as: InviteRecord.self).invite(code: code) else {
             throw SharingError.inviteNotFound
@@ -150,6 +165,15 @@ final class FirestoreSyncService: SyncService {
 
     func joinTrip(_ invite: TripInvite, as memberID: String?, name: String, initials: String) async throws {
         guard let accountID else { throw SharingError.notSignedIn }
+        do {
+            try await join(invite, as: memberID, name: name, initials: initials, accountID: accountID)
+        } catch {
+            throw sharingError(for: error)
+        }
+    }
+
+    private func join(_ invite: TripInvite, as memberID: String?, name: String, initials: String,
+                      accountID: String) async throws {
         let trip = tripDocument(invite.tripID)
 
         // 1. Add this account to the trip (rules check the invite)
@@ -326,8 +350,17 @@ final class FirestoreSyncService: SyncService {
         mirrors[tripID] = nil
     }
 
+    // "Missing or insufficient permissions" from Firestore, i.e. the security rules said no
+    private static func isRefused(_ error: Error) -> Bool {
+        (error as? FirestoreErrorCode)?.code == .permissionDenied
+    }
+
+    private func sharingError(for error: Error) -> Error {
+        Self.isRefused(error) ? SharingError.refused : error
+    }
+
     private func report(_ error: Error?) {
-        if let error = error as? FirestoreErrorCode, error.code == .permissionDenied {
+        if let error, Self.isRefused(error) {
             errorMessage = "Firestore refused access. Publish the rules in firestore.rules in the Firebase console."
         } else {
             errorMessage = error?.localizedDescription ?? "Unknown error."

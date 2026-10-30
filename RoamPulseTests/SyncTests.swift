@@ -272,4 +272,16 @@ struct SyncTests {
         #expect(sync.changes.count == 2)
         #expect(sync.changes.allSatisfy { $0.new == nil })
     }
+
+    @Test func editingATripWithoutCoordinatesStillUploads() throws {
+        var upcoming = sampleTrip()
+        upcoming.latitude = nil
+        upcoming.longitude = nil
+        let record = TripRecords.header(for: upcoming, accountID: account, updatedAt: now)
+
+        // Every merged field has to be in the data, or Firestore throws and the app crashes
+        let data = try FirestoreSyncService.mergeData(for: record)
+        #expect(Set(TripRecord.contentFields).isSubset(of: Set(data.keys)))
+        #expect(data["budget"] as? Double == upcoming.budget)
+    }
 }

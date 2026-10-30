@@ -133,6 +133,8 @@ enum SharingError: LocalizedError, Equatable {
     case inviteExpired
     case alreadyMember
     case unavailable
+    // Firestore said no: the rules in the Firebase console aren't the ones in firestore.rules
+    case refused
 
     var errorDescription: String? {
         switch self {
@@ -142,6 +144,7 @@ enum SharingError: LocalizedError, Equatable {
         case .inviteExpired: "That code has expired. Ask your friend for a new one."
         case .alreadyMember: "You're already on this trip."
         case .unavailable: "Sharing isn't available, because cloud sync isn't set up."
+        case .refused: "The cloud refused this. Publish the rules in firestore.rules in the Firebase console, then try again."
         }
     }
 }

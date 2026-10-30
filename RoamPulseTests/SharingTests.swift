@@ -161,6 +161,16 @@ struct SharingTests {
         let share = ShareTripViewModel(tripID: trip().id, store: store, sync: sync)
         await share.createInvite()
         #expect(share.state == .failed(SharingError.offline.errorDescription ?? ""))
+        #expect(share.failedOffline)
+    }
+
+    @Test func refusedByTheCloudSaysSoInsteadOfBlamingTheConnection() async {
+        let (store, sync) = makeStore(account: owner, trips: [trip()])
+        sync.sharingError = .refused
+        let share = ShareTripViewModel(tripID: trip().id, store: store, sync: sync)
+        await share.createInvite()
+        #expect(share.state == .failed(SharingError.refused.errorDescription ?? ""))
+        #expect(!share.failedOffline, "not shown as a Wi-Fi problem")
     }
 
     @Test func joiningPicksTheMemberWithYourNameAndJoinsAsThem() async {
