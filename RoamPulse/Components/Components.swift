@@ -447,6 +447,8 @@ struct PhotoView: View {
                 }
             }
             .clipped()
+            // clipped() only hides the overflow, the photo would still catch taps on buttons around it
+            .contentShape(Rectangle())
             .accessibilityHidden(true)
     }
 }

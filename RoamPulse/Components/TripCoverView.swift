@@ -23,6 +23,8 @@ struct StoredImageView<Placeholder: View>: View {
                 }
             }
             .clipped()
+            // clipped() only hides the overflow, the photo would still catch taps on buttons around it
+            .contentShape(Rectangle())
             .task(id: imageID) {
                 loadedImage = await load()
             }

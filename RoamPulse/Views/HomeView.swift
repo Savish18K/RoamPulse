@@ -73,6 +73,8 @@ struct HomeView: View {
             .accessibilityLabel("Profile")
         }
         .padding(.top, 8)
+        // Above the cards, so the profile button always gets its taps
+        .zIndex(1)
     }
 
     private var welcome: some View {
@@ -240,6 +242,8 @@ struct HomeView: View {
             .padding(12)
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        // Taps only inside the card, so the cover can't cover the profile button above it
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens the trip")
     }
