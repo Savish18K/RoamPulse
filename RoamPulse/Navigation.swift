@@ -40,6 +40,8 @@ enum AppRoute: Hashable {
     case weather(UUID, fromTrip: Bool = false)
     case map(UUID, activityID: UUID? = nil)
     case landmark(String)
+    // The journal of one trip, opened from inside that trip
+    case journal(UUID)
     case statistics
     case settings
 }
@@ -194,6 +196,8 @@ private struct AppDestinations: ViewModifier {
                                                     places: dependencies.places))
         case .landmark(let id):
             LandmarkDetailView(landmarkID: id)
+        case .journal(let id):
+            JournalView(viewModel: JournalViewModel(store: store, tripID: id))
         case .statistics:
             StatisticsView()
         case .settings:

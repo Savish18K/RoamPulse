@@ -9,10 +9,18 @@ final class JournalViewModel {
     // nil = all trips
     var tripFilter: UUID?
     var memoryPendingDelete: Memory?
+    // Set when opened from inside a trip: only that trip's memories, no trip chips
+    let fixedTripID: UUID?
 
-    init(store: TripStore) {
+    init(store: TripStore, tripID: UUID? = nil) {
         self.store = store
+        fixedTripID = tripID
+        tripFilter = tripID
     }
+
+    var fixedTrip: Trip? { fixedTripID.flatMap(store.trip) }
+
+    var showsTripFilter: Bool { fixedTripID == nil && tripsWithMemories.count > 1 }
 
     var memories: [Memory] {
         guard let tripFilter else { return store.sortedMemories }
@@ -24,7 +32,7 @@ final class JournalViewModel {
         return store.trips.filter { ids.contains($0.id) }.sorted { $0.startDate > $1.startDate }
     }
 
-    var hasNoMemories: Bool { store.memories.isEmpty }
+    var hasNoMemories: Bool { memories.isEmpty }
 
     // Filtered trip, otherwise the current one
     var tripForNewMemory: UUID? { tripFilter ?? store.currentTrip?.id }

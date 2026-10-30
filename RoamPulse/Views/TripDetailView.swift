@@ -192,9 +192,7 @@ struct TripDetailView: View {
             NavigationLink(value: AppRoute.weather(trip.id, fromTrip: true)) {
                 StatTile(icon: "cloud.sun.rain", tint: .cyan, title: "Weather", value: viewModel.weatherText(for: trip))
             }
-            Button {
-                router.selectedTab = .journal
-            } label: {
+            NavigationLink(value: AppRoute.journal(trip.id)) {
                 StatTile(icon: "waveform", tint: .purple, title: "Journal", value: viewModel.memoriesText(for: trip))
             }
             NavigationLink(value: AppRoute.map(trip.id)) {

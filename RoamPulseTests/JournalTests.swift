@@ -212,4 +212,21 @@ struct JournalTests {
         journal.confirmDelete()
         #expect(store.memories.map(\.title) == ["B"])
     }
+
+    @Test func aTripsOwnJournalOnlyShowsThatTrip() {
+        let store = makeStore()
+        var other = trip
+        other.id = UUID()
+        other.name = "Galle"
+        store.addTrip(other)
+        store.addMemory(Memory(tripID: trip.id, title: "A", date: now, day: 2, place: "Ella", transcript: "a", duration: 0, people: []))
+        store.addMemory(Memory(tripID: other.id, title: "B", date: now, day: 2, place: "Galle", transcript: "b",
+                               duration: 0, people: []))
+
+        let journal = JournalViewModel(store: store, tripID: other.id)
+        #expect(journal.memories.map(\.title) == ["B"])
+        #expect(!journal.showsTripFilter, "no switching to other trips from inside one")
+        #expect(journal.tripForNewMemory == other.id, "new memories go to this trip")
+        #expect(journal.fixedTrip?.name == "Galle")
+    }
 }

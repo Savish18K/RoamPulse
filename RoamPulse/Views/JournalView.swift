@@ -12,7 +12,7 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 14) {
-                if viewModel.tripsWithMemories.count > 1 {
+                if viewModel.showsTripFilter {
                     tripFilter
                 }
 
@@ -49,6 +49,7 @@ struct JournalView: View {
         }
         .background(Theme.background)
         .navigationTitle("Journal")
+        .navigationSubtitle(viewModel.fixedTrip?.name ?? "")
         .safeAreaInset(edge: .bottom) {
             if viewModel.canWriteMemory {
                 FloatingActionBar(
@@ -94,7 +95,8 @@ struct JournalView: View {
     private var emptyState: some View {
         if viewModel.canWriteMemory {
             ContentUnavailableView {
-                Label("No memories yet", systemImage: "book.closed")
+                Label(viewModel.fixedTrip == nil ? "No memories yet" : "No memories for this trip yet",
+                      systemImage: "book.closed")
             } description: {
                 Text("Write down what happened, add photos and tag who was there. They stay on this \(Device.name).")
             } actions: {

@@ -627,8 +627,10 @@ struct HomeView: View {
                     Text("Open Trip")
                 }
                 .buttonStyle(SecondaryButtonStyle(height: 44))
-                Button("Read Memories") { router.selectedTab = .journal }
-                    .buttonStyle(SecondaryButtonStyle(height: 44))
+                NavigationLink(value: AppRoute.journal(trip.id)) {
+                    Text("Read Memories")
+                }
+                .buttonStyle(SecondaryButtonStyle(height: 44))
             }
         }
         .card(padding: 18)
